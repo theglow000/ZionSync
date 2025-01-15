@@ -11,8 +11,6 @@ console.log('MongoDB URI exists:', !!process.env.MONGODB_URI);
 const options = {
   connectTimeoutMS: 10000,
   retryWrites: true,
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
 };
 
 let client;
@@ -26,7 +24,7 @@ try {
     }
     clientPromise = global._mongoClientPromise;
   } else {
-    client = new MongoClient(uri, options);
+    client = new MongoClient(uri);
     clientPromise = client.connect();
   }
 } catch (error) {
