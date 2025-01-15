@@ -9,7 +9,9 @@ const uri = process.env.MONGODB_URI;
 console.log('MongoDB URI exists:', !!process.env.MONGODB_URI);
 
 const options = {
-  connectTimeoutMS: 10000,
+  maxPoolSize: 10,
+  serverSelectionTimeoutMS: 10000,
+  socketTimeoutMS: 45000,
   retryWrites: true,
 };
 
