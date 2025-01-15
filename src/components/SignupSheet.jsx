@@ -22,6 +22,7 @@ const SignupSheet = () => {
   const [availableUsers, setAvailableUsers] = useState([])
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [usersToDelete, setUsersToDelete] = useState([]);
+  const [serviceDetailsError, setServiceDetailsError] = useState(null);
 
   const isFutureDate = (dateStr) => {
     const [month, day, year] = dateStr.split('/').map(num => parseInt(num, 10));
@@ -96,12 +97,12 @@ const SignupSheet = () => {
     }
   };
 
-// Fetch all signups and service details when component mounts
+// Update the useEffect data fetching
 useEffect(() => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // Fetch users first
+      // Fetch users
       console.log('Fetching users...');
       const usersResponse = await fetch('/api/users');
       if (!usersResponse.ok) throw new Error('Failed to fetch users');
@@ -113,30 +114,23 @@ useEffect(() => {
       const signupsResponse = await fetch('/api/signups');
       if (!signupsResponse.ok) throw new Error('Failed to fetch signups');
       const signupsData = await signupsResponse.json();
-      console.log('Fetched signups:', signupsData);
       
-      // Convert array to object format for signups and details
+      // Process signups
       const signupsObj = {};
       const detailsObj = {};
       const userFutureDates = [];
       
       signupsData.forEach(signup => {
         signupsObj[signup.date] = signup.name;
-        detailsObj[signup.date] = {
-          name: signup.name
-        };
-        // Only select future dates for the current user
+        detailsObj[signup.date] = { name: signup.name };
         if (isFutureDate(signup.date)) {
           userFutureDates.push(signup.date);
         }
       });
-
-      // Set signup-related states once
+      
       setSignups(signupsObj);
       setSignupDetails(detailsObj);        
       setSelectedDates(userFutureDates);
-      
-      console.log('Signup Details Object:', detailsObj);
 
       // Fetch completed status
       console.log('Fetching completed status...');
@@ -161,16 +155,15 @@ useEffect(() => {
       }
 
       // Fetch service details
+      console.log('Fetching service details...');
       const detailsResponse = await fetch('/api/service-details');
-      if (!detailsResponse.ok) {
-        throw new Error('Failed to fetch service details');
-      }
+      if (!detailsResponse.ok) throw new Error('Failed to fetch service details');
       const detailsData = await detailsResponse.json();
-      console.log('Raw service details:', detailsData);
-
+      
+      // Process service details
       const serviceDetailsObj = {};
       detailsData.forEach(detail => {
-        if (detail.date) {  // Only process if date exists
+        if (detail.date) {
           serviceDetailsObj[detail.date] = {
             sermonTitle: detail.sermonTitle || '',
             gospelReading: detail.gospelReading || '',
@@ -181,16 +174,19 @@ useEffect(() => {
           };
         }
       });
-
-      console.log('Processed service details:', serviceDetailsObj);
+      
       setServiceDetails(serviceDetailsObj);
     } catch (error) {
-      console.error('Error fetching service details:', error);
+      console.error('Error fetching data:', error);
+      setAlertMessage(`Error loading data: ${error.message}`);
+      setShowAlert(true);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   fetchData();
-}, []); // Empty dependency array means this runs once when component mounts
+}, []);
 
   const dates = [
     { date: '1/5/25', day: 'Sunday', title: 'Epiphany' },
@@ -312,6 +308,7 @@ useEffect(() => {
     }
   };
   
+  // Update handleServiceDetailChange function
   const handleServiceDetailChange = async (date, field, value) => {
     try {
       // Update local state immediately
@@ -323,38 +320,45 @@ useEffect(() => {
         }
       }));
 
-      // Debounce the API call
+      // Clear any existing timeout
       if (window.serviceDetailTimeout) {
         clearTimeout(window.serviceDetailTimeout);
       }
 
+      // Set new timeout for debouncing
       window.serviceDetailTimeout = setTimeout(async () => {
-        const currentDetails = serviceDetails[date] || {};
-        console.log('Sending update for date:', date, 'field:', field, 'value:', value);
+        try {
+          const currentDetails = serviceDetails[date] || {};
 
-        const response = await fetch('/api/service-details', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            date,
-            ...currentDetails,
-            [field]: value
-          })
-        });
+          const response = await fetch('/api/service-details', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              date,
+              ...currentDetails,
+              [field]: value
+            })
+          });
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          if (!response.ok) {
+            throw new Error('Failed to save service details');
+          }
+
+          const result = await response.json();
+          console.log('Save successful:', result);
+        } catch (error) {
+          console.error('Save error:', error);
+          setServiceDetailsError(error.message);
+          setAlertMessage('Failed to save service details');
+          setShowAlert(true);
         }
-
-        const result = await response.json();
-        console.log('Update successful:', result);
       }, 500);
-
     } catch (error) {
-      console.error('Error saving service details:', error);
-      setAlertMessage('Error saving service details');
+      console.error('Error:', error);
+      setServiceDetailsError(error.message);
+      setAlertMessage('Error updating service details');
       setShowAlert(true);
     }
   };
