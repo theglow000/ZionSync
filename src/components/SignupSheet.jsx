@@ -166,6 +166,8 @@ useEffect(() => {
         if (detail.date) {
           serviceDetailsObj[detail.date] = {
             sermonTitle: detail.sermonTitle || '',
+            firstReading: detail.firstReading || '',
+            secondReading: detail.secondReading || '',
             gospelReading: detail.gospelReading || '',
             hymnOne: detail.hymnOne || '',
             sermonHymn: detail.sermonHymn || '',
