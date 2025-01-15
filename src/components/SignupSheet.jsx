@@ -160,7 +160,7 @@ useEffect(() => {
       if (!detailsResponse.ok) throw new Error('Failed to fetch service details');
       const detailsData = await detailsResponse.json();
       
-      // Process service details
+      // Process service details to store them in the state for easy access and manipulation
       const serviceDetailsObj = {};
       detailsData.forEach(detail => {
         if (detail.date) {

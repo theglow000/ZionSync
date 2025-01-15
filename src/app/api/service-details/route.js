@@ -31,6 +31,8 @@ export async function POST(request) {
       date: body.date,
       sermonTitle: body.sermonTitle || '',
       gospelReading: body.gospelReading || '',
+      firstReading: body.firstReading || '',
+      secondReading: body.secondReading || '',
       hymnOne: body.hymnOne || '',
       sermonHymn: body.sermonHymn || '',
       closingHymn: body.closingHymn || '',
