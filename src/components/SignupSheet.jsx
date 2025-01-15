@@ -102,46 +102,55 @@ useEffect(() => {
     setIsLoading(true);
     try {
       // Fetch users first
+      console.log('Fetching users...');
       const usersResponse = await fetch('/api/users');
+      if (!usersResponse.ok) throw new Error('Failed to fetch users');
       const usersData = await usersResponse.json();
       setAvailableUsers(usersData);
+      
       // Fetch signups
+      console.log('Fetching signups...');
       const signupsResponse = await fetch('/api/signups');
+      if (!signupsResponse.ok) throw new Error('Failed to fetch signups');
       const signupsData = await signupsResponse.json();
       console.log('Fetched signups:', signupsData);
+      
       // Convert array to object format for signups and details
       const signupsObj = {};
       const detailsObj = {};
       const userFutureDates = [];
+      
       signupsData.forEach(signup => {
         signupsObj[signup.date] = signup.name;
         detailsObj[signup.date] = {
           name: signup.name
         };
-      // Only select future dates for the current user
-      if (isFutureDate(signup.date)) {
-        userFutureDates.push(signup.date);
-      }
-    });
-    setSignups(signupsObj);
-    setSignupDetails(detailsObj);        
-    setSelectedDates(userFutureDates);
-      
+        // Only select future dates for the current user
+        if (isFutureDate(signup.date)) {
+          userFutureDates.push(signup.date);
+        }
+      });
+
+      // Set signup-related states once
+      setSignups(signupsObj);
+      setSignupDetails(detailsObj);        
+      setSelectedDates(userFutureDates);
       
       console.log('Signup Details Object:', detailsObj);
-      setSignups(signupsObj);
-      setSignupDetails(detailsObj);
 
       // Fetch completed status
+      console.log('Fetching completed status...');
       const completedResponse = await fetch('/api/completed');
+      if (!completedResponse.ok) throw new Error('Failed to fetch completed status');
       const completedData = await completedResponse.json();
+      
       const completedObj = {};
       completedData.forEach(item => {
         completedObj[item.date] = item.completed;
       });
       setCompleted(completedObj);
 
-      // Find the user's signups (keeping your error handling)
+      // Set current user based on signups
       const userSignups = signupsData.filter(signup => signupsObj[signup.date] === signup.name);
       if (userSignups.length > 0) {
         const userSignup = userSignups[0];
@@ -151,9 +160,12 @@ useEffect(() => {
         });
       }
 
-      // Fetch service details (keeping your version with default empty strings)
+      // Fetch service details
+      console.log('Fetching service details...');
       const detailsResponse = await fetch('/api/service-details');
+      if (!detailsResponse.ok) throw new Error('Failed to fetch service details');
       const detailsData = await detailsResponse.json();
+      console.log('Service details received:', detailsData);
       
       const serviceDetailsObj = {};
       detailsData.forEach(detail => {
@@ -166,11 +178,13 @@ useEffect(() => {
           notes: detail.notes || ''
         };
       });
+      
+      console.log('Processed service details:', serviceDetailsObj);
       setServiceDetails(serviceDetailsObj);
 
     } catch (error) {
       console.error('Error fetching data:', error);
-      setAlertMessage('Error loading data. Please refresh the page.');
+      setAlertMessage(`Error loading data: ${error.message}`);
       setShowAlert(true);
       setTimeout(() => setShowAlert(false), 3000);
     } finally {
@@ -311,28 +325,49 @@ useEffect(() => {
           [field]: value
         }
       }));
-  
+
       // Debounce the API call
       const timeoutId = setTimeout(async () => {
-        const updatedDetails = {
-          ...serviceDetails[date],
-          [field]: value,
-          date
-        };
-  
-        // Save to MongoDB
-        await fetch('/api/service-details', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(updatedDetails)
-        });
+        try {
+          // Get all current details for this date
+          const currentDetails = serviceDetails[date] || {};
+
+          const updatedDetails = {
+            date,
+            ...currentDetails,  // Include all existing details
+            [field]: value      // Override with new value
+          };
+
+          console.log('Saving service details:', updatedDetails);
+
+          // Save to MongoDB
+          const response = await fetch('/api/service-details', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updatedDetails)
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+          console.log('Save result:', result);
+
+        } catch (error) {
+          console.error('Error saving service details:', error);
+          setAlertMessage('Error saving service details. Please try again.');
+          setShowAlert(true);
+          setTimeout(() => setShowAlert(false), 3000);
+        }
       }, 500); // Wait 500ms after typing stops before saving
-  
+
       return () => clearTimeout(timeoutId);
     } catch (error) {
-      setAlertMessage('Error saving service details. Please try again.');
+      console.error('Error updating local state:', error);
+      setAlertMessage('Error updating service details. Please try again.');
       setShowAlert(true);
       setTimeout(() => setShowAlert(false), 3000);
     }
