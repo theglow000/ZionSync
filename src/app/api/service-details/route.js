@@ -17,33 +17,40 @@ export async function GET() {
 
 export async function POST(request) {
   try {
-    console.log('Saving service details...');
     const body = await request.json();
-    console.log('Request body:', body);
+    console.log('Received update request:', body);
     
+    if (!body.date) {
+      throw new Error('Date is required');
+    }
+
     const client = await clientPromise;
     const db = client.db("church");
     
-    // Upsert: Update if exists, insert if doesn't
-    const result = await db.collection("serviceDetails").updateOne(
+    // Create a clean update document with only the fields we want to store
+    const updateDoc = {
+      date: body.date,
+      sermonTitle: body.sermonTitle || '',
+      gospelReading: body.gospelReading || '',
+      hymnOne: body.hymnOne || '',
+      sermonHymn: body.sermonHymn || '',
+      closingHymn: body.closingHymn || '',
+      notes: body.notes || '',
+      lastUpdated: new Date()
+    };
+
+    // Use replaceOne instead of updateOne to ensure clean document state
+    const result = await db.collection("serviceDetails").replaceOne(
       { date: body.date },
-      { $set: {
-          date: body.date,
-          sermonTitle: body.sermonTitle || '',
-          gospelReading: body.gospelReading || '',
-          hymnOne: body.hymnOne || '',
-          sermonHymn: body.sermonHymn || '',
-          closingHymn: body.closingHymn || '',
-          notes: body.notes || '',
-          completed: body.completed,
-          lastUpdated: new Date()
-        }
-      },
+      updateDoc,
       { upsert: true }
     );
-    
+
     console.log('Update result:', result);
-    return NextResponse.json(result);
+    
+    // Return the updated document
+    const updated = await db.collection("serviceDetails").findOne({ date: body.date });
+    return NextResponse.json(updated);
   } catch (e) {
     console.error('Error saving service details:', e);
     return NextResponse.json({ error: e.message }, { status: 500 });

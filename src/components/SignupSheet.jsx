@@ -317,7 +317,7 @@ useEffect(() => {
   
   const handleServiceDetailChange = async (date, field, value) => {
     try {
-      // Update local state immediately for responsive typing
+      // Update local state immediately
       setServiceDetails(prev => ({
         ...prev,
         [date]: {
@@ -326,21 +326,23 @@ useEffect(() => {
         }
       }));
 
-      // Debounce the API call
-      const timeoutId = setTimeout(async () => {
-        try {
-          // Get all current details for this date
-          const currentDetails = serviceDetails[date] || {};
+      // Clear any existing timeout
+      if (window.serviceDetailTimeout) {
+        clearTimeout(window.serviceDetailTimeout);
+      }
 
+      // Set new timeout
+      window.serviceDetailTimeout = setTimeout(async () => {
+        try {
+          const currentDetails = serviceDetails[date] || {};
           const updatedDetails = {
             date,
-            ...currentDetails,  // Include all existing details
-            [field]: value      // Override with new value
+            ...currentDetails,
+            [field]: value
           };
 
-          console.log('Saving service details:', updatedDetails);
+          console.log('Sending update:', updatedDetails);
 
-          // Save to MongoDB
           const response = await fetch('/api/service-details', {
             method: 'POST',
             headers: {
@@ -354,20 +356,32 @@ useEffect(() => {
           }
 
           const result = await response.json();
-          console.log('Save result:', result);
+          console.log('Update confirmed:', result);
+
+          // Update local state with the confirmed data
+          setServiceDetails(prev => ({
+            ...prev,
+            [date]: {
+              sermonTitle: result.sermonTitle || '',
+              gospelReading: result.gospelReading || '',
+              hymnOne: result.hymnOne || '',
+              sermonHymn: result.sermonHymn || '',
+              closingHymn: result.closingHymn || '',
+              notes: result.notes || ''
+            }
+          }));
 
         } catch (error) {
-          console.error('Error saving service details:', error);
-          setAlertMessage('Error saving service details. Please try again.');
+          console.error('Failed to save update:', error);
+          setAlertMessage('Failed to save service details. Please try again.');
           setShowAlert(true);
           setTimeout(() => setShowAlert(false), 3000);
         }
-      }, 500); // Wait 500ms after typing stops before saving
+      }, 1000);
 
-      return () => clearTimeout(timeoutId);
     } catch (error) {
-      console.error('Error updating local state:', error);
-      setAlertMessage('Error updating service details. Please try again.');
+      console.error('Error in handleServiceDetailChange:', error);
+      setAlertMessage('Error updating service details.');
       setShowAlert(true);
       setTimeout(() => setShowAlert(false), 3000);
     }
