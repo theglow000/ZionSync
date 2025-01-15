@@ -161,34 +161,31 @@ useEffect(() => {
       }
 
       // Fetch service details
-      console.log('Fetching service details...');
       const detailsResponse = await fetch('/api/service-details');
-      if (!detailsResponse.ok) throw new Error('Failed to fetch service details');
+      if (!detailsResponse.ok) {
+        throw new Error('Failed to fetch service details');
+      }
       const detailsData = await detailsResponse.json();
-      console.log('Service details received:', detailsData);
-      
+      console.log('Raw service details:', detailsData);
+
       const serviceDetailsObj = {};
       detailsData.forEach(detail => {
-        serviceDetailsObj[detail.date] = {
-          sermonTitle: detail.sermonTitle || '',
-          gospelReading: detail.gospelReading || '',
-          hymnOne: detail.hymnOne || '',
-          sermonHymn: detail.sermonHymn || '',
-          closingHymn: detail.closingHymn || '',
-          notes: detail.notes || ''
-        };
+        if (detail.date) {  // Only process if date exists
+          serviceDetailsObj[detail.date] = {
+            sermonTitle: detail.sermonTitle || '',
+            gospelReading: detail.gospelReading || '',
+            hymnOne: detail.hymnOne || '',
+            sermonHymn: detail.sermonHymn || '',
+            closingHymn: detail.closingHymn || '',
+            notes: detail.notes || ''
+          };
+        }
       });
-      
+
       console.log('Processed service details:', serviceDetailsObj);
       setServiceDetails(serviceDetailsObj);
-
     } catch (error) {
-      console.error('Error fetching data:', error);
-      setAlertMessage(`Error loading data: ${error.message}`);
-      setShowAlert(true);
-      setTimeout(() => setShowAlert(false), 3000);
-    } finally {
-      setIsLoading(false);
+      console.error('Error fetching service details:', error);
     }
   };
 
@@ -317,7 +314,7 @@ useEffect(() => {
   
   const handleServiceDetailChange = async (date, field, value) => {
     try {
-      // Immediately update local state
+      // Update local state immediately
       setServiceDetails(prev => ({
         ...prev,
         [date]: {
@@ -325,48 +322,40 @@ useEffect(() => {
           [field]: value
         }
       }));
-  
+
       // Debounce the API call
-      const timeoutId = setTimeout(async () => {
-        try {
-          // Get the latest state at the time of the API call
-          const updatedDetails = {
+      if (window.serviceDetailTimeout) {
+        clearTimeout(window.serviceDetailTimeout);
+      }
+
+      window.serviceDetailTimeout = setTimeout(async () => {
+        const currentDetails = serviceDetails[date] || {};
+        console.log('Sending update for date:', date, 'field:', field, 'value:', value);
+
+        const response = await fetch('/api/service-details', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
             date,
-            ...serviceDetails[date],
+            ...currentDetails,
             [field]: value
-          };
-  
-          console.log('Saving to MongoDB:', updatedDetails);
-  
-          const response = await fetch('/api/service-details', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(updatedDetails)
-          });
-  
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-  
-          const result = await response.json();
-          console.log('Save successful:', result);
-  
-        } catch (error) {
-          console.error('Error saving service details:', error);
-          setAlertMessage('Error saving service details. Please try again.');
-          setShowAlert(true);
-          setTimeout(() => setShowAlert(false), 3000);
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
+
+        const result = await response.json();
+        console.log('Update successful:', result);
       }, 500);
-  
-      return () => clearTimeout(timeoutId);
+
     } catch (error) {
-      console.error('Error updating service details:', error);
-      setAlertMessage('Error updating service details. Please try again.');
+      console.error('Error saving service details:', error);
+      setAlertMessage('Error saving service details');
       setShowAlert(true);
-      setTimeout(() => setShowAlert(false), 3000);
     }
   };
 
