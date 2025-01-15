@@ -167,6 +167,7 @@ useEffect(() => {
           serviceDetailsObj[detail.date] = {
             sermonTitle: detail.sermonTitle || '',
             firstReading: detail.firstReading || '',
+            psalmReading: detail.psalmReading || '',
             secondReading: detail.secondReading || '',
             gospelReading: detail.gospelReading || '',
             hymnOne: detail.hymnOne || '',
@@ -804,6 +805,15 @@ useEffect(() => {
                               className="w-full p-2 border rounded"
                               value={serviceDetails[item.date]?.firstReading || ''}
                               onChange={(e) => handleServiceDetailChange(item.date, 'firstReading', e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Psalm Reading</label>
+                            <input
+                              type="text"
+                              className="w-full p-2 border rounded"
+                              value={serviceDetails[item.date]?.psalmReading || ''}
+                              onChange={(e) => handleServiceDetailChange(item.date, 'psalmReading', e.target.value)}
                             />
                           </div>
                           <div>
