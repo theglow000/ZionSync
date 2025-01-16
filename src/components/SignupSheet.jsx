@@ -26,6 +26,7 @@ const SignupSheet = () => {
   const [usersToDelete, setUsersToDelete] = useState([]);
   const [serviceDetailsError, setServiceDetailsError] = useState(null);
   const [showUserSelector, setShowUserSelector] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
 
   const isFutureDate = (dateStr) => {
     const [month, day, year] = dateStr.split('/').map(num => parseInt(num, 10));
@@ -441,20 +442,23 @@ useEffect(() => {
       // Create events array for ICS
       const events = eventsToDownload.map(event => {
         const [month, day, parsedYear] = event.date.split('/').map(num => parseInt(num, 10));
-        const year = 2000 + parsedYear; // Fix the year issue
+        const year = 2000 + parsedYear;
         
         return {
           uid: `proclaim-presentation-${event.date}`,
-          start: [year, month, day, 9, 0], // Assuming 9 AM start time
-          duration: { hours: 1, minutes: 0 }, // Assuming 1 hour duration
+          start: [year, month, day, 9, 0],
+          duration: { hours: 1, minutes: 0 },
           title: `Proclaim Presentation - ${event.title}`,
           description: 'Thank you for signing up to build the Proclaim Presentation for this service.',
           url: 'https://zion-presentation-sign-up.vercel.app/',
           alarms: [{
-            action: 'display',
-            trigger: { days: 3, before: true },
-            description: 'Reminder: Proclaim presentation'
-          }]
+            trigger: '-P3D',
+            description: 'Proclaim Presentation Reminder',
+            action: 'display'
+          }],
+          status: 'CONFIRMED',
+          busyStatus: 'BUSY',
+          sequence: 0
         };
       });
 
@@ -672,26 +676,42 @@ useEffect(() => {
                     <Calendar className="w-4 h-4 mr-1" />
                     Download Events ({selectedDates.filter(date => signups[date] === currentUser?.name).length})
                   </button>
-                  <div className="relative group">
-                    <button className="w-6 h-6 rounded-full bg-[#6B8E23] bg-opacity-20 text-[#6B8E23] flex items-center justify-center font-bold hover:bg-opacity-30">
+                  <div className="relative">
+                    <button
+                      onClick={() => {
+                        console.log('Tooltip button clicked'); // Debug line
+                        setShowTooltip(!showTooltip);
+                      }}
+                      className="w-6 h-6 rounded-full bg-[#6B8E23] bg-opacity-20 text-[#6B8E23] flex items-center justify-center font-bold hover:bg-opacity-30"
+                    >
                       ?
                     </button>
-                    <div className="absolute right-0 top-full mt-2 w-72 bg-white p-3 rounded-lg shadow-lg invisible group-hover:visible z-50 text-sm border border-gray-200 text-slate-900">
-                      <p className="font-bold mb-2 text-slate-900">How to import events:</p>
-                      <p className="font-bold mt-2 text-slate-900">Google Calendar:</p>
-                      <ol className="list-decimal ml-4 mb-2">
-                        <li className="text-slate-900">Open Google Calendar</li>
-                        <li className="text-slate-900">Click + next to "Other Calendars"</li>
-                        <li className="text-slate-900">Select "Import"</li>
-                        <li className="text-slate-900">Upload the downloaded file</li>
-                      </ol>
-                      <p className="font-bold mt-2 text-slate-900">Outlook:</p>
-                      <ol className="list-decimal ml-4">
-                        <li className="text-slate-900">Double-click downloaded file</li>
-                        <li className="text-slate-900">Outlook will open automatically</li>
-                        <li className="text-slate-900">Click "Save & Close"</li>
-                      </ol>
-                    </div>
+                    {showTooltip && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+                        <div className="bg-white rounded-lg p-4 max-w-sm w-full relative">
+                          <button
+                            onClick={() => setShowTooltip(false)}
+                            className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                          <div className="mt-4">
+                            <p className="font-bold mb-2 text-slate-900">How to import events:</p>
+                            <p className="font-bold mt-2 text-slate-900">After downloading:</p>
+                            <ol className="list-decimal ml-4 mb-4">
+                              <li className="text-slate-900 mb-2">Tap the downloaded file when it appears at the top or bottom of your screen</li>
+                              <li className="text-slate-900 mb-2">Select either:
+                                <ul className="list-disc ml-4 mt-1">
+                                  <li className="text-slate-900">Google Calendar to add to your Google Calendar</li>
+                                  <li className="text-slate-900">Outlook to add to your Outlook Calendar</li>
+                                </ul>
+                              </li>
+                              <li className="text-slate-900">Follow the app's prompts to complete the import</li>
+                            </ol>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -967,11 +987,15 @@ useEffect(() => {
                     currentUser={currentUser}
                     selectedDates={selectedDates}
                     serviceDetails={serviceDetails}
+                    setSignups={setSignups}
+                    setSignupDetails={setSignupDetails}
+                    setSelectedDates={setSelectedDates}
+                    setAlertMessage={setAlertMessage}
+                    setShowAlert={setShowAlert}
                     onExpand={(date) => setExpanded(prev => ({
                       ...prev,
                       [date]: !prev[date]
                     }))}
-                    onSignup={handleSignup}
                     onRemove={handleRemoveReservation}
                     onComplete={handleCompleted}
                     onSelectDate={(date) => {

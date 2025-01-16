@@ -9,13 +9,18 @@ const MobileServiceCard = ({
     currentUser,
     selectedDates,
     serviceDetails,
+    setSignups,
+    setSignupDetails,
+    setSelectedDates,
+    setAlertMessage,
+    setShowAlert,
     onExpand,
-    onSignup,
     onRemove,
     onComplete,
     onSelectDate,
     onServiceDetailChange
 }) => {
+
     return (
         <div className="bg-white rounded-lg shadow-sm border p-4 mb-2">
             {/* Header */}
@@ -68,7 +73,59 @@ const MobileServiceCard = ({
                     </div>
                 ) : (
                     <button
-                        onClick={() => onSignup(item.date)}
+                        onClick={async () => {
+                            if (!currentUser) {
+                                setAlertMessage('Please select a user first');
+                                setShowAlert(true);
+                                setTimeout(() => setShowAlert(false), 3000);
+                                return;
+                            }
+
+                            try {
+                                await fetch('/api/signups', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify({
+                                        date: item.date,
+                                        name: currentUser.name
+                                    })
+                                });
+
+                                // Update local state
+                                setSignups(prev => ({
+                                    ...prev,
+                                    [item.date]: currentUser.name
+                                }));
+                                setSignupDetails(prev => ({
+                                    ...prev,
+                                    [item.date]: {
+                                        name: currentUser.name
+                                    }
+                                }));
+
+                                const [itemMonth, itemDay, shortYear] = item.date.split('/').map(num => parseInt(num, 10));
+                                const itemYear = 2000 + shortYear;
+                                const itemDate = new Date(itemYear, itemMonth - 1, itemDay);
+
+                                const today = new Date('2025-01-14');
+                                today.setHours(0, 0, 0, 0);
+
+                                if (itemDate > today) {
+                                    setSelectedDates(prev => [...prev, item.date]);
+                                }
+
+                                setAlertMessage('Successfully signed up!');
+                                setShowAlert(true);
+                                setTimeout(() => setShowAlert(false), 3000);
+                            } catch (error) {
+                                console.error('Error saving signup:', error);
+                                setAlertMessage('Error saving signup. Please try again.');
+                                setShowAlert(true);
+                                setTimeout(() => setShowAlert(false), 3000);
+                            }
+                        }}
                         className="w-full p-2 border rounded-md text-[#6B8E23] border-[#6B8E23] hover:bg-[#6B8E23] hover:text-white transition-colors"
                     >
                         Sign Up
