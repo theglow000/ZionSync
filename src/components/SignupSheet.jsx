@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { ChevronDown, ChevronUp, Check, X, Mail, UserCircle, Trash2, Calendar } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import MobileServiceCard from './MobileServiceCard';
+import MobileUserSelect from './MobileUserSelect';
 import './ui/table.css'
 
 const SignupSheet = () => {
@@ -23,6 +25,7 @@ const SignupSheet = () => {
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [usersToDelete, setUsersToDelete] = useState([]);
   const [serviceDetailsError, setServiceDetailsError] = useState(null);
+  const [showUserSelector, setShowUserSelector] = useState(false);
 
   const isFutureDate = (dateStr) => {
     const [month, day, year] = dateStr.split('/').map(num => parseInt(num, 10));
@@ -446,7 +449,7 @@ useEffect(() => {
           duration: { hours: 1, minutes: 0 }, // Assuming 1 hour duration
           title: `Proclaim Presentation - ${event.title}`,
           description: 'Thank you for signing up to build the Proclaim Presentation for this service.',
-          url: 'https://your-website-url.com', // Replace with actual URL when deployed
+          url: 'https://zion-presentation-sign-up.vercel.app/',
           alarms: [{
             action: 'display',
             trigger: { days: 3, before: true },
@@ -492,9 +495,9 @@ useEffect(() => {
     <Card className="w-full max-w-6xl mx-auto relative bg-white shadow-lg">
       {showAlert && (
         <Alert className="absolute top-4 right-4 w-96 bg-[#FFD700] bg-opacity-20 border-[#6B8E23]">
-        <Mail className="w-4 h-4 text-[#6B8E23]" />
-        <AlertDescription className="text-black font-medium">{alertMessage}</AlertDescription>
-      </Alert>
+          <Mail className="w-4 h-4 text-[#6B8E23]" />
+          <AlertDescription className="text-black font-medium">{alertMessage}</AlertDescription>
+        </Alert>
       )}
 
       {showRegistration && (
@@ -502,7 +505,7 @@ useEffect(() => {
           <div className="bg-white p-6 rounded-lg w-96">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-[#6B8E23]">Sign Up for Service</h2>
-              <button 
+              <button
                 onClick={() => setShowRegistration(false)}
                 className="p-1 hover:bg-gray-100 rounded"
               >
@@ -532,433 +535,555 @@ useEffect(() => {
         </div>
       )}
 
-      <CardHeader className="border-b border-gray-200">
-        <div className="flex items-center justify-center gap-8">
-          <img
-            src="/church-logo.png"
-            alt="Church Logo"
-            className="h-16 object-contain"
-          />
-          <div>
-            <h1 className="text-3xl font-bold text-center text-[#6B8E23]">Proclaim Presentation Team Sign-up Sheet</h1>
-            <p className="text-2xl font-bold text-center text-gray-600">2025 Service Schedule</p>
-          </div>
-          <img
-            src="/proclaim-logo.png"
-            alt="Church Logo"
-            className="h-16 object-contain"
-          />
-        </div>
-      </CardHeader>
-
-      <CardContent>
-        <div className="flex justify-between items-center mb-4">
-         <div className="flex items-center gap-2">
-           {selectedDates.length > 0 && currentUser && (
-             <>
-               <button
-                 onClick={handleCalendarDownload}
-                 className="flex items-center px-4 py-2 bg-[#6B8E23] text-white rounded hover:bg-[#556B2F] transition-colors"
-               >
-                 <Calendar className="w-4 h-4 mr-2" />
-                 Download {selectedDates.filter(date => signups[date] === currentUser?.name).length} Calendar Events
-               </button>
-               <div className="relative group">
-                 <button className="w-6 h-6 rounded-full bg-[#6B8E23] bg-opacity-20 text-[#6B8E23] flex items-center justify-center font-bold hover:bg-opacity-30">
-                   ?
-                 </button>
-                 <div className="absolute left-0 top-full mt-2 w-72 bg-white p-3 rounded-lg shadow-lg invisible group-hover:visible z-50 text-sm border border-gray-200 text-slate-900">
-                   <p className="font-bold mb-2 text-slate-900">How to import events:</p>
-                   <p className="font-bold mt-2 text-slate-900">Google Calendar:</p>
-                   <ol className="list-decimal ml-4 mb-2">
-                     <li className="text-slate-900">Open Google Calendar</li>
-                     <li className="text-slate-900">Click + next to "Other Calendars"</li>
-                     <li className="text-slate-900">Select "Import"</li>
-                     <li className="text-slate-900">Upload the downloaded file</li>
-                   </ol>
-                   <p className="font-bold mt-2 text-slate-900">Outlook:</p>
-                   <ol className="list-decimal ml-4">
-                     <li className="text-slate-900">Double-click downloaded file</li>
-                     <li className="text-slate-900">Outlook will open automatically</li>
-                     <li className="text-slate-900">Click "Save & Close"</li>
-                   </ol>
-                 </div>
-               </div>
-             </>
-           )}
-         </div>
-
-          {/* Active Users - Right side */}
-          <div className="flex flex-wrap gap-2 justify-end items-center">
-            {availableUsers.map(user => (
-              <div key={user.name} className="relative">
-                <button
-                  onClick={() => setCurrentUser({
-                    name: user.name,
-                    color: 'bg-[#6B8E23] bg-opacity-20'
-                  })}
-                  className={`${currentUser?.name === user.name
-                      ? 'bg-[#6B8E23] text-white'
-                      : 'bg-[#6B8E23] bg-opacity-20 text-[#6B8E23]'
-                    } px-3 py-1 rounded flex items-center gap-2 transition-colors`}
-                >
-                  <UserCircle className={`w-4 h-4 ${currentUser?.name === user.name ? 'text-white' : 'text-[#6B8E23]'}`} />
-                  <span>{user.name}</span>
-                </button>
+      <div className="flex flex-col h-screen md:h-auto">
+        {/* Fixed Header Section */}
+        <div className="sticky top-0 z-10 bg-white">
+          <CardHeader className="border-b border-gray-200">
+            {/* Desktop Header */}
+            <div className="hidden md:flex items-center justify-center gap-8">
+              <img
+                src="/church-logo.png"
+                alt="Church Logo"
+                className="h-16 object-contain"
+              />
+              <div>
+                <h1 className="text-3xl font-bold text-center text-[#6B8E23]">Proclaim Presentation Team Sign-up Sheet</h1>
+                <p className="text-2xl font-bold text-center text-gray-600">2025 Service Schedule</p>
               </div>
-            ))}
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={handleAddUser}
-                className="px-3 py-1 rounded border border-[#6B8E23] text-[#6B8E23] hover:bg-[#6B8E23] hover:text-white transition-colors"
-              >
-                + New User
-              </button>
-              <button
-                onClick={() => setShowUserManagement(true)}
-                className="px-3 py-1 rounded border border-[#6B8E23] text-[#6B8E23] hover:bg-[#6B8E23] hover:text-white transition-colors"
-              >
-                Manage Users
-              </button>
+              <img
+                src="/proclaim-logo.png"
+                alt="Church Logo"
+                className="h-16 object-contain"
+              />
             </div>
-          </div>  
-          </div>
-        <table className="w-full">
-          <thead>
-            <tr className="bg-[#FFD700] bg-opacity-10">
-              <th className="p-2 text-left w-16 font-bold text-[#6B8E23]">Add to Calendar</th>
-              <th className="p-2 text-left w-20 font-bold text-[#6B8E23]">Details</th>
-              <th className="p-2 text-left w-24 font-bold text-[#6B8E23]">Date</th>
-              <th className="p-2 text-left w-24 font-bold text-[#6B8E23]">Day</th>
-              <th className="p-2 text-left font-bold text-[#6B8E23]">Service</th>
-              <th className="p-2 text-left font-bold text-[#6B8E23]">Presentation Builder</th>
-              <th className="p-2 text-center w-24 font-bold text-[#6B8E23]">Completed</th>
-            </tr>
-          </thead>
-          <tbody>
-            {dates.map((item, index) => (
-              <React.Fragment key={item.date}>
-                <tr className={index % 2 === 0 ? 'bg-gray-50' : ''}>
-                 <td className="p-2 border-r border-gray-300 text-center">
-                    {signups[item.date] === currentUser?.name && (
-                      <input
-                        type="checkbox"
-                        checked={selectedDates.includes(item.date)}
-                        onChange={() => {
-                          setSelectedDates(prev => 
-                            prev.includes(item.date)
-                              ? prev.filter(d => d !== item.date)
-                              : [...prev, item.date]
-                          );
-                        }}
-                        className="w-4 h-4 rounded border-gray-300 mx-auto"
-                      />
-                    )}
-                  </td>
-                  <td className="p-2 border-r border-gray-300">
-                    <button 
-                      onClick={() => setExpanded(prev => ({
-                        ...prev,
-                        [item.date]: !prev[item.date]
-                      }))}
-                      className="p-1 hover:bg-gray-200 rounded"
-                    >
-                      {expanded[item.date] ? <ChevronUp /> : <ChevronDown />}
-                    </button>
-                  </td>
-                  <td className="p-2 border-r border-gray-300">{item.date}</td>
-                  <td className="p-2 border-r border-gray-300">{item.day}</td>
-                  <td className="p-2 border-r border-gray-300">{item.title}</td>
-                  <td className="p-2 border-r border-gray-300">
-                    {signups[item.date] ? (
-                      <div className="p-2 rounded bg-[#6B8E23] bg-opacity-20 flex justify-between items-center">
-                        {isLoading ? (
-                          <span>Loading...</span>
-                        ) : (
-                          <>
-                            <span>{signupDetails[item.date]?.name}</span>
-                            {signups[item.date] === currentUser?.name && (
-                              <button
-                                onClick={() => handleRemoveReservation(item.date)}
-                                className="ml-2 text-red-500 hover:text-red-700"
-                                title="Remove reservation"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
-                          </>
-                        )}       
-                      </div>
-                    ) : (
-                      <button
-                        onClick={async () => {  // Make the onClick handler async
-                          if (!currentUser) {
-                            setAlertMessage('Please select a user first');
-                            setShowAlert(true);
-                            setTimeout(() => setShowAlert(false), 3000);
-                            return;
-                          }
-                          
-                          try {
-                            // Save to MongoDB
-                            await fetch('/api/signups', {
-                              method: 'POST',
-                              headers: {
-                                'Content-Type': 'application/json',
-                              },
-                              body: JSON.stringify({
-                                date: item.date,
-                                name: currentUser.name
-                              })
-                            });
-      
-                            // Update local state
-                            setSignups(prev => ({
-                              ...prev,
-                              [item.date]: currentUser.name
-                            }));
-                            setSignupDetails(prev => ({
-                              ...prev,
-                              [item.date]: {
-                                name: currentUser.name
-                              }
-                            }));
 
-                            // Explicitly check if it's a future date
-                            const [itemMonth, itemDay, shortYear] = item.date.split('/').map(num => parseInt(num, 10));
-                            const itemYear = 2000 + shortYear; // Convert "25" to "2025"
-                            const itemDate = new Date(itemYear, itemMonth - 1, itemDay); // month is 0-based in JS Date
-
-                            const today = new Date('2025-01-14'); // Hardcode the current date since we're in test mode
-                            today.setHours(0, 0, 0, 0);
-
-                            console.log('Date comparison:', {
-                              today: today.toLocaleDateString(),
-                              signupDate: itemDate.toLocaleDateString(),
-                              isInFuture: itemDate > today,
-                              rawDates: {
-                                today: today,
-                                signupDate: itemDate,
-                                year: itemYear // Added to verify year conversion
-                              }
-                            });
-
-                            if (itemDate > today) {
-                              setSelectedDates(prev => {
-                                const newDates = [...prev, item.date];
-                                console.log('Setting selected dates:', {
-                                  previous: prev,
-                                  adding: item.date,
-                                  new: newDates
-                                });
-                                return newDates;
-                              });
-                            }  
-
-                            setAlertMessage('Successfully signed up!');
-                            setShowAlert(true);
-                            setTimeout(() => setShowAlert(false), 3000);
-                          } catch (error) {
-                            console.error('Error saving signup:', error);
-                            setAlertMessage('Error saving signup. Please try again.');
-                            setShowAlert(true);
-                            setTimeout(() => setShowAlert(false), 3000);
-                          }
-                        }}
-                        className="w-full p-2 border rounded hover:bg-gray-50"
-                      >
-                        Sign Up
-                      </button>
-                    )}
-                  </td>
-                  <td className="p-2 text-center">
-                    <button
-                      onClick={() => handleCompleted(item.date)}
-                      className={`w-6 h-6 rounded border ${
-                        completed[item.date]
-                          ? 'bg-[#6B8E23] border-[#556B2F]'
-                          : 'bg-white border-gray-300'
-                      } flex items-center justify-center`}
-                    >
-                      {completed[item.date] && <Check className="w-4 h-4 text-white" />}
-                    </button>
-                  </td>
-                </tr>
-                {expanded[item.date] && (
-                  <tr>
-                    <td colSpan="7" className="p-4 bg-gray-50">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-3">
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Sermon Title</label>
-                            <input
-                              type="text"
-                              className="w-full p-2 border rounded"
-                              value={serviceDetails[item.date]?.sermonTitle || ''}
-                              onChange={(e) => handleServiceDetailChange(item.date, 'sermonTitle', e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium mb-1">1st Reading</label>
-                            <input
-                              type="text"
-                              className="w-full p-2 border rounded"
-                              value={serviceDetails[item.date]?.firstReading || ''}
-                              onChange={(e) => handleServiceDetailChange(item.date, 'firstReading', e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Psalm Reading</label>
-                            <input
-                              type="text"
-                              className="w-full p-2 border rounded"
-                              value={serviceDetails[item.date]?.psalmReading || ''}
-                              onChange={(e) => handleServiceDetailChange(item.date, 'psalmReading', e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium mb-1">2nd Reading</label>
-                            <input
-                              type="text"
-                              className="w-full p-2 border rounded"
-                              value={serviceDetails[item.date]?.secondReading || ''}
-                              onChange={(e) => handleServiceDetailChange(item.date, 'secondReading', e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Gospel Reading</label>
-                            <input
-                              type="text"
-                              className="w-full p-2 border rounded"
-                              value={serviceDetails[item.date]?.gospelReading || ''}
-                              onChange={(e) => handleServiceDetailChange(item.date, 'gospelReading', e.target.value)}
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-3">
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Hymn #1</label>
-                            <input
-                              type="text"
-                              className="w-full p-2 border rounded"
-                              value={serviceDetails[item.date]?.hymnOne || ''}
-                              onChange={(e) => handleServiceDetailChange(item.date, 'hymnOne', e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Sermon Hymn</label>
-                            <input
-                              type="text"
-                              className="w-full p-2 border rounded"
-                              value={serviceDetails[item.date]?.sermonHymn || ''}
-                              onChange={(e) => handleServiceDetailChange(item.date, 'sermonHymn', e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Closing Hymn</label>
-                            <input
-                              type="text"
-                              className="w-full p-2 border rounded"
-                              value={serviceDetails[item.date]?.closingHymn || ''}
-                              onChange={(e) => handleServiceDetailChange(item.date, 'closingHymn', e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Notes</label>
-                            <textarea
-                              className="w-full p-2 border rounded"
-                              rows="2"
-                              value={serviceDetails[item.date]?.notes || ''}
-                              onChange={(e) => handleServiceDetailChange(item.date, 'notes', e.target.value)}
-                              placeholder="Add any special instructions or notes..."
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
-            ))}
-            </tbody>
-          </table>
-          {showUserManagement && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white p-6 rounded-lg w-96 shadow-xl">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-bold text-[#6B8E23]">Manage Users</h2>
-                  <button
-                    onClick={() => {
-                      setShowUserManagement(false);
-                      setUsersToDelete([]);
-                    }}
-                    className="p-1 hover:bg-gray-100 rounded"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+            {/* Mobile Header */}
+            <div className="flex md:hidden flex-col gap-4">
+              <div className="flex justify-center gap-4 mb-2">
+                <div className="flex gap-2 items-center">
+                  <img src="/church-logo.png" alt="Church Logo" className="h-10 object-contain" />
+                  <img src="/proclaim-logo.png" alt="Proclaim Logo" className="h-10 object-contain" />
                 </div>
-                <div className="space-y-4">
-                  {availableUsers.map(user => (
-                    <div key={user.name} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id={`delete-${user.name}`}
-                        checked={usersToDelete.includes(user.name)}
-                        onChange={(e) => {
-                          setUsersToDelete(prev =>
-                            e.target.checked
-                              ? [...prev, user.name]
-                              : prev.filter(name => name !== user.name)
-                          );
-                        }}
-                        className="w-4 h-4 rounded border-gray-300"
-                      />
-                      <label htmlFor={`delete-${user.name}`} className="text-black">
-                        {user.name}
-                      </label>
-                    </div>
-                  ))}
-                  <div className="flex justify-end gap-2 mt-4">
+              </div>
+              <div className="text-center">
+                <h1 className="text-xl font-bold text-[#6B8E23]">Proclaim Presentation Team Sign-up Sheet</h1>
+                <p className="text-lg font-bold text-gray-600">2025 Service Schedule</p>
+              </div>
+            </div>
+          </CardHeader>
+          {/* User Management Section */}
+          <div className="p-4 border-b border-gray-200">
+            {/* Desktop User Management */}
+            <div className="hidden md:flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                {selectedDates.length > 0 && currentUser && (
+                  <div className="flex items-center gap-2">
                     <button
-                      onClick={() => {
-                        setShowUserManagement(false);
-                        setUsersToDelete([]);
-                      }}
-                      className="px-4 py-2 rounded border border-[#6B8E23] text-[#6B8E23] hover:bg-gray-100"
+                      onClick={handleCalendarDownload}
+                      className="flex items-center px-3 py-1.5 text-sm bg-[#6B8E23] text-white rounded hover:bg-[#556B2F] transition-colors"
                     >
-                      Cancel
+                      <Calendar className="w-4 h-4 mr-1" />
+                      Download Calendar Events ({selectedDates.filter(date => signups[date] === currentUser?.name).length})
                     </button>
-                    <button
-                      onClick={async () => {
-                        if (usersToDelete.length === 0) {
-                          setAlertMessage('Please select users to remove');
-                          setShowAlert(true);
-                          setTimeout(() => setShowAlert(false), 3000);
-                          return;
-                        }
+                    <div className="relative group">
+                      <button className="w-6 h-6 rounded-full bg-[#6B8E23] bg-opacity-20 text-[#6B8E23] flex items-center justify-center font-bold hover:bg-opacity-30">
+                        ?
+                      </button>
+                      <div className="absolute left-0 top-full mt-2 w-72 bg-white p-3 rounded-lg shadow-lg invisible group-hover:visible z-50 text-sm border border-gray-200 text-slate-900">
+                        <p className="font-bold mb-2 text-slate-900">How to import events:</p>
+                        <p className="font-bold mt-2 text-slate-900">Google Calendar:</p>
+                        <ol className="list-decimal ml-4 mb-2">
+                          <li className="text-slate-900">Open Google Calendar</li>
+                          <li className="text-slate-900">Click + next to "Other Calendars"</li>
+                          <li className="text-slate-900">Select "Import"</li>
+                          <li className="text-slate-900">Upload the downloaded file</li>
+                        </ol>
+                        <p className="font-bold mt-2 text-slate-900">Outlook:</p>
+                        <ol className="list-decimal ml-4">
+                          <li className="text-slate-900">Double-click downloaded file</li>
+                          <li className="text-slate-900">Outlook will open automatically</li>
+                          <li className="text-slate-900">Click "Save & Close"</li>
+                        </ol>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
 
-                        if (confirm(`Are you sure you want to remove ${usersToDelete.length} user${usersToDelete.length > 1 ? 's' : ''}?`)) {
-                          for (const userName of usersToDelete) {
-                            await handleRemoveUser(userName);
-                          }
-                          setShowUserManagement(false);
-                          setUsersToDelete([]);
-                          setAlertMessage('Users removed successfully');
-                          setShowAlert(true);
-                          setTimeout(() => setShowAlert(false), 3000);
-                        }
-                      }}
-                      className="px-4 py-2 rounded bg-red-500 text-white hover:bg-red-600"
+              <div className="flex flex-wrap gap-2 justify-start md:justify-end items-center w-full md:w-auto">
+                {availableUsers.map(user => (
+                  <div key={user.name} className="relative">
+                    <button
+                      onClick={() => setCurrentUser({
+                        name: user.name,
+                        color: 'bg-[#6B8E23] bg-opacity-20'
+                      })}
+                      className={`${currentUser?.name === user.name
+                        ? 'bg-[#6B8E23] text-white'
+                        : 'bg-[#6B8E23] bg-opacity-20 text-[#6B8E23]'
+                        } px-3 py-1 rounded flex items-center gap-2 transition-colors`}
                     >
-                      Remove Selected
+                      <UserCircle className={`w-4 h-4 ${currentUser?.name === user.name ? 'text-white' : 'text-[#6B8E23]'}`} />
+                      <span>{user.name}</span>
                     </button>
                   </div>
-                </div>
+                ))}
+                <button
+                  onClick={() => setShowUserManagement(true)}
+                  className="px-3 py-1 rounded border border-[#6B8E23] text-[#6B8E23] hover:bg-[#6B8E23] hover:text-white transition-colors"
+                >
+                  Manage Users
+                </button>
               </div>
             </div>
-          )}
-      </CardContent>
-    </Card>
+
+            {/* Mobile User Management */}
+            <div className="md:hidden flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-gray-700">Select User</label>
+                <div className="flex justify-between items-center gap-2">
+                  <button
+                    onClick={() => setShowUserSelector(true)}
+                    className="flex-1 px-3 py-1.5 rounded border border-[#6B8E23] text-[#6B8E23]"
+                  >
+                    {currentUser ? (
+                      <span className="flex items-center gap-2">
+                        <UserCircle className="w-4 h-4" />
+                        {currentUser.name}
+                      </span>
+                    ) : (
+                      'Select User'
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setShowUserManagement(true)}
+                    className="px-3 py-1.5 rounded border border-[#6B8E23] text-[#6B8E23]"
+                  >
+                    Manage Users
+                  </button>
+                </div>
+              </div>
+              {currentUser && selectedDates.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleCalendarDownload}
+                    className="flex items-center justify-center px-3 py-1.5 text-sm bg-[#6B8E23] text-white rounded"
+                  >
+                    <Calendar className="w-4 h-4 mr-1" />
+                    Download Events ({selectedDates.filter(date => signups[date] === currentUser?.name).length})
+                  </button>
+                  <div className="relative group">
+                    <button className="w-6 h-6 rounded-full bg-[#6B8E23] bg-opacity-20 text-[#6B8E23] flex items-center justify-center font-bold hover:bg-opacity-30">
+                      ?
+                    </button>
+                    <div className="absolute right-0 top-full mt-2 w-72 bg-white p-3 rounded-lg shadow-lg invisible group-hover:visible z-50 text-sm border border-gray-200 text-slate-900">
+                      <p className="font-bold mb-2 text-slate-900">How to import events:</p>
+                      <p className="font-bold mt-2 text-slate-900">Google Calendar:</p>
+                      <ol className="list-decimal ml-4 mb-2">
+                        <li className="text-slate-900">Open Google Calendar</li>
+                        <li className="text-slate-900">Click + next to "Other Calendars"</li>
+                        <li className="text-slate-900">Select "Import"</li>
+                        <li className="text-slate-900">Upload the downloaded file</li>
+                      </ol>
+                      <p className="font-bold mt-2 text-slate-900">Outlook:</p>
+                      <ol className="list-decimal ml-4">
+                        <li className="text-slate-900">Double-click downloaded file</li>
+                        <li className="text-slate-900">Outlook will open automatically</li>
+                        <li className="text-slate-900">Click "Save & Close"</li>
+                      </ol>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        {/* Scrollable Content Section */}
+        <div className="flex-1 overflow-y-auto">
+          <CardContent>
+            <div>
+              {/* Desktop Table View */}
+              <div className="hidden md:block">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-[#FFD700] bg-opacity-10">
+                      <th className="p-2 text-left w-16 font-bold text-[#6B8E23]">Add to Calendar</th>
+                      <th className="p-2 text-left w-20 font-bold text-[#6B8E23]">Details</th>
+                      <th className="p-2 text-left w-24 font-bold text-[#6B8E23]">Date</th>
+                      <th className="p-2 text-left w-24 font-bold text-[#6B8E23]">Day</th>
+                      <th className="p-2 text-left font-bold text-[#6B8E23]">Service</th>
+                      <th className="p-2 text-left font-bold text-[#6B8E23]">Presentation Builder</th>
+                      <th className="p-2 text-center w-24 font-bold text-[#6B8E23]">Completed</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dates.map((item, index) => (
+                      <React.Fragment key={item.date}>
+                        <tr className={index % 2 === 0 ? 'bg-gray-50' : ''}>
+                          <td className="p-2 border-r border-gray-300 text-center">
+                            {signups[item.date] === currentUser?.name && (
+                              <input
+                                type="checkbox"
+                                checked={selectedDates.includes(item.date)}
+                                onChange={() => {
+                                  setSelectedDates(prev =>
+                                    prev.includes(item.date)
+                                      ? prev.filter(d => d !== item.date)
+                                      : [...prev, item.date]
+                                  );
+                                }}
+                                className="w-4 h-4 rounded border-gray-300 mx-auto"
+                              />
+                            )}
+                          </td>
+                          <td className="p-2 border-r border-gray-300">
+                            <button
+                              onClick={() => setExpanded(prev => ({
+                                ...prev,
+                                [item.date]: !prev[item.date]
+                              }))}
+                              className="p-1 hover:bg-gray-200 rounded"
+                            >
+                              {expanded[item.date] ? <ChevronUp /> : <ChevronDown />}
+                            </button>
+                          </td>
+                          <td className="p-2 border-r border-gray-300">{item.date}</td>
+                          <td className="p-2 border-r border-gray-300">{item.day}</td>
+                          <td className="p-2 border-r border-gray-300">{item.title}</td>
+                          <td className="p-2 border-r border-gray-300">
+                            {signups[item.date] ? (
+                              <div className="p-2 rounded bg-[#6B8E23] bg-opacity-20 flex justify-between items-center">
+                                {isLoading ? (
+                                  <span>Loading...</span>
+                                ) : (
+                                  <>
+                                    <span>{signupDetails[item.date]?.name}</span>
+                                    {signups[item.date] === currentUser?.name && (
+                                      <button
+                                        onClick={() => handleRemoveReservation(item.date)}
+                                        className="ml-2 text-red-500 hover:text-red-700"
+                                        title="Remove reservation"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            ) : (
+                              <button
+                                onClick={async () => {  // Make the onClick handler async
+                                  if (!currentUser) {
+                                    setAlertMessage('Please select a user first');
+                                    setShowAlert(true);
+                                    setTimeout(() => setShowAlert(false), 3000);
+                                    return;
+                                  }
+
+                                  try {
+                                    // Save to MongoDB
+                                    await fetch('/api/signups', {
+                                      method: 'POST',
+                                      headers: {
+                                        'Content-Type': 'application/json',
+                                      },
+                                      body: JSON.stringify({
+                                        date: item.date,
+                                        name: currentUser.name
+                                      })
+                                    });
+
+                                    // Update local state
+                                    setSignups(prev => ({
+                                      ...prev,
+                                      [item.date]: currentUser.name
+                                    }));
+                                    setSignupDetails(prev => ({
+                                      ...prev,
+                                      [item.date]: {
+                                        name: currentUser.name
+                                      }
+                                    }));
+
+                                    // Explicitly check if it's a future date
+                                    const [itemMonth, itemDay, shortYear] = item.date.split('/').map(num => parseInt(num, 10));
+                                    const itemYear = 2000 + shortYear; // Convert "25" to "2025"
+                                    const itemDate = new Date(itemYear, itemMonth - 1, itemDay); // month is 0-based in JS Date
+
+                                    const today = new Date('2025-01-14'); // Hardcode the current date since we're in test mode
+                                    today.setHours(0, 0, 0, 0);
+
+                                    console.log('Date comparison:', {
+                                      today: today.toLocaleDateString(),
+                                      signupDate: itemDate.toLocaleDateString(),
+                                      isInFuture: itemDate > today,
+                                      rawDates: {
+                                        today: today,
+                                        signupDate: itemDate,
+                                        year: itemYear // Added to verify year conversion
+                                      }
+                                    });
+
+                                    if (itemDate > today) {
+                                      setSelectedDates(prev => {
+                                        const newDates = [...prev, item.date];
+                                        console.log('Setting selected dates:', {
+                                          previous: prev,
+                                          adding: item.date,
+                                          new: newDates
+                                        });
+                                        return newDates;
+                                      });
+                                    }
+
+                                    setAlertMessage('Successfully signed up!');
+                                    setShowAlert(true);
+                                    setTimeout(() => setShowAlert(false), 3000);
+                                  } catch (error) {
+                                    console.error('Error saving signup:', error);
+                                    setAlertMessage('Error saving signup. Please try again.');
+                                    setShowAlert(true);
+                                    setTimeout(() => setShowAlert(false), 3000);
+                                  }
+                                }}
+                                className="w-full p-2 border rounded hover:bg-gray-50"
+                              >
+                                Sign Up
+                              </button>
+                            )}
+                          </td>
+                          <td className="p-2 text-center">
+                            <button
+                              onClick={() => handleCompleted(item.date)}
+                              className={`w-6 h-6 rounded border ${completed[item.date]
+                                  ? 'bg-[#6B8E23] border-[#556B2F]'
+                                  : 'bg-white border-gray-300'
+                                } flex items-center justify-center`}
+                            >
+                              {completed[item.date] && <Check className="w-4 h-4 text-white" />}
+                            </button>
+                          </td>
+                        </tr>
+                        {expanded[item.date] && (
+                          <tr>
+                            <td colSpan="7" className="p-4 bg-gray-50">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-3">
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1">Sermon Title</label>
+                                    <input
+                                      type="text"
+                                      className="w-full p-2 border rounded"
+                                      value={serviceDetails[item.date]?.sermonTitle || ''}
+                                      onChange={(e) => handleServiceDetailChange(item.date, 'sermonTitle', e.target.value)}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1">1st Reading</label>
+                                    <input
+                                      type="text"
+                                      className="w-full p-2 border rounded"
+                                      value={serviceDetails[item.date]?.firstReading || ''}
+                                      onChange={(e) => handleServiceDetailChange(item.date, 'firstReading', e.target.value)}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1">2nd Reading</label>
+                                    <input
+                                      type="text"
+                                      className="w-full p-2 border rounded"
+                                      value={serviceDetails[item.date]?.secondReading || ''}
+                                      onChange={(e) => handleServiceDetailChange(item.date, 'secondReading', e.target.value)}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1">Gospel Reading</label>
+                                    <input
+                                      type="text"
+                                      className="w-full p-2 border rounded"
+                                      value={serviceDetails[item.date]?.gospelReading || ''}
+                                      onChange={(e) => handleServiceDetailChange(item.date, 'gospelReading', e.target.value)}
+                                    />
+                                  </div>
+                                </div>
+                                <div className="space-y-3">
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1">Hymn #1</label>
+                                    <input
+                                      type="text"
+                                      className="w-full p-2 border rounded"
+                                      value={serviceDetails[item.date]?.hymnOne || ''}
+                                      onChange={(e) => handleServiceDetailChange(item.date, 'hymnOne', e.target.value)}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1">Sermon Hymn</label>
+                                    <input
+                                      type="text"
+                                      className="w-full p-2 border rounded"
+                                      value={serviceDetails[item.date]?.sermonHymn || ''}
+                                      onChange={(e) => handleServiceDetailChange(item.date, 'sermonHymn', e.target.value)}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1">Closing Hymn</label>
+                                    <input
+                                      type="text"
+                                      className="w-full p-2 border rounded"
+                                      value={serviceDetails[item.date]?.closingHymn || ''}
+                                      onChange={(e) => handleServiceDetailChange(item.date, 'closingHymn', e.target.value)}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1">Notes</label>
+                                    <textarea
+                                      className="w-full p-2 border rounded"
+                                      rows="2"
+                                      value={serviceDetails[item.date]?.notes || ''}
+                                      onChange={(e) => handleServiceDetailChange(item.date, 'notes', e.target.value)}
+                                      placeholder="Add any special instructions or notes..."
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden">
+                {dates.map((item) => (
+                  <MobileServiceCard
+                    key={item.date}
+                    item={item}
+                    expanded={expanded}
+                    completed={completed}
+                    signups={signups}
+                    currentUser={currentUser}
+                    selectedDates={selectedDates}
+                    serviceDetails={serviceDetails}
+                    onExpand={(date) => setExpanded(prev => ({
+                      ...prev,
+                      [date]: !prev[date]
+                    }))}
+                    onSignup={handleSignup}
+                    onRemove={handleRemoveReservation}
+                    onComplete={handleCompleted}
+                    onSelectDate={(date) => {
+                      setSelectedDates(prev =>
+                        prev.includes(date)
+                          ? prev.filter(d => d !== date)
+                          : [...prev, date]
+                      );
+                    }}
+                    onServiceDetailChange={handleServiceDetailChange}
+                  />
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </div>
+      </div>
+
+      {/* User Management Modal */}
+      {showUserManagement && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-96 shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-[#6B8E23]">Manage Users</h2>
+              <button
+                onClick={() => {
+                  setShowUserManagement(false);
+                  setUsersToDelete([]);
+                }}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <button
+                onClick={handleAddUser}
+                className="w-full px-3 py-2 rounded border border-[#6B8E23] text-[#6B8E23] hover:bg-[#6B8E23] hover:text-white transition-colors"
+              >
+                + Add New User
+              </button>
+              <div className="border-t pt-4">
+                {availableUsers.map(user => (
+                  <div key={user.name} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id={`delete-${user.name}`}
+                      checked={usersToDelete.includes(user.name)}
+                      onChange={(e) => {
+                        setUsersToDelete(prev =>
+                          e.target.checked
+                            ? [...prev, user.name]
+                            : prev.filter(name => name !== user.name)
+                        );
+                      }}
+                      className="w-4 h-4 rounded border-gray-300"
+                    />
+                    <label htmlFor={`delete-${user.name}`} className="text-black">
+                      {user.name}
+                    </label>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end gap-2 mt-4">
+                <button
+                  onClick={() => {
+                    setShowUserManagement(false);
+                    setUsersToDelete([]);
+                  }}
+                  className="px-4 py-2 rounded border border-[#6B8E23] text-[#6B8E23] hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    if (usersToDelete.length === 0) {
+                      setAlertMessage('Please select users to remove');
+                      setShowAlert(true);
+                      setTimeout(() => setShowAlert(false), 3000);
+                      return;
+                    }
+
+                    if (confirm(`Are you sure you want to remove ${usersToDelete.length} user${usersToDelete.length > 1 ? 's' : ''}?`)) {
+                      for (const userName of usersToDelete) {
+                        await handleRemoveUser(userName);
+                      }
+                      setShowUserManagement(false);
+                      setUsersToDelete([]);
+                      setAlertMessage('Users removed successfully');
+                      setShowAlert(true);
+                      setTimeout(() => setShowAlert(false), 3000);
+                    }
+                  }}
+                  className="px-4 py-2 rounded bg-red-500 text-white hover:bg-red-600"
+                >
+                  Remove Selected
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile User Select Component */}
+      <MobileUserSelect
+        showSelector={showUserSelector}
+        setShowSelector={setShowUserSelector}
+        availableUsers={availableUsers}
+        currentUser={currentUser}
+        setCurrentUser={setCurrentUser}
+      />
+    </Card>  
   );
 };
 
