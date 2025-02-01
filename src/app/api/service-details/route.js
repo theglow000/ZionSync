@@ -1,17 +1,29 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 
-export async function GET() {
+export async function GET(request) {
   try {
     console.log('Fetching service details...');
+    const { searchParams } = new URL(request.url);
+    const date = searchParams.get('date');
+
     const client = await clientPromise;
     const db = client.db("church");
-    const details = await db.collection("serviceDetails").find({}).toArray();
-    console.log('Service details fetched:', details.length, 'documents');
-    return NextResponse.json(details);
+
+    // If date is provided, fetch specific document, otherwise fetch all
+    let details;
+    if (date) {
+      details = await db.collection("serviceDetails").findOne({ date });
+      console.log('Service details fetched for date:', date, details);
+      return NextResponse.json(details || null);
+    } else {
+      details = await db.collection("serviceDetails").find({}).toArray();
+      console.log('All service details fetched:', details.length, 'documents');
+      return NextResponse.json(details);
+    }
   } catch (e) {
     console.error('GET Error:', e);
-    return NextResponse.json([]);  // Return empty array on error
+    return NextResponse.json(null);
   }
 }
 
@@ -19,25 +31,19 @@ export async function POST(request) {
   try {
     const body = await request.json();
     console.log('Received update:', body);
-    
+
     if (!body.date) {
       throw new Error('Date is required');
     }
 
     const client = await clientPromise;
     const db = client.db("church");
-    
+
     const updateDoc = {
       date: body.date,
-      sermonTitle: body.sermonTitle || '',
-      gospelReading: body.gospelReading || '',
-      firstReading: body.firstReading || '',
-      psalmReading: body.psalmReading || '',
-      secondReading: body.secondReading || '',
-      hymnOne: body.hymnOne || '',
-      sermonHymn: body.sermonHymn || '',
-      closingHymn: body.closingHymn || '',
-      notes: body.notes || '',
+      content: body.content,
+      type: body.type,
+      setting: body.setting,
       lastUpdated: new Date().toISOString()
     };
 

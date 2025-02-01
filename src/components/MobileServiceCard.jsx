@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChevronDown, ChevronUp, Check, Trash2 } from 'lucide-react';
+import { Music, BookOpen, MessageSquare, Cross } from 'lucide-react';
 
 const MobileServiceCard = ({
     item,
@@ -12,15 +13,17 @@ const MobileServiceCard = ({
     setSignups,
     setSignupDetails,
     setSelectedDates,
+    alertPosition,
+    setAlertPosition,
     setAlertMessage,
     setShowAlert,
+    setShowPastorInput,
+    setEditingDate,
     onExpand,
     onRemove,
     onComplete,
     onSelectDate,
-    onServiceDetailChange
 }) => {
-
     return (
         <div className="bg-white rounded-lg shadow-sm border p-4 mb-2">
             {/* Header */}
@@ -73,16 +76,27 @@ const MobileServiceCard = ({
                     </div>
                 ) : (
                     <button
-                        onClick={async () => {
+                        onClick={(e) => {
                             if (!currentUser) {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setAlertPosition({
+                                    x: rect.left + (rect.width / 2),
+                                    y: rect.top
+                                });
+
                                 setAlertMessage('Please select a user first');
                                 setShowAlert(true);
                                 setTimeout(() => setShowAlert(false), 3000);
+                                const button = e.currentTarget;
+                                button.style.borderColor = '#EF4444';
+                                setTimeout(() => {
+                                    button.style.borderColor = '';
+                                }, 1000);
                                 return;
                             }
 
                             try {
-                                await fetch('/api/signups', {
+                                fetch('/api/signups', {
                                     method: 'POST',
                                     headers: {
                                         'Content-Type': 'application/json',
@@ -91,34 +105,33 @@ const MobileServiceCard = ({
                                         date: item.date,
                                         name: currentUser.name
                                     })
-                                });
+                                }).then(response => {
+                                    if (!response.ok) throw new Error('Failed to save signup');
+                                    setSignups(prev => ({
+                                        ...prev,
+                                        [item.date]: currentUser.name
+                                    }));
+                                    setSignupDetails(prev => ({
+                                        ...prev,
+                                        [item.date]: {
+                                            name: currentUser.name
+                                        }
+                                    }));
 
-                                // Update local state
-                                setSignups(prev => ({
-                                    ...prev,
-                                    [item.date]: currentUser.name
-                                }));
-                                setSignupDetails(prev => ({
-                                    ...prev,
-                                    [item.date]: {
-                                        name: currentUser.name
+                                    const [itemMonth, itemDay, shortYear] = item.date.split('/').map(num => parseInt(num, 10));
+                                    const itemYear = 2000 + shortYear;
+                                    const itemDate = new Date(itemYear, itemMonth - 1, itemDay);
+                                    const today = new Date('2025-01-14');
+                                    today.setHours(0, 0, 0, 0);
+
+                                    if (itemDate > today) {
+                                        setSelectedDates(prev => [...prev, item.date]);
                                     }
-                                }));
 
-                                const [itemMonth, itemDay, shortYear] = item.date.split('/').map(num => parseInt(num, 10));
-                                const itemYear = 2000 + shortYear;
-                                const itemDate = new Date(itemYear, itemMonth - 1, itemDay);
-
-                                const today = new Date('2025-01-14');
-                                today.setHours(0, 0, 0, 0);
-
-                                if (itemDate > today) {
-                                    setSelectedDates(prev => [...prev, item.date]);
-                                }
-
-                                setAlertMessage('Successfully signed up!');
-                                setShowAlert(true);
-                                setTimeout(() => setShowAlert(false), 3000);
+                                    setAlertMessage('Successfully signed up!');
+                                    setShowAlert(true);
+                                    setTimeout(() => setShowAlert(false), 3000);
+                                });
                             } catch (error) {
                                 console.error('Error saving signup:', error);
                                 setAlertMessage('Error saving signup. Please try again.');
@@ -126,112 +139,74 @@ const MobileServiceCard = ({
                                 setTimeout(() => setShowAlert(false), 3000);
                             }
                         }}
-                        className="w-full p-2 border rounded-md text-[#6B8E23] border-[#6B8E23] hover:bg-[#6B8E23] hover:text-white transition-colors"
+                        className="w-full p-2 border rounded-md text-[#6B8E23] border-[#6B8E23] hover:bg-[#6B8E23] hover:text-white transition-colors duration-300"
                     >
                         Sign Up
                     </button>
                 )}
             </div>
 
-            {/* Details Section */}
-            <button
-                onClick={() => onExpand(item.date)}
-                className="flex items-center gap-1 text-sm text-[#6B8E23] w-full justify-between px-2 py-1 rounded-md hover:bg-[#6B8E23] hover:bg-opacity-10"
-            >
-                <span>Service Details</span>
-                {expanded[item.date] ? (
-                    <ChevronUp className="w-4 h-4" />
-                ) : (
-                    <ChevronDown className="w-4 h-4" />
-                )}
-            </button>
-
-            {expanded[item.date] && (
-                <div className="mt-3 space-y-3 text-gray-900">
-                    <div>
-                        <label className="block text-sm font-medium mb-1 text-gray-900">Sermon Title</label>
-                        <input
-                            type="text"
-                            className="w-full p-2 border rounded text-gray-900"
-                            value={serviceDetails[item.date]?.sermonTitle || ''}
-                            onChange={(e) => onServiceDetailChange(item.date, 'sermonTitle', e.target.value)}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1 text-gray-900">1st Reading</label>
-                        <input
-                            type="text"
-                            className="w-full p-2 border rounded text-gray-900"
-                            value={serviceDetails[item.date]?.firstReading || ''}
-                            onChange={(e) => onServiceDetailChange(item.date, 'firstReading', e.target.value)}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1 text-gray-900">Psalm Reading</label>
-                        <input
-                            type="text"
-                            className="w-full p-2 border rounded text-gray-900"
-                            value={serviceDetails[item.date]?.psalmReading || ''}
-                            onChange={(e) => onServiceDetailChange(item.date, 'psalmReading', e.target.value)}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1 text-gray-900">2nd Reading</label>
-                        <input
-                            type="text"
-                            className="w-full p-2 border rounded text-gray-900"
-                            value={serviceDetails[item.date]?.secondReading || ''}
-                            onChange={(e) => onServiceDetailChange(item.date, 'secondReading', e.target.value)}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1 text-gray-900">Gospel Reading</label>
-                        <input
-                            type="text"
-                            className="w-full p-2 border rounded text-gray-900"
-                            value={serviceDetails[item.date]?.gospelReading || ''}
-                            onChange={(e) => onServiceDetailChange(item.date, 'gospelReading', e.target.value)}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1 text-gray-900">Hymn #1</label>
-                        <input
-                            type="text"
-                            className="w-full p-2 border rounded text-gray-900"
-                            value={serviceDetails[item.date]?.hymnOne || ''}
-                            onChange={(e) => onServiceDetailChange(item.date, 'hymnOne', e.target.value)}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1 text-gray-900">Sermon Hymn</label>
-                        <input
-                            type="text"
-                            className="w-full p-2 border rounded text-gray-900"
-                            value={serviceDetails[item.date]?.sermonHymn || ''}
-                            onChange={(e) => onServiceDetailChange(item.date, 'sermonHymn', e.target.value)}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1 text-gray-900">Closing Hymn</label>
-                        <input
-                            type="text"
-                            className="w-full p-2 border rounded text-gray-900"
-                            value={serviceDetails[item.date]?.closingHymn || ''}
-                            onChange={(e) => onServiceDetailChange(item.date, 'closingHymn', e.target.value)}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1 text-gray-900">Notes</label>
-                        <textarea
-                            className="w-full p-2 border rounded text-gray-900"
-                            rows="2"
-                            value={serviceDetails[item.date]?.notes || ''}
-                            onChange={(e) => onServiceDetailChange(item.date, 'notes', e.target.value)}
-                            placeholder="Add any special instructions or notes..."
-                        />
-                    </div>
+            {/* Order of Worship Section */}
+            <div>
+                <div className={`${expanded[item.date] ? 'sticky top-0 bg-white z-10 border-b pb-2' : ''}`}>
+                    <button
+                        onClick={() => onExpand(item.date)}
+                        className="flex items-center gap-1 text-sm text-[#6B8E23] w-full justify-between px-2 py-1 rounded-md hover:bg-[#6B8E23] hover:bg-opacity-10"
+                    >
+                        <span>Order of Worship</span>
+                        {expanded[item.date] ? (
+                            <ChevronUp className="w-4 h-4" />
+                        ) : (
+                            <ChevronDown className="w-4 h-4" />
+                        )}
+                    </button>
                 </div>
-            )}
+
+                {expanded[item.date] && (
+                    <div className="mt-3 space-y-2">
+                        {/* Pastor Edit Button */}
+                        <div className="flex justify-between items-center mb-2">
+                            <h3 className="text-base font-bold text-[#6B8E23]">Order of Worship</h3>
+                            <button
+                                className="px-2 py-0.5 text-sm text-[#6B8E23] border border-[#6B8E23] rounded hover:bg-[#6B8E23] hover:text-white"
+                                onClick={() => {
+                                    setEditingDate(item.date);
+                                    setShowPastorInput(true);
+                                }}
+                            >
+                                Pastor Edit
+                            </button>
+                        </div>
+
+                        {/* Service Elements */}
+                        {serviceDetails[item.date]?.elements?.map((element, index) => (
+                            <div key={index} className="flex items-center gap-1 text-sm leading-tight">
+                                <div className={`p-0.5 rounded ${
+                                    element.type === 'hymn' ? 'bg-blue-50 text-blue-600' :
+                                    element.type === 'reading' ? 'bg-green-50 text-green-600' :
+                                    element.type === 'message' ? 'bg-purple-50 text-purple-600' :
+                                    'bg-amber-50 text-amber-600'
+                                }`}>
+                                    {element.type === 'hymn' ? <Music className="w-4 h-4" /> :
+                                     element.type === 'reading' ? <BookOpen className="w-4 h-4" /> :
+                                     element.type === 'message' ? <MessageSquare className="w-4 h-4" /> :
+                                     <Cross className="w-4 h-4" />}
+                                </div>
+                                <div className="flex-1 text-gray-900">
+                                    {element.content}
+                                </div>
+                            </div>
+                        ))}
+
+                        {/* Fallback for no elements */}
+                        {(!serviceDetails[item.date]?.elements || serviceDetails[item.date]?.elements.length === 0) && (
+                            <div className="text-gray-500 italic">
+                                No service details available yet.
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
         </div>
     );
 };

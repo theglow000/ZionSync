@@ -6,6 +6,8 @@ import { ChevronDown, ChevronUp, Check, X, Mail, UserCircle, Trash2, Calendar } 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import MobileServiceCard from './MobileServiceCard';
 import MobileUserSelect from './MobileUserSelect';
+import { Music, BookOpen, MessageSquare, Cross } from 'lucide-react';
+import PastorServiceInput from './PastorServiceInput';
 import './ui/table.css'
 
 const SignupSheet = () => {
@@ -27,6 +29,9 @@ const SignupSheet = () => {
   const [serviceDetailsError, setServiceDetailsError] = useState(null);
   const [showUserSelector, setShowUserSelector] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [showPastorInput, setShowPastorInput] = useState(false);
+  const [editingDate, setEditingDate] = useState(null);
+  const [alertPosition, setAlertPosition] = useState({ x: 0, y: 0 });
 
   const isFutureDate = (dateStr) => {
     const [month, day, year] = dateStr.split('/').map(num => parseInt(num, 10));
@@ -148,16 +153,6 @@ useEffect(() => {
       });
       setCompleted(completedObj);
 
-      // Set current user based on signups
-      const userSignups = signupsData.filter(signup => signupsObj[signup.date] === signup.name);
-      if (userSignups.length > 0) {
-        const userSignup = userSignups[0];
-        setCurrentUser({
-          name: userSignup.name,
-          color: 'bg-[#6B8E23] bg-opacity-20'
-        });
-      }
-
       // Fetch service details
       console.log('Fetching service details...');
       const detailsResponse = await fetch('/api/service-details');
@@ -168,20 +163,27 @@ useEffect(() => {
       const serviceDetailsObj = {};
       detailsData.forEach(detail => {
         if (detail.date) {
+          // Parse the content into elements
+          const elements = detail.content?.split('\n').map(line => {
+            const type =
+              line.includes('Hymn') || line.includes('Song') ? 'hymn' :
+                line.includes('Reading') ? 'reading' :
+                  line.includes('Sermon') || line.includes('Message') ? 'message' :
+                    'liturgy';
+
+            return {
+              type,
+              content: line,
+            };
+          }) || [];
+
           serviceDetailsObj[detail.date] = {
-            sermonTitle: detail.sermonTitle || '',
-            firstReading: detail.firstReading || '',
-            psalmReading: detail.psalmReading || '',
-            secondReading: detail.secondReading || '',
-            gospelReading: detail.gospelReading || '',
-            hymnOne: detail.hymnOne || '',
-            sermonHymn: detail.sermonHymn || '',
-            closingHymn: detail.closingHymn || '',
-            notes: detail.notes || ''
+            elements: elements,
+            type: detail.type,
+            setting: detail.setting
           };
         }
       });
-      
       setServiceDetails(serviceDetailsObj);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -498,9 +500,20 @@ useEffect(() => {
   return (
     <Card className="w-full max-w-6xl mx-auto relative bg-white shadow-lg">
       {showAlert && (
-        <Alert className="absolute top-4 right-4 w-96 bg-[#FFD700] bg-opacity-20 border-[#6B8E23]">
-          <Mail className="w-4 h-4 text-[#6B8E23]" />
-          <AlertDescription className="text-black font-medium">{alertMessage}</AlertDescription>
+        <Alert
+          className="fixed z-[60] w-80 bg-white border-[#6B8E23] shadow-lg rounded-lg"
+          style={{
+            top: `${alertPosition.y}px`,
+            left: `${alertPosition.x}px`,
+            transform: 'translate(-50%, -120%)'  // Position it above the click
+          }}
+        >
+          <div className="flex items-center gap-2 p-2">
+            <Mail className="w-5 h-5 text-[#6B8E23]" />
+            <AlertDescription className="text-black font-medium">
+              {alertMessage}
+            </AlertDescription>
+          </div>
         </Alert>
       )}
 
@@ -792,17 +805,28 @@ useEffect(() => {
                               </div>
                             ) : (
                               <button
-                                onClick={async () => {  // Make the onClick handler async
-                                  if (!currentUser) {
-                                    setAlertMessage('Please select a user first');
-                                    setShowAlert(true);
-                                    setTimeout(() => setShowAlert(false), 3000);
-                                    return;
-                                  }
+                                  onClick={(e) => {
+                                    if (!currentUser) {
+                                      // Get the button's position
+                                      const rect = e.currentTarget.getBoundingClientRect();
+                                      setAlertPosition({
+                                        x: rect.left + (rect.width / 2),
+                                        y: rect.top
+                                      });
+
+                                      setAlertMessage('Please select a user first');
+                                      setShowAlert(true);
+                                      setTimeout(() => setShowAlert(false), 3000);
+                                      const button = e.currentTarget;
+                                      button.style.borderColor = '#EF4444';
+                                      setTimeout(() => {
+                                        button.style.borderColor = '';
+                                      }, 1000);
+                                      return;
+                                    }
 
                                   try {
-                                    // Save to MongoDB
-                                    await fetch('/api/signups', {
+                                    fetch('/api/signups', {
                                       method: 'POST',
                                       headers: {
                                         'Content-Type': 'application/json',
@@ -811,54 +835,33 @@ useEffect(() => {
                                         date: item.date,
                                         name: currentUser.name
                                       })
-                                    });
+                                    }).then(response => {
+                                      if (!response.ok) throw new Error('Failed to save signup');
+                                      setSignups(prev => ({
+                                        ...prev,
+                                        [item.date]: currentUser.name
+                                      }));
+                                      setSignupDetails(prev => ({
+                                        ...prev,
+                                        [item.date]: {
+                                          name: currentUser.name
+                                        }
+                                      }));
 
-                                    // Update local state
-                                    setSignups(prev => ({
-                                      ...prev,
-                                      [item.date]: currentUser.name
-                                    }));
-                                    setSignupDetails(prev => ({
-                                      ...prev,
-                                      [item.date]: {
-                                        name: currentUser.name
+                                      const [itemMonth, itemDay, shortYear] = item.date.split('/').map(num => parseInt(num, 10));
+                                      const itemYear = 2000 + shortYear;
+                                      const itemDate = new Date(itemYear, itemMonth - 1, itemDay);
+                                      const today = new Date('2025-01-14');
+                                      today.setHours(0, 0, 0, 0);
+
+                                      if (itemDate > today) {
+                                        setSelectedDates(prev => [...prev, item.date]);
                                       }
-                                    }));
 
-                                    // Explicitly check if it's a future date
-                                    const [itemMonth, itemDay, shortYear] = item.date.split('/').map(num => parseInt(num, 10));
-                                    const itemYear = 2000 + shortYear; // Convert "25" to "2025"
-                                    const itemDate = new Date(itemYear, itemMonth - 1, itemDay); // month is 0-based in JS Date
-
-                                    const today = new Date('2025-01-14'); // Hardcode the current date since we're in test mode
-                                    today.setHours(0, 0, 0, 0);
-
-                                    console.log('Date comparison:', {
-                                      today: today.toLocaleDateString(),
-                                      signupDate: itemDate.toLocaleDateString(),
-                                      isInFuture: itemDate > today,
-                                      rawDates: {
-                                        today: today,
-                                        signupDate: itemDate,
-                                        year: itemYear // Added to verify year conversion
-                                      }
+                                      setAlertMessage('Successfully signed up!');
+                                      setShowAlert(true);
+                                      setTimeout(() => setShowAlert(false), 3000);
                                     });
-
-                                    if (itemDate > today) {
-                                      setSelectedDates(prev => {
-                                        const newDates = [...prev, item.date];
-                                        console.log('Setting selected dates:', {
-                                          previous: prev,
-                                          adding: item.date,
-                                          new: newDates
-                                        });
-                                        return newDates;
-                                      });
-                                    }
-
-                                    setAlertMessage('Successfully signed up!');
-                                    setShowAlert(true);
-                                    setTimeout(() => setShowAlert(false), 3000);
                                   } catch (error) {
                                     console.error('Error saving signup:', error);
                                     setAlertMessage('Error saving signup. Please try again.');
@@ -866,7 +869,7 @@ useEffect(() => {
                                     setTimeout(() => setShowAlert(false), 3000);
                                   }
                                 }}
-                                className="w-full p-2 border rounded hover:bg-gray-50"
+                                className="w-full p-2 border rounded hover:bg-gray-50 transition-colors duration-300"
                               >
                                 Sign Up
                               </button>
@@ -886,85 +889,49 @@ useEffect(() => {
                         </tr>
                         {expanded[item.date] && (
                           <tr>
-                            <td colSpan="7" className="p-4 bg-gray-50">
-                              <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-3">
-                                  <div>
-                                    <label className="block text-sm font-medium mb-1">Sermon Title</label>
-                                    <input
-                                      type="text"
-                                      className="w-full p-2 border rounded"
-                                      value={serviceDetails[item.date]?.sermonTitle || ''}
-                                      onChange={(e) => handleServiceDetailChange(item.date, 'sermonTitle', e.target.value)}
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm font-medium mb-1">1st Reading</label>
-                                    <input
-                                      type="text"
-                                      className="w-full p-2 border rounded"
-                                      value={serviceDetails[item.date]?.firstReading || ''}
-                                      onChange={(e) => handleServiceDetailChange(item.date, 'firstReading', e.target.value)}
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm font-medium mb-1">2nd Reading</label>
-                                    <input
-                                      type="text"
-                                      className="w-full p-2 border rounded"
-                                      value={serviceDetails[item.date]?.secondReading || ''}
-                                      onChange={(e) => handleServiceDetailChange(item.date, 'secondReading', e.target.value)}
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm font-medium mb-1">Gospel Reading</label>
-                                    <input
-                                      type="text"
-                                      className="w-full p-2 border rounded"
-                                      value={serviceDetails[item.date]?.gospelReading || ''}
-                                      onChange={(e) => handleServiceDetailChange(item.date, 'gospelReading', e.target.value)}
-                                    />
-                                  </div>
+                            <td colSpan="7" className="p-2 bg-gray-50">
+                              <div className="space-y-0 ml-[10%] max-w-xl">
+                                {/* Service Title with Pastor Edit button */}
+                                <div className="flex justify-between items-center mb-2">
+                                  <h3 className="text-base font-bold text-[#6B8E23]">Order of Worship</h3>
+                                  <button
+                                    className="px-2 py-0.5 text-sm text-[#6B8E23] border border-[#6B8E23] rounded hover:bg-[#6B8E23] hover:text-white"
+                                    onClick={() => {
+                                      setEditingDate(item.date);
+                                      setShowPastorInput(true);
+                                    }}
+                                  >
+                                    Pastor Edit
+                                  </button>
                                 </div>
-                                <div className="space-y-3">
-                                  <div>
-                                    <label className="block text-sm font-medium mb-1">Hymn #1</label>
-                                    <input
-                                      type="text"
-                                      className="w-full p-2 border rounded"
-                                      value={serviceDetails[item.date]?.hymnOne || ''}
-                                      onChange={(e) => handleServiceDetailChange(item.date, 'hymnOne', e.target.value)}
-                                    />
+
+                                {/* Map through ordered service elements */}
+                                {serviceDetails[item.date]?.elements?.map((element, index) => (
+                                  <div key={index} className="flex items-center gap-1 text-sm leading-tight">
+                                    <div className={`p-0.5 rounded ${element.type === 'hymn' ? 'bg-blue-50 text-blue-600' :
+                                      element.type === 'reading' ? 'bg-green-50 text-green-600' :
+                                        element.type === 'message' ? 'bg-purple-50 text-purple-600' :
+                                          'bg-amber-50 text-amber-600'
+                                      }`}>
+                                      {element.type === 'hymn' ? <Music className="w-4 h-4" /> :
+                                        element.type === 'reading' ? <BookOpen className="w-4 h-4" /> :
+                                          element.type === 'message' ? <MessageSquare className="w-4 h-4" /> :
+                                            <Cross className="w-4 h-4" />}
+                                    </div>
+                                    <div className="flex-1">
+                                      {element.content}
+                                    </div>
+
+                                    
                                   </div>
-                                  <div>
-                                    <label className="block text-sm font-medium mb-1">Sermon Hymn</label>
-                                    <input
-                                      type="text"
-                                      className="w-full p-2 border rounded"
-                                      value={serviceDetails[item.date]?.sermonHymn || ''}
-                                      onChange={(e) => handleServiceDetailChange(item.date, 'sermonHymn', e.target.value)}
-                                    />
+                                ))}
+
+                                {/* Fallback message if no elements */}
+                                {(!serviceDetails[item.date]?.elements || serviceDetails[item.date]?.elements.length === 0) && (
+                                  <div className="text-gray-500 italic">
+                                    No service details available yet.
                                   </div>
-                                  <div>
-                                    <label className="block text-sm font-medium mb-1">Closing Hymn</label>
-                                    <input
-                                      type="text"
-                                      className="w-full p-2 border rounded"
-                                      value={serviceDetails[item.date]?.closingHymn || ''}
-                                      onChange={(e) => handleServiceDetailChange(item.date, 'closingHymn', e.target.value)}
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm font-medium mb-1">Notes</label>
-                                    <textarea
-                                      className="w-full p-2 border rounded"
-                                      rows="2"
-                                      value={serviceDetails[item.date]?.notes || ''}
-                                      onChange={(e) => handleServiceDetailChange(item.date, 'notes', e.target.value)}
-                                      placeholder="Add any special instructions or notes..."
-                                    />
-                                  </div>
-                                </div>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -992,6 +959,8 @@ useEffect(() => {
                     setSelectedDates={setSelectedDates}
                     setAlertMessage={setAlertMessage}
                     setShowAlert={setShowAlert}
+                    alertPosition={alertPosition}
+                    setAlertPosition={setAlertPosition}
                     onExpand={(date) => setExpanded(prev => ({
                       ...prev,
                       [date]: !prev[date]
@@ -1107,6 +1076,71 @@ useEffect(() => {
         currentUser={currentUser}
         setCurrentUser={setCurrentUser}
       />
+
+      {showPastorInput && (
+        <PastorServiceInput
+          date={editingDate}
+          onClose={() => {
+            setShowPastorInput(false);
+            setEditingDate(null);
+          }}
+          onSave={async (serviceData) => {
+            try {
+              // Save to MongoDB
+              const response = await fetch('/api/service-details', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  date: editingDate,
+                  content: serviceData.content,
+                  type: serviceData.type,
+                  setting: serviceData.setting
+                })
+              });
+              if (!response.ok) {
+                throw new Error('Failed to save service details');
+              }
+
+              // Parse the content into elements immediately
+              const elements = serviceData.content.split('\n').map(line => {
+                const type =
+                  line.includes('Hymn') || line.includes('Song') ? 'hymn' :
+                    line.includes('Reading') ? 'reading' :
+                      line.includes('Sermon') || line.includes('Message') ? 'message' :
+                        'liturgy';
+
+                return {
+                  type,
+                  content: line
+                };
+              });
+
+              // Update local state with parsed elements
+              setServiceDetails(prev => ({
+                ...prev,
+                [editingDate]: {
+                  elements: elements,
+                  type: serviceData.type,
+                  setting: serviceData.setting
+                }
+              }));
+
+              setShowPastorInput(false);
+              setEditingDate(null);
+              setAlertMessage('Service details saved successfully');
+              setShowAlert(true);
+              setTimeout(() => setShowAlert(false), 3000);
+            } catch (error) {
+              console.error('Error saving service details:', error);
+              setAlertMessage('Error saving service details. Please try again.');
+              setShowAlert(true);
+              setTimeout(() => setShowAlert(false), 3000);
+            }
+          }}
+        />
+      )}
     </Card>  
   );
 };
