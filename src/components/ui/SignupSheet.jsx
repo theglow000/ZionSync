@@ -31,6 +31,7 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
   const [editingDate, setEditingDate] = useState(null);
   const [alertPosition, setAlertPosition] = useState({ x: 0, y: 0 });
   const POLLING_INTERVAL = 30000;
+  const [customServices, setCustomServices] = useState([]);
 
   const checkForOrderOfWorship = (date) => {
     const elements = serviceDetails[date]?.elements;
@@ -226,6 +227,22 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
       isSubscribed = false;
       clearInterval(intervalId);
     };
+  }, []);
+
+  useEffect(() => {
+    const fetchCustomServices = async () => {
+      try {
+        const response = await fetch('/api/custom-services');
+        if (response.ok) {
+          const data = await response.json();
+          setCustomServices(data);
+        }
+      } catch (error) {
+        console.error('Error fetching custom services:', error);
+      }
+    };
+
+    fetchCustomServices();
   }, []);
 
   const dates = [
@@ -954,9 +971,17 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                           <tr>
                             <td colSpan="7" className="p-2 bg-gray-50">
                               <div className="space-y-0 ml-[10%] max-w-xl">
-                                {/* Service Title with Pastor Edit/Delete buttons */}
+                                {/* Service Title with Type Indicator */}
                                 <div className="flex justify-between items-center mb-2">
-                                  <h3 className="text-base font-bold text-[#6B8E23]">Order of Worship</h3>
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="text-base font-bold text-[#6B8E23]">Order of Worship</h3>
+                                    <span className="px-2 py-0.5 text-xs bg-gray-200 text-gray-600 rounded">
+                                      {serviceDetails[item.date]?.type === 'communion' ? 'Communion' :
+                                       serviceDetails[item.date]?.type === 'no_communion' ? 'No Communion' :
+                                       serviceDetails[item.date]?.type === 'communion_potluck' ? 'Communion with Potluck' :
+                                       customServices?.find(s => s.id === serviceDetails[item.date]?.type)?.name || 'Not Set'}
+                                    </span>
+                                  </div>
                                   <div className="flex gap-2">
                                     <button
                                       onClick={() => {
@@ -975,26 +1000,18 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                                               method: 'DELETE',
                                             });
 
-                                            if (!response.ok) {
-                                              throw new Error('Failed to delete service details');
-                                            }
+                                            if (!response.ok) throw new Error('Failed to delete service details');
 
                                             // Update the local state by removing service details
-                                            setServiceDetails(prev => ({
-                                              ...prev,
-                                              [item.date]: {
-                                                ...prev[item.date],
-                                                elements: [],
-                                                content: null,
-                                                type: null
-                                              }
-                                            }));
-
-                                            // Show success message
-                                            alert('Service details deleted successfully');
+                                            setServiceDetails(prev => {
+                                              const newDetails = { ...prev };
+                                              delete newDetails[item.date];
+                                              return newDetails;
+                                            });
                                           } catch (error) {
                                             console.error('Error deleting service details:', error);
-                                            alert('Error deleting service details. Please try again.');
+                                            setAlertMessage('Error deleting service details');
+                                            setShowAlert(true);
                                           }
                                         }
                                       }}
