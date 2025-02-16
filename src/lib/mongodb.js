@@ -10,9 +10,13 @@ console.log('MongoDB URI exists:', !!process.env.MONGODB_URI);
 
 const options = {
   maxPoolSize: 10,
-  serverSelectionTimeoutMS: 10000,
+  serverSelectionTimeoutMS: 30000,
   socketTimeoutMS: 45000,
   retryWrites: true,
+  w: 'majority',
+  wtimeoutMS: 30000,
+  // Add monitorCommands for better debugging
+  monitorCommands: true
 };
 
 let client;
@@ -26,12 +30,23 @@ try {
     }
     clientPromise = global._mongoClientPromise;
   } else {
-    client = new MongoClient(uri);
+    client = new MongoClient(uri, options);
     clientPromise = client.connect();
   }
 } catch (error) {
   console.error('MongoDB connection error:', error);
   throw error;
+}
+
+// Monitor the connection
+if (client) {
+  client.on('connectionReady', () => {
+    console.log('MongoDB connection established');
+  });
+
+  client.on('error', (error) => {
+    console.error('MongoDB connection error:', error);
+  });
 }
 
 export default clientPromise;

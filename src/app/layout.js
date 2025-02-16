@@ -12,13 +12,21 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Zion Presentation Sign-Up",
-  description: "Sign up for Zion's Proclaim presentations",
+  title: 'ZionSync',
+  description: 'Service team coordination for Zion Lutheran Church',
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/favicon.png" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

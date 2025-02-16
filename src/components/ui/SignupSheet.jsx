@@ -1,16 +1,14 @@
 'use client'
-
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { ChevronDown, ChevronUp, Check, X, Mail, UserCircle, Trash2, Calendar } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ChevronDown, ChevronUp, Check, X, Mail, UserCircle, Trash2, Calendar, Music, Music2, BookOpen, MessageSquare, Cross } from 'lucide-react';
 import MobileServiceCard from './MobileServiceCard';
 import MobileUserSelect from './MobileUserSelect';
-import { Music, BookOpen, MessageSquare, Cross } from 'lucide-react';
 import PastorServiceInput from './PastorServiceInput';
-import './ui/table.css'
+import { Alert, AlertDescription } from './alert';
+import { Card, CardHeader, CardContent } from './card';
+import './table.css'
 
-const SignupSheet = () => {
+const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
   // Initialize all state at the top of component
   const [currentUser, setCurrentUser] = useState(null);
   const [expanded, setExpanded] = useState({});
@@ -32,16 +30,22 @@ const SignupSheet = () => {
   const [showPastorInput, setShowPastorInput] = useState(false);
   const [editingDate, setEditingDate] = useState(null);
   const [alertPosition, setAlertPosition] = useState({ x: 0, y: 0 });
+  const POLLING_INTERVAL = 30000;
+
+  const checkForOrderOfWorship = (date) => {
+    const elements = serviceDetails[date]?.elements;
+    return Array.isArray(elements) && elements.length > 0;
+  };
 
   const isFutureDate = (dateStr) => {
     const [month, day, year] = dateStr.split('/').map(num => parseInt(num, 10));
     // Set time to start of day for accurate comparison
     const dateToCheck = new Date(year, month - 1, day);
     dateToCheck.setHours(0, 0, 0, 0);
-    
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     return dateToCheck >= today;
   };
 
@@ -56,7 +60,7 @@ const SignupSheet = () => {
           },
           body: JSON.stringify({ name })
         });
-        
+
         setAvailableUsers(prev => [...prev, { name }]);
       } catch (error) {
         console.error('Error adding user:', error);
@@ -66,7 +70,7 @@ const SignupSheet = () => {
       }
     }
   };
-  
+
   const handleRemoveUser = async (userName, skipConfirm = true) => {
     if (!skipConfirm && !confirm(`Remove ${userName} from users list?`)) {
       return;
@@ -106,96 +110,123 @@ const SignupSheet = () => {
     }
   };
 
-// Update the useEffect data fetching
-useEffect(() => {
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-      // Fetch users
-      console.log('Fetching users...');
-      const usersResponse = await fetch('/api/users');
-      if (!usersResponse.ok) throw new Error('Failed to fetch users');
-      const usersData = await usersResponse.json();
-      setAvailableUsers(usersData);
-      
-      // Fetch signups
-      console.log('Fetching signups...');
-      const signupsResponse = await fetch('/api/signups');
-      if (!signupsResponse.ok) throw new Error('Failed to fetch signups');
-      const signupsData = await signupsResponse.json();
-      
-      // Process signups
-      const signupsObj = {};
-      const detailsObj = {};
-      const userFutureDates = [];
-      
-      signupsData.forEach(signup => {
-        signupsObj[signup.date] = signup.name;
-        detailsObj[signup.date] = { name: signup.name };
-        if (isFutureDate(signup.date)) {
-          userFutureDates.push(signup.date);
+  // Update the useEffect data fetching
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch users
+        console.log('Fetching users...');
+        const usersResponse = await fetch('/api/users');
+        if (!usersResponse.ok) throw new Error('Failed to fetch users');
+        const usersData = await usersResponse.json();
+        setAvailableUsers(usersData);
+
+        // Fetch signups
+        console.log('Fetching signups...');
+        const signupsResponse = await fetch('/api/signups');
+        if (!signupsResponse.ok) throw new Error('Failed to fetch signups');
+        const signupsData = await signupsResponse.json();
+
+        // Process signups
+        const signupsObj = {};
+        const detailsObj = {};
+        const userFutureDates = [];
+
+        signupsData.forEach(signup => {
+          signupsObj[signup.date] = signup.name;
+          detailsObj[signup.date] = { name: signup.name };
+          if (isFutureDate(signup.date)) {
+            userFutureDates.push(signup.date);
+          }
+        });
+
+        setSignups(signupsObj);
+        setSignupDetails(detailsObj);
+        setSelectedDates(userFutureDates);
+
+        // Fetch completed status
+        console.log('Fetching completed status...');
+        const completedResponse = await fetch('/api/completed');
+        if (!completedResponse.ok) throw new Error('Failed to fetch completed status');
+        const completedData = await completedResponse.json();
+
+        const completedObj = {};
+        completedData.forEach(item => {
+          completedObj[item.date] = item.completed;
+        });
+        setCompleted(completedObj);
+
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setAlertMessage(`Error loading data: ${error.message}`);
+        setShowAlert(true);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    let isSubscribed = true;
+
+    const fetchServiceDetails = async () => {
+      try {
+        const response = await fetch('/api/service-details');
+        if (!response.ok) throw new Error('Failed to fetch service details');
+        const data = await response.json();
+
+        if (isSubscribed) {
+          setServiceDetails(prev => {
+            const merged = { ...prev };
+            Object.keys(data).forEach(date => {
+              const existingElements = prev[date]?.elements || [];
+              const newElements = data[date]?.elements || [];
+
+              // Improved merging logic for elements with song selections
+              const mergedElements = newElements.map(newElement => {
+                const existingElement = existingElements.find(existing => 
+                  existing.type === newElement.type && 
+                  existing.id === newElement.id
+                );
+
+                // If it's a song element, preserve the selection from the new data
+                if (newElement.type === 'song_hymn' || newElement.type === 'song_contemporary') {
+                  return {
+                    ...existingElement,
+                    ...newElement,
+                    selection: newElement.selection || existingElement?.selection
+                  };
+                }
+
+                // For non-song elements, prefer existing data
+                return existingElement || newElement;
+              });
+
+              merged[date] = {
+                ...prev[date],
+                ...data[date],
+                elements: mergedElements
+              };
+            });
+            return merged;
+          });
         }
-      });
-      
-      setSignups(signupsObj);
-      setSignupDetails(detailsObj);        
-      setSelectedDates(userFutureDates);
+      } catch (error) {
+        console.error('Error fetching service details:', error);
+      }
+    };
 
-      // Fetch completed status
-      console.log('Fetching completed status...');
-      const completedResponse = await fetch('/api/completed');
-      if (!completedResponse.ok) throw new Error('Failed to fetch completed status');
-      const completedData = await completedResponse.json();
-      
-      const completedObj = {};
-      completedData.forEach(item => {
-        completedObj[item.date] = item.completed;
-      });
-      setCompleted(completedObj);
+    fetchServiceDetails();
+    const intervalId = setInterval(fetchServiceDetails, 30000); // 30 second polling
 
-      // Fetch service details
-      console.log('Fetching service details...');
-      const detailsResponse = await fetch('/api/service-details');
-      if (!detailsResponse.ok) throw new Error('Failed to fetch service details');
-      const detailsData = await detailsResponse.json();
-      
-      // Process service details to store them in the state for easy access and manipulation
-      const serviceDetailsObj = {};
-      detailsData.forEach(detail => {
-        if (detail.date) {
-          // Parse the content into elements
-          const elements = detail.content?.split('\n').map(line => {
-            const type =
-              line.includes('Hymn') || line.includes('Song') ? 'hymn' :
-                line.includes('Reading') ? 'reading' :
-                  line.includes('Sermon') || line.includes('Message') ? 'message' :
-                    'liturgy';
-
-            return {
-              type,
-              content: line,
-            };
-          }) || [];
-
-          serviceDetailsObj[detail.date] = {
-            elements: elements,
-            type: detail.type,
-            setting: detail.setting
-          };
-        }
-      });
-      setServiceDetails(serviceDetailsObj);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      setAlertMessage(`Error loading data: ${error.message}`);
-      setShowAlert(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  fetchData();
-}, []);
+    return () => {
+      isSubscribed = false;
+      clearInterval(intervalId);
+    };
+  }, []);
 
   const dates = [
     { date: '1/5/25', day: 'Sunday', title: 'Epiphany' },
@@ -262,17 +293,15 @@ useEffect(() => {
     { date: '12/28/25', day: 'Sunday', title: 'Christmas Week 1' }
   ];
 
-  const [serviceDetails, setServiceDetails] = useState({});
-
   const handleSignup = async () => {
     const nameInput = document.querySelector('input[name="name"]');
-    
+
     if (!nameInput) return;
-    
+
     const name = nameInput.value;
-    
+
     if (!name) return;
-  
+
     try {
       // Save to MongoDB
       await fetch('/api/signups', {
@@ -285,25 +314,25 @@ useEffect(() => {
           name,
         })
       });
-  
+
       const newUser = {
         name,
         color: 'bg-[#6B8E23] bg-opacity-20'
       };
-  
+
       // Update both signups and signupDetails states
       setSignups(prev => ({
         ...prev,
         [currentDate]: name
       }));
-  
+
       setSignupDetails(prev => ({
         ...prev,
         [currentDate]: {
           name
         }
       }));
-  
+
       setCurrentUser(newUser);
       setSelectedDates(prev => [...prev, currentDate]);
       setShowRegistration(false);
@@ -316,7 +345,7 @@ useEffect(() => {
       setTimeout(() => setShowAlert(false), 3000);
     }
   };
-  
+
   // Update handleServiceDetailChange function
   const handleServiceDetailChange = async (date, field, value) => {
     try {
@@ -374,7 +403,7 @@ useEffect(() => {
 
   const handleRemoveReservation = async (date) => {
     if (!currentUser) return;
-    
+
     if (signups[date] === currentUser.name) {
       try {
         await fetch('/api/signups', {
@@ -387,19 +416,19 @@ useEffect(() => {
             name: currentUser.name
           })
         });
-  
+
         setSignups(prev => {
           const newSignups = { ...prev };
           delete newSignups[date];
           return newSignups;
         });
-  
+
         setSignupDetails(prev => {
           const newDetails = { ...prev };
           delete newDetails[date];
           return newDetails;
         });
-  
+
         setSelectedDates(prev => prev.filter(d => d !== date));
         setAlertMessage('Reservation removed successfully');
         setShowAlert(true);
@@ -425,7 +454,7 @@ useEffect(() => {
           completed: newValue
         })
       });
-      
+
       setCompleted(prev => ({
         ...prev,
         [date]: newValue
@@ -440,12 +469,12 @@ useEffect(() => {
       // Filter the dates array to only include selected dates
       const userSelectedDates = selectedDates.filter(date => signups[date] === currentUser?.name);
       const eventsToDownload = dates.filter(date => userSelectedDates.includes(date.date));
-  
+
       // Create events array for ICS
       const events = eventsToDownload.map(event => {
         const [month, day, parsedYear] = event.date.split('/').map(num => parseInt(num, 10));
         const year = 2000 + parsedYear;
-        
+
         return {
           uid: `proclaim-presentation-${event.date}`,
           start: [year, month, day, 9, 0],
@@ -472,11 +501,11 @@ useEffect(() => {
           });
         });
       });
-  
+
       if (error) {
         throw error;
       }
-  
+
       // Create and download the file
       const blob = new Blob([value], { type: 'text/calendar;charset=utf-8' });
       const link = document.createElement('a');
@@ -485,7 +514,7 @@ useEffect(() => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-  
+
       setAlertMessage('Calendar events downloaded successfully');
       setShowAlert(true);
       setTimeout(() => setShowAlert(false), 3000);
@@ -497,8 +526,24 @@ useEffect(() => {
     }
   };
 
+  const checkForSelectedSongs = (date) => {
+    const elements = serviceDetails[date]?.elements;
+    const songElements = elements?.filter(element => element.type === 'song_hymn');
+
+    console.log('Checking songs for date:', date, {
+      elements: songElements,
+      hasSongs: songElements?.some(element => element.selection?.title)
+    });
+
+    // Check if any songs have a reference (which indicates they were selected)
+    // OR if they have a selection.title
+    return songElements?.some(element =>
+      element.reference || element.selection?.title
+    );
+  };
+
   return (
-    <Card className="w-full max-w-6xl mx-auto relative bg-white shadow-lg">
+    <Card className="w-full max-w-6xl mx-auto relative bg-white shadow-lg h-[calc(100vh-4rem)]">
       {showAlert && (
         <Alert
           className="fixed z-[60] w-80 bg-white border-[#6B8E23] shadow-lg rounded-lg"
@@ -552,25 +597,25 @@ useEffect(() => {
         </div>
       )}
 
-      <div className="flex flex-col h-screen md:h-auto">
+      <div className="flex flex-col h-full">
         {/* Fixed Header Section */}
         <div className="sticky top-0 z-10 bg-white">
           <CardHeader className="border-b border-gray-200">
             {/* Desktop Header */}
-            <div className="hidden md:flex items-center justify-center gap-8">
+            <div className="hidden md:flex items-center justify-center gap-12">
               <img
                 src="/church-logo.png"
                 alt="Church Logo"
-                className="h-16 object-contain"
+                className="h-28 object-contain"
               />
               <div>
-                <h1 className="text-3xl font-bold text-center text-[#6B8E23]">Proclaim Presentation Team Sign-up Sheet</h1>
+                <h1 className="text-3xl font-bold text-center text-[#6B8E23]">Proclaim Presentation Team</h1>
                 <p className="text-2xl font-bold text-center text-gray-600">2025 Service Schedule</p>
               </div>
               <img
-                src="/proclaim-logo.png"
-                alt="Church Logo"
-                className="h-16 object-contain"
+                src="/ZionSyncLogo.png"
+                alt="ZionSync Logo"
+                className="h-28 object-contain"
               />
             </div>
 
@@ -578,12 +623,12 @@ useEffect(() => {
             <div className="flex md:hidden flex-col gap-4">
               <div className="flex justify-center gap-4 mb-2">
                 <div className="flex gap-2 items-center">
-                  <img src="/church-logo.png" alt="Church Logo" className="h-10 object-contain" />
-                  <img src="/proclaim-logo.png" alt="Proclaim Logo" className="h-10 object-contain" />
+                  <img src="/church-Logo.png" alt="Zion Church Sync Logo" className="h-10 object-contain" />
+                  <img src="/ZionSynclogo.png" alt="ZionSync Logo" className="h-10 object-contain" />
                 </div>
               </div>
               <div className="text-center">
-                <h1 className="text-xl font-bold text-[#6B8E23]">Proclaim Presentation Team Sign-up Sheet</h1>
+                <h1 className="text-xl font-bold text-[#6B8E23]">Proclaim Presentation Team</h1>
                 <p className="text-lg font-bold text-gray-600">2025 Service Schedule</p>
               </div>
             </div>
@@ -734,7 +779,7 @@ useEffect(() => {
         {/* Scrollable Content Section */}
         <div className="flex-1 overflow-y-auto">
           <CardContent>
-            <div>
+            <div className="space-y-4">
               {/* Desktop Table View */}
               <div className="hidden md:block">
                 <table className="w-full">
@@ -782,7 +827,25 @@ useEffect(() => {
                           </td>
                           <td className="p-2 border-r border-gray-300">{item.date}</td>
                           <td className="p-2 border-r border-gray-300">{item.day}</td>
-                          <td className="p-2 border-r border-gray-300">{item.title}</td>
+                          <td className="p-2 border-r border-gray-300">
+                            <div className="flex items-center justify-between">
+                              <span>{item.title}</span>
+                              <div className="flex items-center gap-1">
+                                {checkForOrderOfWorship(item.date) && (
+                                  <BookOpen
+                                    className="w-4 h-4 text-green-600"
+                                    title="Order of Worship available"
+                                  />
+                                )}
+                                {checkForSelectedSongs(item.date) && (
+                                  <Music2
+                                    className="w-4 h-4 text-purple-700"
+                                    title="Songs selected"
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          </td>
                           <td className="p-2 border-r border-gray-300">
                             {signups[item.date] ? (
                               <div className="p-2 rounded bg-[#6B8E23] bg-opacity-20 flex justify-between items-center">
@@ -805,25 +868,25 @@ useEffect(() => {
                               </div>
                             ) : (
                               <button
-                                  onClick={(e) => {
-                                    if (!currentUser) {
-                                      // Get the button's position
-                                      const rect = e.currentTarget.getBoundingClientRect();
-                                      setAlertPosition({
-                                        x: rect.left + (rect.width / 2),
-                                        y: rect.top
-                                      });
+                                onClick={(e) => {
+                                  if (!currentUser) {
+                                    // Get the button's position
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setAlertPosition({
+                                      x: rect.left + (rect.width / 2),
+                                      y: rect.top
+                                    });
 
-                                      setAlertMessage('Please select a user first');
-                                      setShowAlert(true);
-                                      setTimeout(() => setShowAlert(false), 3000);
-                                      const button = e.currentTarget;
-                                      button.style.borderColor = '#EF4444';
-                                      setTimeout(() => {
-                                        button.style.borderColor = '';
-                                      }, 1000);
-                                      return;
-                                    }
+                                    setAlertMessage('Please select a user first');
+                                    setShowAlert(true);
+                                    setTimeout(() => setShowAlert(false), 3000);
+                                    const button = e.currentTarget;
+                                    button.style.borderColor = '#EF4444';
+                                    setTimeout(() => {
+                                      button.style.borderColor = '';
+                                    }, 1000);
+                                    return;
+                                  }
 
                                   try {
                                     fetch('/api/signups', {
@@ -879,8 +942,8 @@ useEffect(() => {
                             <button
                               onClick={() => handleCompleted(item.date)}
                               className={`w-6 h-6 rounded border ${completed[item.date]
-                                  ? 'bg-[#6B8E23] border-[#556B2F]'
-                                  : 'bg-white border-gray-300'
+                                ? 'bg-[#6B8E23] border-[#556B2F]'
+                                : 'bg-white border-gray-300'
                                 } flex items-center justify-center`}
                             >
                               {completed[item.date] && <Check className="w-4 h-4 text-white" />}
@@ -891,38 +954,77 @@ useEffect(() => {
                           <tr>
                             <td colSpan="7" className="p-2 bg-gray-50">
                               <div className="space-y-0 ml-[10%] max-w-xl">
-                                {/* Service Title with Pastor Edit button */}
+                                {/* Service Title with Pastor Edit/Delete buttons */}
                                 <div className="flex justify-between items-center mb-2">
                                   <h3 className="text-base font-bold text-[#6B8E23]">Order of Worship</h3>
-                                  <button
-                                    className="px-2 py-0.5 text-sm text-[#6B8E23] border border-[#6B8E23] rounded hover:bg-[#6B8E23] hover:text-white"
-                                    onClick={() => {
-                                      setEditingDate(item.date);
-                                      setShowPastorInput(true);
-                                    }}
-                                  >
-                                    Pastor Edit
-                                  </button>
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => {
+                                        setEditingDate(item.date);
+                                        setShowPastorInput(true);
+                                      }}
+                                      className="px-2 py-0.5 text-sm text-[#6B8E23] border border-[#6B8E23] rounded hover:bg-[#6B8E23] hover:text-white"
+                                    >
+                                      Pastor Edit
+                                    </button>
+                                    <button
+                                      onClick={async () => {
+                                        if (confirm('Are you sure you want to delete this service\'s details?')) {
+                                          try {
+                                            const response = await fetch(`/api/service-details?date=${item.date}`, {
+                                              method: 'DELETE',
+                                            });
+
+                                            if (!response.ok) {
+                                              throw new Error('Failed to delete service details');
+                                            }
+
+                                            // Update the local state by removing service details
+                                            setServiceDetails(prev => ({
+                                              ...prev,
+                                              [item.date]: {
+                                                ...prev[item.date],
+                                                elements: [],
+                                                content: null,
+                                                type: null
+                                              }
+                                            }));
+
+                                            // Show success message
+                                            alert('Service details deleted successfully');
+                                          } catch (error) {
+                                            console.error('Error deleting service details:', error);
+                                            alert('Error deleting service details. Please try again.');
+                                          }
+                                        }
+                                      }}
+                                      className="px-2 py-0.5 text-sm text-red-600 border border-red-600 rounded hover:bg-red-50"
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
                                 </div>
 
                                 {/* Map through ordered service elements */}
                                 {serviceDetails[item.date]?.elements?.map((element, index) => (
                                   <div key={index} className="flex items-center gap-1 text-sm leading-tight">
-                                    <div className={`p-0.5 rounded ${element.type === 'hymn' ? 'bg-blue-50 text-blue-600' :
+                                    <div className={`p-0.5 rounded ${element.type === 'song_hymn' ? 'bg-blue-50 text-blue-600' :
                                       element.type === 'reading' ? 'bg-green-50 text-green-600' :
                                         element.type === 'message' ? 'bg-purple-50 text-purple-600' :
-                                          'bg-amber-50 text-amber-600'
+                                          element.type === 'liturgical_song' ? 'bg-amber-50 text-amber-600' :
+                                            'bg-gray-50 text-gray-600'
                                       }`}>
-                                      {element.type === 'hymn' ? <Music className="w-4 h-4" /> :
-                                        element.type === 'reading' ? <BookOpen className="w-4 h-4" /> :
-                                          element.type === 'message' ? <MessageSquare className="w-4 h-4" /> :
-                                            <Cross className="w-4 h-4" />}
+                                      {
+                                        element.type === 'song_hymn' ? <Music className="w-4 h-4" /> :
+                                          element.type === 'reading' ? <BookOpen className="w-4 h-4" /> :
+                                            element.type === 'message' ? <MessageSquare className="w-4 h-4" /> :
+                                              element.type === 'liturgical_song' ? <Music2 className="w-4 h-4" /> :
+                                                <Cross className="w-4 h-4" />
+                                      }
                                     </div>
                                     <div className="flex-1">
                                       {element.content}
                                     </div>
-
-                                    
                                   </div>
                                 ))}
 
@@ -948,6 +1050,8 @@ useEffect(() => {
                   <MobileServiceCard
                     key={item.date}
                     item={item}
+                    checkForSelectedSongs={checkForSelectedSongs}
+                    checkForOrderOfWorship={checkForOrderOfWorship}
                     expanded={expanded}
                     completed={completed}
                     signups={signups}
@@ -1086,7 +1190,28 @@ useEffect(() => {
           }}
           onSave={async (serviceData) => {
             try {
-              // Save to MongoDB
+              // Keep existing elements that have selections/references
+              const existingElements = serviceDetails[editingDate]?.elements || [];
+              const updatedElements = serviceData.elements.map(newElement => {
+                // Find matching existing element
+                const existingElement = existingElements.find(
+                  existing =>
+                    existing.type === newElement.type &&
+                    existing.content.split(':')[0] === newElement.content.split(':')[0]
+                );
+
+                // Preserve selection and reference if they exist
+                if (existingElement?.selection || existingElement?.reference) {
+                  return {
+                    ...newElement,
+                    selection: existingElement.selection,
+                    reference: existingElement.reference
+                  };
+                }
+                return newElement;
+              });
+
+              // Update MongoDB with merged data
               const response = await fetch('/api/service-details', {
                 method: 'POST',
                 headers: {
@@ -1096,34 +1221,24 @@ useEffect(() => {
                   date: editingDate,
                   content: serviceData.content,
                   type: serviceData.type,
-                  setting: serviceData.setting
+                  setting: serviceData.setting,
+                  elements: updatedElements  // Use merged elements
                 })
               });
+
               if (!response.ok) {
                 throw new Error('Failed to save service details');
               }
 
-              // Parse the content into elements immediately
-              const elements = serviceData.content.split('\n').map(line => {
-                const type =
-                  line.includes('Hymn') || line.includes('Song') ? 'hymn' :
-                    line.includes('Reading') ? 'reading' :
-                      line.includes('Sermon') || line.includes('Message') ? 'message' :
-                        'liturgy';
-
-                return {
-                  type,
-                  content: line
-                };
-              });
-
-              // Update local state with parsed elements
+              // Update local state with merged data
               setServiceDetails(prev => ({
                 ...prev,
                 [editingDate]: {
-                  elements: elements,
+                  ...prev[editingDate],
+                  elements: updatedElements,
                   type: serviceData.type,
-                  setting: serviceData.setting
+                  setting: serviceData.setting,
+                  content: serviceData.content
                 }
               }));
 
@@ -1141,7 +1256,7 @@ useEffect(() => {
           }}
         />
       )}
-    </Card>  
+    </Card>
   );
 };
 

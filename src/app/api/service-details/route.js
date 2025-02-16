@@ -10,15 +10,42 @@ export async function GET(request) {
     const client = await clientPromise;
     const db = client.db("church");
 
-    // If date is provided, fetch specific document, otherwise fetch all
     let details;
     if (date) {
       details = await db.collection("serviceDetails").findOne({ date });
-      console.log('Service details fetched for date:', date, details);
+      // If we have content but no elements, parse the content
+      if (details?.content && !details.elements) {
+        details.elements = parseServiceContent(details.content);
+        // Save the parsed elements back to the database
+        await db.collection("serviceDetails").updateOne(
+          { date },
+          { $set: { elements: details.elements } }
+        );
+      }
+      console.log('Single service details:', {
+        date,
+        content: details?.content?.substring(0, 50) + '...',
+        elementCount: details?.elements?.length
+      });
       return NextResponse.json(details || null);
     } else {
       details = await db.collection("serviceDetails").find({}).toArray();
-      console.log('All service details fetched:', details.length, 'documents');
+      // Parse any documents that have content but no elements
+      for (let detail of details) {
+        if (detail.content && !detail.elements) {
+          detail.elements = parseServiceContent(detail.content);
+          // Save the parsed elements back to the database
+          await db.collection("serviceDetails").updateOne(
+            { date: detail.date },
+            { $set: { elements: detail.elements } }
+          );
+        }
+      }
+      console.log('All service details:', details.map(d => ({
+        date: d.date,
+        hasContent: !!d.content,
+        elementCount: d.elements?.length
+      })));
       return NextResponse.json(details);
     }
   } catch (e) {
@@ -27,10 +54,53 @@ export async function GET(request) {
   }
 }
 
+// Add the parseServiceContent function at the top of the file
+const parseServiceContent = (content) => {
+  return content.split('\n').map(line => {
+    let type = 'liturgy';
+    const lowerLine = line.toLowerCase().trim();
+
+    if (lowerLine === 'opening hymn:' ||
+      lowerLine === 'hymn of the day:' ||
+      lowerLine === 'sending song:' ||
+      lowerLine.endsWith('opening hymn:') ||
+      lowerLine.endsWith('hymn of the day:') ||
+      lowerLine.endsWith('sending song:')) {
+      type = 'song_hymn';
+    }
+    else if (lowerLine === 'kyrie & hymn of praise' ||
+      lowerLine === 'gospel acclamation - alleluia (pg. 102)' ||
+      lowerLine.includes('create in me') ||
+      lowerLine.includes('change my heart o god')) {
+      type = 'liturgical_song';
+    }
+    else if (lowerLine === 'first reading:' ||
+      lowerLine === 'psalm reading:' ||
+      lowerLine === 'second reading:' ||
+      lowerLine === 'gospel reading:') {
+      type = 'reading';
+    }
+    else if (lowerLine === 'sermon:') {
+      type = 'message';
+    }
+
+    return {
+      type,
+      content: line,
+      selection: null
+    };
+  });
+};
+
 export async function POST(request) {
   try {
     const body = await request.json();
-    console.log('Received update:', body);
+    console.log('POST received:', {
+      date: body.date,
+      hasContent: !!body.content,
+      hasElements: !!body.elements,
+      elementCount: body.elements?.length
+    });
 
     if (!body.date) {
       throw new Error('Date is required');
@@ -44,20 +114,51 @@ export async function POST(request) {
       content: body.content,
       type: body.type,
       setting: body.setting,
+      elements: body.elements,
       lastUpdated: new Date().toISOString()
     };
 
-    await db.collection("serviceDetails").updateOne(
+    console.log('Saving document:', updateDoc);
+
+    const result = await db.collection("serviceDetails").updateOne(
       { date: body.date },
       { $set: updateDoc },
       { upsert: true }
     );
 
+    console.log('MongoDB update result:', result);
+
     // Return the updated document
     const updated = await db.collection("serviceDetails").findOne({ date: body.date });
+    console.log('Updated document:', updated);
     return NextResponse.json(updated);
   } catch (e) {
     console.error('POST Error:', e);
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const date = searchParams.get('date');
+
+    if (!date) {
+      return NextResponse.json({ error: 'Date is required' }, { status: 400 });
+    }
+
+    const client = await clientPromise;
+    const db = client.db("church");
+
+    const result = await db.collection("serviceDetails").deleteOne({ date });
+
+    if (result.deletedCount === 0) {
+      return NextResponse.json({ error: 'Service details not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ message: 'Service details deleted successfully' });
+  } catch (e) {
+    console.error('DELETE Error:', e);
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
