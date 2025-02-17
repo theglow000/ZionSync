@@ -626,34 +626,52 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
                     onEditTeam={() => handleEditTeam(item.date)}
                     header={
                       <div className="flex items-center justify-between w-full">
-                        {/* Left Side - Service Info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-4">
-                            {/* Larger date */}
-                            <div className="text-xl font-medium text-gray-600">
-                              {item.date}
+                        {/* Left Side - Service Info - Now wrapped in a clickable div */}
+                        <div 
+                          className="flex items-center flex-1 cursor-pointer hover:bg-gray-50 p-2 rounded"
+                          onClick={() => {
+                            setExpanded(prev => ({
+                              ...prev,
+                              [item.date]: !prev[item.date]
+                            }));
+                          }}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-4">
+                              {/* Larger date */}
+                              <div className="text-xl font-medium text-gray-600">
+                                {item.date}
+                              </div>
+                              {/* Title and type on same line */}
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-medium text-black text-sm truncate">
+                                  {item.title}
+                                </h3>
+                                <span className={`text-xs px-2 py-0.5 rounded flex-shrink-0 ${
+                                  serviceDetails[item.date]?.type ? 
+                                  'text-gray-600 bg-gray-100' : 
+                                  'text-amber-700 bg-amber-50 border border-amber-200'
+                                }`}>
+                                  {serviceDetails[item.date]?.type === 'communion' ? 'Communion' :
+                                  serviceDetails[item.date]?.type === 'communion_potluck' ? 'Communion with Potluck' :
+                                  serviceDetails[item.date]?.type === 'no_communion' ? 'No Communion' :
+                                  customServices?.find(s => s.id === serviceDetails[item.date]?.type)?.name || 
+                                  'Not Set'}
+                                </span>
+                              </div>
                             </div>
-                            {/* Title and type on same line */}
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-medium text-black text-sm truncate">
-                                {item.title}
-                              </h3>
-                              <span className={`text-xs px-2 py-0.5 rounded flex-shrink-0 ${
-                                serviceDetails[item.date]?.type ? 
-                                'text-gray-600 bg-gray-100' : 
-                                'text-amber-700 bg-amber-50 border border-amber-200'
-                              }`}>
-                                {serviceDetails[item.date]?.type === 'communion' ? 'Communion' :
-                                serviceDetails[item.date]?.type === 'communion_potluck' ? 'Communion with Potluck' :
-                                serviceDetails[item.date]?.type === 'no_communion' ? 'No Communion' :
-                                customServices?.find(s => s.id === serviceDetails[item.date]?.type)?.name || 
-                                'Not Set'}
-                              </span>
-                            </div>
+                          </div>
+
+                          {/* Add the expand/collapse icon inside the clickable area */}
+                          <div className="ml-4">
+                            {expanded[item.date] ?
+                              <ChevronUp className="w-5 h-5 text-purple-700" /> :
+                              <ChevronDown className="w-5 h-5 text-purple-700" />
+                            }
                           </div>
                         </div>
 
-                        {/* Right Side - Status and Controls */}
+                        {/* Right Side - Team Assignment (separated from clickable area) */}
                         <div className="flex items-center gap-4 flex-shrink-0 ml-4">
                           <div className="flex items-center gap-2">
                             {/* Team Assignment Badge */}
@@ -673,23 +691,6 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
                               </button>
                             </div>
                           </div>
-
-                          {/* Expand/Collapse Button */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setExpanded(prev => ({
-                                ...prev,
-                                [item.date]: !prev[item.date]
-                              }));
-                            }}
-                            className="ml-2"
-                          >
-                            {expanded[item.date] ?
-                              <ChevronUp className="w-5 h-5 text-purple-700" /> :
-                              <ChevronDown className="w-5 h-5 text-purple-700" />
-                            }
-                          </button>
                         </div>
                       </div>
                     }
