@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import SignupSheet from './ui/SignupSheet';
 import AVTeam from './ui/AVTeam';
 import WorshipTeam from './ui/WorshipTeam';
+import SplashScreen from './SplashScreen';
 
 const TabButton = ({ active, label, onClick, colors }) => (
   <div
@@ -43,6 +44,7 @@ const TabButton = ({ active, label, onClick, colors }) => (
 );
 
 const MainLayout = () => {
+  const [showSplash, setShowSplash] = useState(true);
   const [activeTab, setActiveTab] = useState('presentation');
   const [serviceDetails, setServiceDetails] = useState({});
   const [isLoading, setIsLoading] = useState(true);
@@ -110,6 +112,10 @@ const MainLayout = () => {
   ];
 
   const activeTabData = tabs.find(tab => tab.id === activeTab);
+
+  if (showSplash) {
+    return <SplashScreen onEnter={() => setShowSplash(false)} setActiveTab={setActiveTab} />;
+  }
 
   return (
     <div
