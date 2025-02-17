@@ -1,6 +1,16 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Link, Youtube } from 'lucide-react';
 
+const isValidUrl = (url) => {
+  if (!url) return false;
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const SongSection = ({
   slot,
   label,
@@ -205,7 +215,24 @@ const SongSection = ({
               placeholder={isHymn ? "Hymnary.org link" : "SongSelect link"}
               className="w-full p-1 pl-7 text-sm border rounded text-black placeholder:text-gray-500"
             />
-            <Link className="w-4 h-4 absolute left-2 top-1/2 -translate-y-1/2 text-gray-500" />
+            {isValidUrl(songState.sheetMusic) ? (
+              <a
+                href={songState.sheetMusic}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="absolute left-2 top-1/2 -translate-y-1/2"
+              >
+                <Link 
+                  className={`w-4 h-4 ${
+                    isHymn 
+                      ? 'text-[#7B1416] hover:text-[#5a0f10]' // Cranberry color for Hymnary.org
+                      : 'text-blue-600 hover:text-blue-800'    // Blue for SongSelect
+                  }`} 
+                />
+              </a>
+            ) : (
+              <Link className="w-4 h-4 absolute left-2 top-1/2 -translate-y-1/2 text-gray-500" />
+            )}
           </div>
           <div className="flex-1 relative">
             <input
@@ -215,7 +242,18 @@ const SongSection = ({
               placeholder="YouTube link"
               className="w-full p-1 pl-7 text-sm border rounded text-black placeholder:text-gray-500"
             />
-            <Youtube className="w-4 h-4 absolute left-2 top-1/2 -translate-y-1/2 text-gray-500" />
+            {isValidUrl(songState.youtube) ? (
+              <a
+                href={songState.youtube}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="absolute left-2 top-1/2 -translate-y-1/2"
+              >
+                <Youtube className="w-4 h-4 text-red-600 hover:text-red-700" />
+              </a>
+            ) : (
+              <Youtube className="w-4 h-4 absolute left-2 top-1/2 -translate-y-1/2 text-gray-500" />
+            )}
           </div>
         </div>
 
