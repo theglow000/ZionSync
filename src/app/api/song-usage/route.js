@@ -11,27 +11,39 @@ export async function GET(request) {
     const client = await clientPromise;
     const db = client.db("church");
 
-    console.log('API: Searching for song:', songTitle);
+    // Standardize date comparison for the search
+    const currentDate = new Date();
+    currentDate.setHours(12, 0, 0, 0);
+    const cutoffDate = new Date(currentDate);
+    cutoffDate.setMonth(currentDate.getMonth() - monthsBack);
 
-    // Get the song usage document
+    console.log('API: Searching for song:', songTitle);
+    console.log('Date range:', cutoffDate, 'to', currentDate);
+
     const songUsage = await db.collection("song_usage").findOne({ 
       title: songTitle,
-      // Add case-insensitive search
-      $expr: { $eq: [{ $toLower: "$title" }, songTitle.toLowerCase()] }
+      "uses.dateUsed": {
+        $gte: cutoffDate,
+        $lte: currentDate
+      }
     });
-    console.log('API: Found song usage document:', songUsage);
 
     if (!songUsage || !songUsage.uses) {
       return NextResponse.json([]);
     }
 
-    // Transform dates correctly
-    const formattedUsage = songUsage.uses.map(use => ({
-      title: songTitle,
-      dateUsed: new Date(use.dateUsed).toISOString(), // Ensure consistent date format
-      service: use.service,
-      addedBy: use.addedBy
-    }));
+    // Filter and format the usage data
+    const formattedUsage = songUsage.uses
+      .filter(use => {
+        const useDate = new Date(use.dateUsed);
+        return useDate >= cutoffDate && useDate <= currentDate;
+      })
+      .map(use => ({
+        title: songTitle,
+        dateUsed: new Date(use.dateUsed).toISOString(),
+        service: use.service,
+        addedBy: use.addedBy
+      }));
 
     console.log('API: Returning formatted usage:', formattedUsage);
     return NextResponse.json(formattedUsage);
@@ -46,28 +58,41 @@ export async function POST(request) {
   try {
     const body = await request.json();
     
-    // Don't process empty songs
     if (!body.title?.trim()) {
       return NextResponse.json({ message: 'No song title provided' });
     }
 
+    // Standardize the date format when saving
+    const [month, day, year] = body.date.split('/').map(Number);
+    const standardizedDate = new Date(2000 + year, month - 1, day);
+    standardizedDate.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
+
     const client = await clientPromise;
     const db = client.db("church");
 
-    // First, remove any existing usage for this date and service
+    // Remove existing usage with standardized date comparison
     await db.collection("song_usage").updateMany(
-      { "uses.dateUsed": new Date(body.date), "uses.service": body.service },
+      {
+        "uses.dateUsed": {
+          $gte: new Date(standardizedDate.setHours(0, 0, 0, 0)),
+          $lt: new Date(standardizedDate.setHours(23, 59, 59, 999))
+        },
+        "uses.service": body.service 
+      },
       { 
         $pull: { 
           uses: { 
-            dateUsed: new Date(body.date), 
+            dateUsed: {
+              $gte: new Date(standardizedDate.setHours(0, 0, 0, 0)),
+              $lt: new Date(standardizedDate.setHours(23, 59, 59, 999))
+            },
             service: body.service 
           } 
         } 
       }
     );
 
-    // Then add the new usage
+    // Add new usage with standardized date
     const result = await db.collection("song_usage").updateOne(
       { title: body.title },
       {
@@ -85,7 +110,7 @@ export async function POST(request) {
         },
         $push: {
           uses: {
-            dateUsed: new Date(body.date),
+            dateUsed: standardizedDate,
             service: body.service,
             addedBy: body.addedBy
           }
@@ -93,11 +118,6 @@ export async function POST(request) {
       },
       { upsert: true }
     );
-
-    // Clean up: Remove songs that have no uses
-    await db.collection("song_usage").deleteMany({
-      "uses": { $size: 0 }
-    });
 
     return NextResponse.json(result);
   } catch (e) {

@@ -159,6 +159,19 @@ const cleanSongSelections = (selections) => {
   return cleanedSelections;
 };
 
+// Add near other helper functions
+const isValidSongData = (song) => {
+  if (!song) return false;
+  
+  // For hymns, require at least title and number
+  if (song.type === 'hymn') {
+    return Boolean(song.title && song.number);
+  }
+  
+  // For contemporary songs, require at least title
+  return Boolean(song.title);
+};
+
 const ServiceSongSelector = ({
   date,
   currentUser,
@@ -426,7 +439,33 @@ const ServiceSongSelector = ({
         }
       }
 
-      // Proceed with saving if no duplicates or user confirmed
+      // Add this section to save songs to the songs collection
+      await Promise.all(songSelections.map(async (song) => {
+        if (!isValidSongData(song)) return;
+        
+        try {
+          await fetch('/api/songs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: song.title,
+              type: song.type,
+              number: song.number || '',
+              hymnal: song.hymnal || '',
+              author: song.author || '',
+              hymnaryLink: song.type === 'hymn' ? song.sheetMusic : '',
+              songSelectLink: song.type === 'contemporary' ? song.sheetMusic : '',
+              youtubeLink: song.youtube || '',
+              notes: song.notes || '',
+              lastUpdated: new Date().toISOString()
+            })
+          });
+        } catch (error) {
+          console.error(`Failed to save song: ${song.title}`, error);
+        }
+      }));
+
+      // Proceed with existing save logic...
       const serviceSongsResponse = await fetch('/api/service-songs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -450,26 +489,33 @@ const ServiceSongSelector = ({
           const matchingSong = songSelections[currentSongIndex];
           currentSongIndex++;
 
-          // Extract the base content (everything before the colon)
-          const [baseContent] = element.content.split(':');
+          // If all relevant fields are empty, treat it as no selection
+          const isEmpty = !matchingSong?.title && 
+                         !matchingSong?.number && 
+                         !matchingSong?.author;
 
-          // Format song details based on type
-          let songDetails = '';
-          if (matchingSong.type === 'hymn') {
-            songDetails = `${matchingSong.title}${matchingSong.number ? ` #${matchingSong.number}` : ''
-              }${matchingSong.hymnal ? ` (${matchingSong.hymnal.charAt(0).toUpperCase() + matchingSong.hymnal.slice(1)})` : ''}`;
-          } else if (matchingSong.type === 'contemporary') {
-            songDetails = `${matchingSong.title}${matchingSong.author ? ` - ${matchingSong.author}` : ''
-              }`;
+          if (isEmpty) {
+            return {
+              ...element,
+              selection: null,
+              content: element.content.split(':')[0] + ':', // Reset to just the label
+              reference: ''
+            };
           }
+
+          // Continue with existing song update logic for non-empty songs
+          const [baseContent] = element.content.split(':');
+          const songDetails = matchingSong.type === 'hymn' 
+            ? `${matchingSong.title}${matchingSong.number ? ` #${matchingSong.number}` : ''}${matchingSong.hymnal ? ` (${formatHymnalName(matchingSong.hymnal)})` : ''}`
+            : `${matchingSong.title}${matchingSong.author ? ` - ${matchingSong.author}` : ''}`;
 
           return {
             ...element,
             selection: matchingSong,
-            content: `${baseContent}: ${songDetails}`,  // This contains the full display text
-            reference: matchingSong.type === 'hymn' ?
-              `#${matchingSong.number} - ${matchingSong.hymnal}` :
-              matchingSong.author || ''
+            content: `${baseContent}: ${songDetails}`,
+            reference: matchingSong.type === 'hymn' 
+              ? `#${matchingSong.number} - ${matchingSong.hymnal}` 
+              : matchingSong.author || ''
           };
         }
         return element;
