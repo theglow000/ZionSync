@@ -5,16 +5,16 @@ import SignupSheet from './ui/SignupSheet';
 import AVTeam from './ui/AVTeam';
 import WorshipTeam from './ui/WorshipTeam';
 import SplashScreen from './SplashScreen';
+import { IoHomeOutline } from "react-icons/io5";
 
-const TabButton = ({ active, label, onClick, colors }) => (
+const TabButton = ({ active, label, onClick, colors, isHome }) => (
   <div
     className={`
-      relative w-14 h-32 cursor-pointer
+      relative w-14 ${isHome ? 'h-11' : 'h-32'} cursor-pointer
       ${active ? 'z-20' : 'z-10 hover:brightness-110'}
     `}
     onClick={onClick}
   >
-    {/* Tab Shape */}
     <div className={`
       absolute top-0 left-0 w-full h-full
       ${colors.bg}
@@ -23,22 +23,25 @@ const TabButton = ({ active, label, onClick, colors }) => (
       ${active ? 'shadow-lg' : 'brightness-90'}
       transition-all duration-200
     `}>
-      {/* Border overlay for inactive tabs */}
       {!active && (
         <div className="absolute right-0 top-0 bottom-0 w-[1px] bg-gray-300" />
       )}
-
-      <span
-        className={`
-          absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 
-          transform -rotate-90 whitespace-nowrap
-          text-sm font-medium
-          ${colors.text}
-        `}
-        style={{ transformOrigin: 'center' }}
-      >
-        {label}
-      </span>
+      
+      {isHome ? (
+        <IoHomeOutline className={`text-xl ${colors.text}`} />
+      ) : (
+        <span
+          className={`
+            absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 
+            transform -rotate-90 whitespace-nowrap
+            text-sm font-medium
+            ${colors.text}
+          `}
+          style={{ transformOrigin: 'center' }}
+        >
+          {label}
+        </span>
+      )}
     </div>
   </div>
 );
@@ -83,6 +86,16 @@ const MainLayout = () => {
 
   const tabs = [
     {
+      id: 'home',
+      label: 'Home',
+      colors: {
+        bg: 'bg-gray-800',
+        text: 'text-white',
+      },
+      background: '',
+      isHome: true
+    },
+    {
       id: 'presentation',
       label: 'Presentation Team',
       colors: {
@@ -114,7 +127,11 @@ const MainLayout = () => {
   const activeTabData = tabs.find(tab => tab.id === activeTab);
 
   if (showSplash) {
-    return <SplashScreen onEnter={() => setShowSplash(false)} setActiveTab={setActiveTab} />;
+    return (
+      <div className="w-full min-h-screen">
+        <SplashScreen onEnter={() => setShowSplash(false)} setActiveTab={setActiveTab} />
+      </div>
+    );
   }
 
   return (
@@ -123,7 +140,7 @@ const MainLayout = () => {
       style={{ backgroundImage: activeTabData.background }}
     >
       <div className="min-h-screen p-8">
-        <div className="flex max-w-6xl mx-auto h-[calc(100vh-4rem)]"> {/* Add fixed height */}
+        <div className="flex max-w-7xl mx-auto h-[calc(100vh-4rem)]">
           {/* Left side tabs */}
           <div className="relative flex flex-col gap-1 pt-4 -mr-[1px]">
             {tabs.map(tab => (
@@ -131,20 +148,21 @@ const MainLayout = () => {
                 key={tab.id}
                 active={activeTab === tab.id}
                 label={tab.label}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => tab.id === 'home' ? setShowSplash(true) : setActiveTab(tab.id)}
                 colors={tab.colors}
+                isHome={tab.isHome}
               />
             ))}
           </div>
 
-          {/* Main content area */}
-          <div className="flex-1 bg-white shadow-xl relative z-0 overflow-hidden">
+          {/* Main content area - add overflow handling */}
+          <div className="flex-1 bg-white shadow-xl relative z-0 overflow-hidden flex flex-col">
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
               </div>
             ) : (
-              <>
+              <div className="flex-1 overflow-y-auto">
                 {activeTab === 'presentation' && (
                   <SignupSheet
                     serviceDetails={serviceDetails}
@@ -158,7 +176,7 @@ const MainLayout = () => {
                   />
                 )}
                 {activeTab === 'av' && <AVTeam />}
-              </>
+              </div>
             )}
           </div>
         </div>

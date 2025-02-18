@@ -367,8 +367,7 @@ const AVTeam = () => {
 
 
     return (
-        <Card className="w-full max-w-6xl mx-auto relative bg-white shadow-lg">
-            {/* Alert Component */}
+        <Card className="w-full h-full mx-auto relative bg-white shadow-lg">
             {showAlert && (
                 <Alert
                     className="fixed z-[60] w-80 bg-white border-red-700 shadow-lg rounded-lg"
@@ -387,309 +386,311 @@ const AVTeam = () => {
                 </Alert>
             )}
 
-            {/* Header */}
-            <CardHeader className="border-b border-gray-200">
-                {/* Desktop Header */}
-                <div className="hidden md:flex items-center justify-center gap-12">
-                    <img
-                        src="/church-logo.png"
-                        alt="Church Logo"
-                        className="h-28 object-contain"
-                    />
-                    <div>
-                        <h1 className="text-3xl font-bold text-center text-red-700">Audio/Video Team</h1>
-                        <p className="text-2xl font-bold text-center text-gray-600">2025 Service Schedule</p>
-                    </div>
-                    <img
-                        src="/ZionSyncLogo.png"
-                        alt="ZionSync Logo"
-                        className="h-28 object-contain"
-                    />
-                </div>
-
-                {/* Mobile Header */}
-                <div className="flex md:hidden flex-col gap-4">
-                    <div className="flex justify-center gap-4 mb-2">
-                        <div className="flex gap-2 items-center">
-                            <img src="/church-logo.png" alt="Church Logo" className="h-10 object-contain" />
-                            <img src="/audio_videobg.jpg" alt="AV Logo" className="h-10 object-contain" />
-                        </div>
-                    </div>
-                    <div className="text-center">
-                        <h1 className="text-xl font-bold text-red-700">Audio/Video Team</h1>
-                        <p className="text-lg font-bold text-gray-600">2025 Service Schedule</p>
-                    </div>
-                </div>
-            </CardHeader>
-
-            {/* User Selection Section - Sticky */}
-            <div className="sticky top-0 z-20 bg-white">
-                <div className="p-4 border-b border-gray-200">
-                    {/* Desktop User Selection */}
-                    <div className="hidden md:flex justify-end items-center gap-4">
-                        <div className="flex flex-wrap gap-2 justify-end">
-                            {availableUsers.map(user => (
-                                <button
-                                    key={user.name}
-                                    onClick={() => setCurrentUser({
-                                        name: user.name,
-                                        color: 'bg-red-700 bg-opacity-20'
-                                    })}
-                                    className={`${currentUser?.name === user.name
-                                        ? 'bg-red-700 text-white'
-                                        : 'bg-red-700 bg-opacity-20 text-red-700'
-                                        } px-3 py-1 rounded flex items-center gap-2`}
-                                >
-                                    <UserCircle className="w-4 h-4" />
-                                    <span>{user.name}</span>
-                                </button>
-                            ))}
-                        </div>
-                        <button
-                            onClick={() => setShowUserManagement(true)}
-                            className="px-3 py-1 rounded border border-red-700 text-red-700 hover:bg-red-50"
-                        >
-                            Manage Users
-                        </button>
-                    </div>
-
-                    {/* Mobile User Selection */}
-                    <div className="md:hidden">
-                        <button
-                            onClick={() => setShowUserSelector(true)}
-                            className="w-full px-3 py-2 rounded border border-red-700 text-red-700"
-                        >
-                            {currentUser ? `Selected: ${currentUser.name}` : 'Select User'}
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Main Content */}
-            <CardContent>
-                <div className="flex flex-col max-h-[calc(100vh-300px)] md:max-h-[calc(100vh-200px)]">
-                    <div className="flex-1 overflow-y-auto">
-                        {/* Desktop View */}
-                        <div className="hidden md:block">
-                            <table className="w-full">
-                                <thead className="sticky top-0 z-10 bg-white">
-                                    <tr className="bg-red-50">
-                                        <th className="p-2 text-left w-24 font-bold text-red-700">Date</th>
-                                        <th className="p-2 text-left w-24 font-bold text-red-700">Day</th>
-                                        <th className="p-2 text-left font-bold text-red-700">Service</th>
-                                        <th className="p-2 text-left font-bold text-red-700">Team Member 1</th>
-                                        <th className="p-2 text-left font-bold text-red-700">Team Member 2</th>
-                                        <th className="p-2 text-left font-bold text-red-700">Team Member 3</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {dates.map((item, index) => (
-                                        <tr key={item.date} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
-                                            <td className="p-2 border-r border-gray-300">{item.date}</td>
-                                            <td className="p-2 border-r border-gray-300">{item.day}</td>
-                                            <td className="p-2 border-r border-gray-300">{item.title}</td>
-                                            {/* Team Member 1 */}
-                                            <td className="p-2 border-r border-gray-300">
-                                                <div className={`p-2 rounded bg-red-700 ${isPastDate(item.date) ? 'opacity-50' : 'bg-opacity-20'} flex justify-between items-center`}>
-                                                    <span>{assignments[item.date]?.team_member_1 || 'Ben'}</span>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            if (!currentUser) {
-                                                                const rect = e.currentTarget.getBoundingClientRect();
-                                                                setAlertPosition({
-                                                                    x: rect.left + (rect.width / 2),
-                                                                    y: rect.top
-                                                                });
-                                                                setAlertMessage('Please select a user first');
-                                                                setShowAlert(true);
-                                                                setTimeout(() => setShowAlert(false), 3000);
-                                                                return;
-                                                            }
-                                                            handleAssignment(item.date, 1, currentUser.name);
-                                                        }}
-                                                        className="text-red-500 hover:text-red-700"
-                                                    >
-                                                        <Edit2 className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </td>
-
-                                            {/* Team Member 2 */}
-                                            <td className="p-2 border-r border-gray-300">
-                                                <div className={`p-2 rounded bg-red-700 ${isPastDate(item.date) ? 'opacity-50' : 'bg-opacity-20'} flex justify-between items-center`}>
-                                                    <span>{assignments[item.date]?.team_member_2 || getRotationMember(index)}</span>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            if (!currentUser) {
-                                                                const rect = e.currentTarget.getBoundingClientRect();
-                                                                setAlertPosition({
-                                                                    x: rect.left + (rect.width / 2),
-                                                                    y: rect.top
-                                                                });
-                                                                setAlertMessage('Please select a user first');
-                                                                setShowAlert(true);
-                                                                setTimeout(() => setShowAlert(false), 3000);
-                                                                return;
-                                                            }
-                                                            handleAssignment(item.date, 2, currentUser.name);
-                                                        }}
-                                                        className="text-red-500 hover:text-red-700"
-                                                    >
-                                                        <Edit2 className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </td>
-
-                                            {/* Team Member 3 */}
-                                            <td className="p-2">
-                                                {assignments[item.date]?.team_member_3 ? (
-                                                    <div className={`p-2 rounded bg-red-700 ${isPastDate(item.date) ? 'opacity-50' : 'bg-opacity-20'} flex justify-between items-center`}>
-                                                        <span className="text-gray-900">{assignments[item.date].team_member_3}</span>
-                                                        {assignments[item.date].team_member_3 === currentUser?.name && (
-                                                            <button
-                                                                onClick={() => handleRemoveAssignment(item.date)}
-                                                                className="text-red-500 hover:text-red-700"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    <button
-                                                        onClick={() => handleSignup(item.date)}
-                                                        className={`w-full p-2 border rounded text-red-700 border-red-700 hover:bg-red-50 ${isPastDate(item.date) ? 'opacity-50' : ''
-                                                            }`}
-                                                    >
-                                                        Sign Up
-                                                    </button>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+            <div className="flex flex-col h-full">
+                {/* Sticky Header Section */}
+                <div className="sticky top-0 z-10 bg-white">
+                    <CardHeader className="border-b border-gray-200">
+                        {/* Desktop Header */}
+                        <div className="hidden md:flex items-center justify-center gap-12">
+                            <img
+                                src="/church-logo.png"
+                                alt="Church Logo"
+                                className="h-28 object-contain"
+                            />
+                            <div>
+                                <h1 className="text-3xl font-bold text-center text-red-700">Audio/Video Team</h1>
+                                <p className="text-2xl font-bold text-center text-gray-600">2025 Service Schedule</p>
+                            </div>
+                            <img
+                                src="/ZionSyncLogo.png"
+                                alt="ZionSync Logo"
+                                className="h-28 object-contain"
+                            />
                         </div>
 
-                        {/* Mobile View */}
+                        {/* Mobile Header */}
+                        <div className="flex md:hidden flex-col gap-4">
+                            <div className="flex justify-center gap-4 mb-2">
+                                <div className="flex gap-2 items-center">
+                                    <img src="/church-logo.png" alt="Church Logo" className="h-10 object-contain" />
+                                    <img src="/audio_videobg.jpg" alt="AV Logo" className="h-10 object-contain" />
+                                </div>
+                            </div>
+                            <div className="text-center">
+                                <h1 className="text-xl font-bold text-red-700">Audio/Video Team</h1>
+                                <p className="text-lg font-bold text-gray-600">2025 Service Schedule</p>
+                            </div>
+                        </div>
+                    </CardHeader>
+
+                    {/* User Selection Bar */}
+                    <div className="p-4 border-b border-gray-200">
+                        {/* Desktop User Selection */}
+                        <div className="hidden md:flex justify-end items-center gap-4">
+                            <div className="flex flex-wrap gap-2 justify-end">
+                                {availableUsers.map(user => (
+                                    <button
+                                        key={user.name}
+                                        onClick={() => setCurrentUser({
+                                            name: user.name,
+                                            color: 'bg-red-700 bg-opacity-20'
+                                        })}
+                                        className={`${currentUser?.name === user.name
+                                            ? 'bg-red-700 text-white'
+                                            : 'bg-red-700 bg-opacity-20 text-red-700'
+                                            } px-3 py-1 rounded flex items-center gap-2`}
+                                    >
+                                        <UserCircle className="w-4 h-4" />
+                                        <span>{user.name}</span>
+                                    </button>
+                                ))}
+                            </div>
+                            <button
+                                onClick={() => setShowUserManagement(true)}
+                                className="px-3 py-1 rounded border border-red-700 text-red-700 hover:bg-red-50"
+                            >
+                                Manage Users
+                            </button>
+                        </div>
+
+                        {/* Mobile User Selection */}
                         <div className="md:hidden">
-                            {dates.map((item, index) => (
-                                <div key={item.date} className="mb-4 p-4 bg-white rounded-lg shadow border">
-                                    <div className="mb-2">
-                                        <div className="font-medium text-gray-900">{item.title}</div>
-                                        <div className="text-sm text-gray-600">{item.day}, {item.date}</div>
-                                    </div>
+                            <button
+                                onClick={() => setShowUserSelector(true)}
+                                className="w-full px-3 py-2 rounded border border-red-700 text-red-700"
+                            >
+                                {currentUser ? `Selected: ${currentUser.name}` : 'Select User'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
-                                    {/* Team Members Section */}
-                                    <div className="space-y-2">
-                                        {/* Team Member 1 */}
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-sm text-gray-600">Team Member 1:</span>
-                                            <div className="flex-1 ml-4">
-                                                <div className={`p-2 rounded bg-red-700 ${isPastDate(item.date) ? 'opacity-50' : 'bg-opacity-20'} flex justify-between items-center`}>
-                                                    <span className="text-gray-900">
-                                                        {assignments[item.date]?.team_member_1 || 'Ben'}
-                                                    </span>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            if (!currentUser) {
-                                                                const rect = e.currentTarget.getBoundingClientRect();
-                                                                setAlertPosition({
-                                                                    x: rect.left + (rect.width / 2),
-                                                                    y: rect.top
-                                                                });
-                                                                setAlertMessage('Please select a user first');
-                                                                setShowAlert(true);
-                                                                setTimeout(() => setShowAlert(false), 3000);
-                                                                return;
-                                                            }
-                                                            handleAssignment(item.date, 1, currentUser.name);
-                                                        }}
-                                                        className="text-red-500 hover:text-red-700"
-                                                    >
-                                                        <Edit2 className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
+                {/* Scrollable Content Section */}
+                <div className="flex-1 overflow-hidden">
+                    <CardContent className="h-full p-0">
+                        <div className="h-full">
+                            {/* Desktop Table View */}
+                            <div className="hidden md:block h-full">
+                                <div className="relative h-full">
+                                    <div className="overflow-y-auto h-full">
+                                        <table className="w-full">
+                                            <thead className="sticky top-0 z-10">
+                                                <tr className="bg-[#FFEBEB]">
+                                                    <th style={{ width: '110px' }} className="p-2 text-center font-bold text-red-700">Date</th>
+                                                    <th style={{ width: '120px' }} className="p-2 text-center font-bold text-red-700">Day</th>
+                                                    <th style={{ width: '35%' }} className="p-2 text-left font-bold text-red-700">Service</th>
+                                                    <th style={{ width: '16%' }} className="p-2 text-center font-bold text-red-700">Team Member 1</th>
+                                                    <th style={{ width: '16%' }} className="p-2 text-center font-bold text-red-700">Team Member 2</th>
+                                                    <th style={{ width: '16%' }} className="p-2 text-center font-bold text-red-700">Team Member 3</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {dates.map((item, index) => (
+                                                    <tr key={item.date} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
+                                                        <td style={{ width: '110px' }} className="p-2 border-r border-gray-300 text-center">{item.date}</td>
+                                                        <td style={{ width: '120px' }} className="p-2 border-r border-gray-300 text-center">{item.day}</td>
+                                                        <td style={{ width: '35%' }} className="p-2 border-r border-gray-300">{item.title}</td>
+                                                        <td style={{ width: '16%' }} className="p-2 border-r border-gray-300">
+                                                            <div className={`p-2 rounded bg-red-700 ${isPastDate(item.date) ? 'opacity-50' : 'bg-opacity-20'} flex justify-between items-center`}>
+                                                                <span className="flex-1 text-center pr-2">{assignments[item.date]?.team_member_1 || 'Ben'}</span>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        if (!currentUser) {
+                                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                                            setAlertPosition({
+                                                                                x: rect.left + (rect.width / 2),
+                                                                                y: rect.top
+                                                                            });
+                                                                            setAlertMessage('Please select a user first');
+                                                                            setShowAlert(true);
+                                                                            setTimeout(() => setShowAlert(false), 3000);
+                                                                            return;
+                                                                        }
+                                                                        handleAssignment(item.date, 1, currentUser.name);
+                                                                    }}
+                                                                    className="text-red-500 hover:text-red-700 flex-shrink-0">
+                                                                    <Edit2 className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                        <td style={{ width: '16%' }} className="p-2 border-r border-gray-300">
+                                                            <div className={`p-2 rounded bg-red-700 ${isPastDate(item.date) ? 'opacity-50' : 'bg-opacity-20'} flex justify-between items-center`}>
+                                                                <span className="flex-1 text-center pr-2">{assignments[item.date]?.team_member_2 || getRotationMember(index)}</span>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        if (!currentUser) {
+                                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                                            setAlertPosition({
+                                                                                x: rect.left + (rect.width / 2),
+                                                                                y: rect.top
+                                                                            });
+                                                                            setAlertMessage('Please select a user first');
+                                                                            setShowAlert(true);
+                                                                            setTimeout(() => setShowAlert(false), 3000);
+                                                                            return;
+                                                                        }
+                                                                        handleAssignment(item.date, 2, currentUser.name);
+                                                                    }}
+                                                                    className="text-red-500 hover:text-red-700 flex-shrink-0"
+                                                                >
+                                                                    <Edit2 className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        </td>
 
-                                        {/* Team Member 2 */}
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-sm text-gray-600">Team Member 2:</span>
-                                            <div className="flex-1 ml-4">
-                                                <div className={`p-2 rounded bg-red-700 ${isPastDate(item.date) ? 'opacity-50' : 'bg-opacity-20'} flex justify-between items-center`}>
-                                                    <span className="text-gray-900">
-                                                        {assignments[item.date]?.team_member_2 || getRotationMember(index)}
-                                                    </span>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            if (!currentUser) {
-                                                                const rect = e.currentTarget.getBoundingClientRect();
-                                                                setAlertPosition({
-                                                                    x: rect.left + (rect.width / 2),
-                                                                    y: rect.top
-                                                                });
-                                                                setAlertMessage('Please select a user first');
-                                                                setShowAlert(true);
-                                                                setTimeout(() => setShowAlert(false), 3000);
-                                                                return;
-                                                            }
-                                                            handleAssignment(item.date, 2, currentUser.name);
-                                                        }}
-                                                        className="text-red-500 hover:text-red-700"
-                                                    >
-                                                        <Edit2 className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Team Member 3 */}
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-sm text-gray-600">Team Member 3:</span>
-                                            <div className="flex-1 ml-4">
-                                                {assignments[item.date]?.team_member_3 ? (
-                                                    <div className={`p-2 rounded bg-red-700 ${isPastDate(item.date) ? 'opacity-50' : 'bg-opacity-20'} flex justify-between items-center`}>
-                                                        <span className="text-gray-900">{assignments[item.date].team_member_3}</span>
-                                                        {assignments[item.date].team_member_3 === currentUser?.name && (
-                                                            <button
-                                                                onClick={() => handleRemoveAssignment(item.date)}
-                                                                className="text-red-500 hover:text-red-700"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    <button
-                                                        onClick={(e) => {
-                                                            if (!currentUser) {
-                                                                const rect = e.currentTarget.getBoundingClientRect();
-                                                                setAlertPosition({
-                                                                    x: rect.left + (rect.width / 2),
-                                                                    y: rect.top
-                                                                });
-                                                                setAlertMessage('Please select a user first');
-                                                                setShowAlert(true);
-                                                                setTimeout(() => setShowAlert(false), 3000);
-                                                                return;
-                                                            }
-                                                            handleSignup(item.date);
-                                                        }}
-                                                        className={`w-full p-2 border rounded text-red-700 border-red-700 hover:bg-red-50 ${isPastDate(item.date) ? 'opacity-50' : ''
-                                                            }`}
-                                                    >
-                                                        Sign Up
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
+                                                        {/* Team Member 3 */}
+                                                        <td style={{ width: '16%' }} className="p-2">
+                                                            {assignments[item.date]?.team_member_3 ? (
+                                                                <div className={`p-2 rounded bg-red-700 ${isPastDate(item.date) ? 'opacity-50' : 'bg-opacity-20'} flex justify-between items-center`}>
+                                                                    <span className="flex-1 text-center pr-2">{assignments[item.date].team_member_3}</span>
+                                                                    {assignments[item.date].team_member_3 === currentUser?.name && (
+                                                                        <button
+                                                                            onClick={() => handleRemoveAssignment(item.date)}
+                                                                            className="text-red-500 hover:text-red-700 flex-shrink-0"
+                                                                        >
+                                                                            <Trash2 className="w-4 h-4" />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                <button
+                                                                    onClick={() => handleSignup(item.date)}
+                                                                    className={`w-full p-2 border rounded text-red-700 border-red-700 hover:bg-red-50 ${isPastDate(item.date) ? 'opacity-50' : ''
+                                                                        }`}
+                                                                >
+                                                                    Sign Up
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
-                            ))}
+                            </div>
+
+                            {/* Mobile View */}
+                            <div className="md:hidden">
+                                {dates.map((item, index) => (
+                                    <div key={item.date} className="mb-4 p-4 bg-white rounded-lg shadow border">
+                                        <div className="mb-2">
+                                            <div className="font-medium text-gray-900">{item.title}</div>
+                                            <div className="text-sm text-gray-600">{item.day}, {item.date}</div>
+                                        </div>
+
+                                        {/* Team Members Section */}
+                                        <div className="space-y-2">
+                                            {/* Team Member 1 */}
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-sm text-gray-600">Team Member 1:</span>
+                                                <div className="flex-1 ml-4">
+                                                    <div className={`p-2 rounded bg-red-700 ${isPastDate(item.date) ? 'opacity-50' : 'bg-opacity-20'} flex justify-between items-center`}>
+                                                        <span className="flex-1 text-center pr-2">
+                                                            {assignments[item.date]?.team_member_1 || 'Ben'}
+                                                        </span>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                if (!currentUser) {
+                                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                                    setAlertPosition({
+                                                                        x: rect.left + (rect.width / 2),
+                                                                        y: rect.top
+                                                                    });
+                                                                    setAlertMessage('Please select a user first');
+                                                                    setShowAlert(true);
+                                                                    setTimeout(() => setShowAlert(false), 3000);
+                                                                    return;
+                                                                }
+                                                                handleAssignment(item.date, 1, currentUser.name);
+                                                            }}
+                                                            className="text-red-500 hover:text-red-700 flex-shrink-0"
+                                                        >
+                                                            <Edit2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Team Member 2 */}
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-sm text-gray-600">Team Member 2:</span>
+                                                <div className="flex-1 ml-4">
+                                                    <div className={`p-2 rounded bg-red-700 ${isPastDate(item.date) ? 'opacity-50' : 'bg-opacity-20'} flex justify-between items-center`}>
+                                                        <span className="flex-1 text-center pr-2">
+                                                            {assignments[item.date]?.team_member_2 || getRotationMember(index)}
+                                                        </span>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                if (!currentUser) {
+                                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                                    setAlertPosition({
+                                                                        x: rect.left + (rect.width / 2),
+                                                                        y: rect.top
+                                                                    });
+                                                                    setAlertMessage('Please select a user first');
+                                                                    setShowAlert(true);
+                                                                    setTimeout(() => setShowAlert(false), 3000);
+                                                                    return;
+                                                                }
+                                                                handleAssignment(item.date, 2, currentUser.name);
+                                                            }}
+                                                            className="text-red-500 hover:text-red-700 flex-shrink-0"
+                                                        >
+                                                            <Edit2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Team Member 3 */}
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-sm text-gray-600">Team Member 3:</span>
+                                                <div className="flex-1 ml-4">
+                                                    {assignments[item.date]?.team_member_3 ? (
+                                                        <div className={`p-2 rounded bg-red-700 ${isPastDate(item.date) ? 'opacity-50' : 'bg-opacity-20'} flex justify-between items-center`}>
+                                                            <span className="flex-1 text-center pr-2">{assignments[item.date].team_member_3}</span>
+                                                            {assignments[item.date].team_member_3 === currentUser?.name && (
+                                                                <button
+                                                                    onClick={() => handleRemoveAssignment(item.date)}
+                                                                    className="text-red-500 hover:text-red-700 flex-shrink-0"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                if (!currentUser) {
+                                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                                    setAlertPosition({
+                                                                        x: rect.left + (rect.width / 2),
+                                                                        y: rect.top
+                                                                    });
+                                                                    setAlertMessage('Please select a user first');
+                                                                    setShowAlert(true);
+                                                                    setTimeout(() => setShowAlert(false), 3000);
+                                                                    return;
+                                                                }
+                                                                handleSignup(item.date);
+                                                            }}
+                                                            className={`w-full p-2 border rounded text-red-700 border-red-700 hover:bg-red-50 ${isPastDate(item.date) ? 'opacity-50' : ''
+                                                                }`}
+                                                        >
+                                                            Sign Up
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                    </CardContent>
                 </div>
-            </CardContent>
+            </div>
 
             {/* User Management Modal */}
             {showUserManagement && (

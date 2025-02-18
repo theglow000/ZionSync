@@ -560,7 +560,7 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
   };
 
   return (
-    <Card className="w-full max-w-6xl mx-auto relative bg-white shadow-lg h-[calc(100vh-4rem)]">
+ <Card className="w-full h-full mx-auto relative bg-white shadow-lg">
       {showAlert && (
         <Alert
           className="fixed z-[60] w-80 bg-white border-[#6B8E23] shadow-lg rounded-lg"
@@ -794,271 +794,276 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
           </div>
         </div>
         {/* Scrollable Content Section */}
-        <div className="flex-1 overflow-y-auto">
-          <CardContent>
-            <div className="space-y-4">
+        <div className="flex-1 overflow-hidden"> {/* This wrapper prevents double scrollbar */}
+          <CardContent className="h-full p-0"> {/* Remove default padding */}
+            <div className="h-full">
               {/* Desktop Table View */}
-              <div className="hidden md:block">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-[#FFD700] bg-opacity-10">
-                      <th className="p-2 text-left w-16 font-bold text-[#6B8E23]">Add to Calendar</th>
-                      <th className="p-2 text-left w-20 font-bold text-[#6B8E23]">Details</th>
-                      <th className="p-2 text-left w-24 font-bold text-[#6B8E23]">Date</th>
-                      <th className="p-2 text-left w-24 font-bold text-[#6B8E23]">Day</th>
-                      <th className="p-2 text-left font-bold text-[#6B8E23]">Service</th>
-                      <th className="p-2 text-left font-bold text-[#6B8E23]">Presentation Builder</th>
-                      <th className="p-2 text-center w-24 font-bold text-[#6B8E23]">Completed</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dates.map((item, index) => (
-                      <React.Fragment key={item.date}>
-                        <tr className={index % 2 === 0 ? 'bg-gray-50' : ''}>
-                          <td className="p-2 border-r border-gray-300 text-center">
-                            {signups[item.date] === currentUser?.name && (
-                              <input
-                                type="checkbox"
-                                checked={selectedDates.includes(item.date)}
-                                onChange={() => {
-                                  setSelectedDates(prev =>
-                                    prev.includes(item.date)
-                                      ? prev.filter(d => d !== item.date)
-                                      : [...prev, item.date]
-                                  );
-                                }}
-                                className="w-4 h-4 rounded border-gray-300 mx-auto"
-                              />
-                            )}
-                          </td>
-                          <td className="p-2 border-r border-gray-300">
-                            <button
-                              onClick={() => setExpanded(prev => ({
-                                ...prev,
-                                [item.date]: !prev[item.date]
-                              }))}
-                              className="p-1 hover:bg-gray-200 rounded"
-                            >
-                              {expanded[item.date] ? <ChevronUp /> : <ChevronDown />}
-                            </button>
-                          </td>
-                          <td className="p-2 border-r border-gray-300">{item.date}</td>
-                          <td className="p-2 border-r border-gray-300">{item.day}</td>
-                          <td className="p-2 border-r border-gray-300">
-                            <div className="flex items-center justify-between">
-                              <span>{item.title}</span>
-                              <div className="flex items-center gap-1">
-                                {checkForOrderOfWorship(item.date) && (
-                                  <BookOpen
-                                    className="w-4 h-4 text-green-600"
-                                    title="Order of Worship available"
-                                  />
-                                )}
-                                {checkForSelectedSongs(item.date) && (
-                                  <Music2
-                                    className="w-4 h-4 text-purple-700"
-                                    title="Songs selected"
-                                  />
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="p-2 border-r border-gray-300">
-                            {signups[item.date] ? (
-                              <div className="p-2 rounded bg-[#6B8E23] bg-opacity-20 flex justify-between items-center">
-                                {isLoading ? (
-                                  <span>Loading...</span>
-                                ) : (
-                                  <>
-                                    <span>{signupDetails[item.date]?.name}</span>
-                                    {signups[item.date] === currentUser?.name && (
-                                      <button
-                                        onClick={() => handleRemoveReservation(item.date)}
-                                        className="ml-2 text-red-500 hover:text-red-700"
-                                        title="Remove reservation"
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </button>
-                                    )}
-                                  </>
-                                )}
-                              </div>
-                            ) : (
-                              <button
-                                onClick={(e) => {
-                                  if (!currentUser) {
-                                    // Get the button's position
-                                    const rect = e.currentTarget.getBoundingClientRect();
-                                    setAlertPosition({
-                                      x: rect.left + (rect.width / 2),
-                                      y: rect.top
-                                    });
-
-                                    setAlertMessage('Please select a user first');
-                                    setShowAlert(true);
-                                    setTimeout(() => setShowAlert(false), 3000);
-                                    const button = e.currentTarget;
-                                    button.style.borderColor = '#EF4444';
-                                    setTimeout(() => {
-                                      button.style.borderColor = '';
-                                    }, 1000);
-                                    return;
-                                  }
-
-                                  try {
-                                    fetch('/api/signups', {
-                                      method: 'POST',
-                                      headers: {
-                                        'Content-Type': 'application/json',
-                                      },
-                                      body: JSON.stringify({
-                                        date: item.date,
-                                        name: currentUser.name
-                                      })
-                                    }).then(response => {
-                                      if (!response.ok) throw new Error('Failed to save signup');
-                                      setSignups(prev => ({
-                                        ...prev,
-                                        [item.date]: currentUser.name
-                                      }));
-                                      setSignupDetails(prev => ({
-                                        ...prev,
-                                        [item.date]: {
-                                          name: currentUser.name
-                                        }
-                                      }));
-
-                                      const [itemMonth, itemDay, shortYear] = item.date.split('/').map(num => parseInt(num, 10));
-                                      const itemYear = 2000 + shortYear;
-                                      const itemDate = new Date(itemYear, itemMonth - 1, itemDay);
-                                      const today = new Date('2025-01-14');
-                                      today.setHours(0, 0, 0, 0);
-
-                                      if (itemDate > today) {
-                                        setSelectedDates(prev => [...prev, item.date]);
-                                      }
-
-                                      setAlertMessage('Successfully signed up!');
-                                      setShowAlert(true);
-                                      setTimeout(() => setShowAlert(false), 3000);
-                                    });
-                                  } catch (error) {
-                                    console.error('Error saving signup:', error);
-                                    setAlertMessage('Error saving signup. Please try again.');
-                                    setShowAlert(true);
-                                    setTimeout(() => setShowAlert(false), 3000);
-                                  }
-                                }}
-                                className="w-full p-2 border rounded hover:bg-gray-50 transition-colors duration-300"
-                              >
-                                Sign Up
-                              </button>
-                            )}
-                          </td>
-                          <td className="p-2 text-center">
-                            <button
-                              onClick={() => handleCompleted(item.date)}
-                              className={`w-6 h-6 rounded border ${completed[item.date]
-                                ? 'bg-[#6B8E23] border-[#556B2F]'
-                                : 'bg-white border-gray-300'
-                                } flex items-center justify-center`}
-                            >
-                              {completed[item.date] && <Check className="w-4 h-4 text-white" />}
-                            </button>
-                          </td>
+              <div className="hidden md:block h-full">
+                <div className="relative h-full">
+                  {/* Single table with sticky header */}
+                  <div className="overflow-y-auto h-full">
+                    <table className="w-full">
+                      <thead className="sticky top-0 z-10">
+                        <tr className="bg-[#FFF8DC]">
+                          <th style={{ width: '64px' }} className="p-2 text-left font-bold text-[#6B8E23]">Add to Calendar</th>
+                          <th style={{ width: '80px' }} className="p-2 text-left font-bold text-[#6B8E23]">Details</th>
+                          <th style={{ width: '96px' }} className="p-2 text-left font-bold text-[#6B8E23]">Date</th>
+                          <th style={{ width: '96px' }} className="p-2 text-left font-bold text-[#6B8E23]">Day</th>
+                          <th style={{ width: '35%' }} className="p-2 text-left font-bold text-[#6B8E23]">Service</th>
+                          <th style={{ width: '120px' }} className="p-2 text-left font-bold text-[#6B8E23]">Presentation Builder</th>
+                          <th style={{ width: '96px' }} className="p-2 text-center font-bold text-[#6B8E23]">Completed</th>
                         </tr>
-                        {expanded[item.date] && (
-                          <tr>
-                            <td colSpan="7" className="p-2 bg-gray-50">
-                              <div className="space-y-0 ml-[10%] max-w-xl">
-                                {/* Service Title with Type Indicator */}
-                                <div className="flex justify-between items-center mb-2">
-                                  <div className="flex items-center gap-2">
-                                    <h3 className="text-base font-bold text-[#6B8E23]">Order of Worship</h3>
-                                    <span className="px-2 py-0.5 text-xs bg-gray-200 text-gray-600 rounded">
-                                      {serviceDetails[item.date]?.type === 'communion' ? 'Communion' :
-                                       serviceDetails[item.date]?.type === 'no_communion' ? 'No Communion' :
-                                       serviceDetails[item.date]?.type === 'communion_potluck' ? 'Communion with Potluck' :
-                                       customServices?.find(s => s.id === serviceDetails[item.date]?.type)?.name || 'Not Set'}
-                                    </span>
-                                  </div>
-                                  <div className="flex gap-2">
-                                    <button
-                                      onClick={() => {
-                                        setEditingDate(item.date);
-                                        setShowPastorInput(true);
-                                      }}
-                                      className="px-2 py-0.5 text-sm text-[#6B8E23] border border-[#6B8E23] rounded hover:bg-[#6B8E23] hover:text-white"
-                                    >
-                                      Pastor Edit
-                                    </button>
-                                    <button
-                                      onClick={async () => {
-                                        if (confirm('Are you sure you want to delete this service\'s details?')) {
-                                          try {
-                                            const response = await fetch(`/api/service-details?date=${item.date}`, {
-                                              method: 'DELETE',
-                                            });
-
-                                            if (!response.ok) throw new Error('Failed to delete service details');
-
-                                            // Update the local state by removing service details
-                                            setServiceDetails(prev => {
-                                              const newDetails = { ...prev };
-                                              delete newDetails[item.date];
-                                              return newDetails;
-                                            });
-                                          } catch (error) {
-                                            console.error('Error deleting service details:', error);
-                                            setAlertMessage('Error deleting service details');
-                                            setShowAlert(true);
-                                          }
-                                        }
-                                      }}
-                                      className="px-2 py-0.5 text-sm text-red-600 border border-red-600 rounded hover:bg-red-50"
-                                    >
-                                      Delete
-                                    </button>
+                      </thead>
+                      <tbody>
+                        {dates.map((item, index) => (
+                          <React.Fragment key={item.date}>
+                            <tr className={index % 2 === 0 ? 'bg-gray-50' : ''}>
+                              <td style={{ width: '64px' }} className="p-2 border-r border-gray-300 text-center">
+                                {signups[item.date] === currentUser?.name && (
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedDates.includes(item.date)}
+                                    onChange={() => {
+                                      setSelectedDates(prev =>
+                                        prev.includes(item.date)
+                                          ? prev.filter(d => d !== item.date)
+                                          : [...prev, item.date]
+                                      );
+                                    }}
+                                    className="w-4 h-4 rounded border-gray-300 mx-auto"
+                                  />
+                                )}
+                              </td>
+                              <td style={{ width: '80px' }} className="p-2 border-r border-gray-300">
+                                <button
+                                  onClick={() => setExpanded(prev => ({
+                                    ...prev,
+                                    [item.date]: !prev[item.date]
+                                  }))}
+                                  className="p-1 hover:bg-gray-200 rounded"
+                                >
+                                  {expanded[item.date] ? <ChevronUp /> : <ChevronDown />}
+                                </button>
+                              </td>
+                              <td style={{ width: '96px' }} className="p-2 border-r border-gray-300">{item.date}</td>
+                              <td style={{ width: '96px' }} className="p-2 border-r border-gray-300">{item.day}</td>
+                              <td style={{ width: '35%' }} className="p-2 border-r border-gray-300">
+                                <div className="flex items-center justify-between">
+                                  <span>{item.title}</span>
+                                  <div className="flex items-center gap-1">
+                                    {checkForOrderOfWorship(item.date) && (
+                                      <BookOpen
+                                        className="w-4 h-4 text-green-600"
+                                        title="Order of Worship available"
+                                      />
+                                    )}
+                                    {checkForSelectedSongs(item.date) && (
+                                      <Music2
+                                        className="w-4 h-4 text-purple-700"
+                                        title="Songs selected"
+                                      />
+                                    )}
                                   </div>
                                 </div>
+                              </td>
+                              <td style={{ width: '150px' }} className="p-2 border-r border-gray-300">
+                                {signups[item.date] ? (
+                                  <div className="p-2 rounded bg-[#6B8E23] bg-opacity-20 flex items-center">
+                                    {isLoading ? (
+                                      <span>Loading...</span>
+                                    ) : (
+                                      <>
+                                        <span className="flex-1 text-center">{signupDetails[item.date]?.name}</span>
+                                        {signups[item.date] === currentUser?.name && (
+                                          <button
+                                            onClick={() => handleRemoveReservation(item.date)}
+                                            className="ml-2 text-red-500 hover:text-red-700"
+                                            title="Remove reservation"
+                                          >
+                                            <Trash2 className="w-4 h-4" />
+                                          </button>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={(e) => {
+                                      if (!currentUser) {
+                                        // Get the button's position
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        setAlertPosition({
+                                          x: rect.left + (rect.width / 2),
+                                          y: rect.top
+                                        });
 
-                                {/* Map through ordered service elements */}
-                                {serviceDetails[item.date]?.elements?.map((element, index) => (
-                                  <div key={index} className="flex items-center gap-1 text-sm leading-tight">
-                                    <div className={`p-0.5 rounded ${element.type === 'song_hymn' ? 'bg-blue-50 text-blue-600' :
-                                      element.type === 'reading' ? 'bg-green-50 text-green-600' :
-                                        element.type === 'message' ? 'bg-purple-50 text-purple-600' :
-                                          element.type === 'liturgical_song' ? 'bg-amber-50 text-amber-600' :
-                                            'bg-gray-50 text-gray-600'
-                                      }`}>
-                                      {
-                                        element.type === 'song_hymn' ? <Music className="w-4 h-4" /> :
-                                          element.type === 'reading' ? <BookOpen className="w-4 h-4" /> :
-                                            element.type === 'message' ? <MessageSquare className="w-4 h-4" /> :
-                                              element.type === 'liturgical_song' ? <Music2 className="w-4 h-4" /> :
-                                                <Cross className="w-4 h-4" />
+                                        setAlertMessage('Please select a user first');
+                                        setShowAlert(true);
+                                        setTimeout(() => setShowAlert(false), 3000);
+                                        const button = e.currentTarget;
+                                        button.style.borderColor = '#EF4444';
+                                        setTimeout(() => {
+                                          button.style.borderColor = '';
+                                        }, 1000);
+                                        return;
                                       }
-                                    </div>
-                                    <div className="flex-1">
-                                      {element.content}
-                                    </div>
-                                  </div>
-                                ))}
 
-                                {/* Fallback message if no elements */}
-                                {(!serviceDetails[item.date]?.elements || serviceDetails[item.date]?.elements.length === 0) && (
-                                  <div className="text-gray-500 italic">
-                                    No service details available yet.
-                                  </div>
+                                      try {
+                                        fetch('/api/signups', {
+                                          method: 'POST',
+                                          headers: {
+                                            'Content-Type': 'application/json',
+                                          },
+                                          body: JSON.stringify({
+                                            date: item.date,
+                                            name: currentUser.name
+                                          })
+                                        }).then(response => {
+                                          if (!response.ok) throw new Error('Failed to save signup');
+                                          setSignups(prev => ({
+                                            ...prev,
+                                            [item.date]: currentUser.name
+                                          }));
+                                          setSignupDetails(prev => ({
+                                            ...prev,
+                                            [item.date]: {
+                                              name: currentUser.name
+                                            }
+                                          }));
+
+                                          const [itemMonth, itemDay, shortYear] = item.date.split('/').map(num => parseInt(num, 10));
+                                          const itemYear = 2000 + shortYear;
+                                          const itemDate = new Date(itemYear, itemMonth - 1, itemDay);
+                                          const today = new Date('2025-01-14');
+                                          today.setHours(0, 0, 0, 0);
+
+                                          if (itemDate > today) {
+                                            setSelectedDates(prev => [...prev, item.date]);
+                                          }
+
+                                          setAlertMessage('Successfully signed up!');
+                                          setShowAlert(true);
+                                          setTimeout(() => setShowAlert(false), 3000);
+                                        });
+                                      } catch (error) {
+                                        console.error('Error saving signup:', error);
+                                        setAlertMessage('Error saving signup. Please try again.');
+                                        setShowAlert(true);
+                                        setTimeout(() => setShowAlert(false), 3000);
+                                      }
+                                    }}
+                                    className="w-full p-2 border rounded hover:bg-gray-50 transition-colors duration-300"
+                                  >
+                                    Sign Up
+                                  </button>
                                 )}
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
+                              </td>
+                              <td style={{ width: '96px' }} className="p-2 text-center">
+                                <button
+                                  onClick={() => handleCompleted(item.date)}
+                                  className={`w-6 h-6 rounded border ${completed[item.date]
+                                    ? 'bg-[#6B8E23] border-[#556B2F]'
+                                    : 'bg-white border-gray-300'
+                                    } flex items-center justify-center`}
+                                >
+                                  {completed[item.date] && <Check className="w-4 h-4 text-white" />}
+                                </button>
+                              </td>
+                            </tr>
+                            {expanded[item.date] && (
+                              <tr>
+                                <td colSpan="7" className="p-2 bg-gray-50">
+                                  <div className="space-y-0 ml-[10%] max-w-xl">
+                                    {/* Service Title with Type Indicator */}
+                                    <div className="flex justify-between items-center mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <h3 className="text-base font-bold text-[#6B8E23]">Order of Worship</h3>
+                                        <span className="px-2 py-0.5 text-xs bg-gray-200 text-gray-600 rounded">
+                                          {serviceDetails[item.date]?.type === 'communion' ? 'Communion' :
+                                           serviceDetails[item.date]?.type === 'no_communion' ? 'No Communion' :
+                                           serviceDetails[item.date]?.type === 'communion_potluck' ? 'Communion with Potluck' :
+                                           customServices?.find(s => s.id === serviceDetails[item.date]?.type)?.name || 'Not Set'}
+                                        </span>
+                                      </div>
+                                      <div className="flex gap-2">
+                                        <button
+                                          onClick={() => {
+                                            setEditingDate(item.date);
+                                            setShowPastorInput(true);
+                                          }}
+                                          className="px-2 py-0.5 text-sm text-[#6B8E23] border border-[#6B8E23] rounded hover:bg-[#6B8E23] hover:text-white"
+                                        >
+                                          Pastor Edit
+                                        </button>
+                                        <button
+                                          onClick={async () => {
+                                            if (confirm('Are you sure you want to delete this service\'s details?')) {
+                                              try {
+                                                const response = await fetch(`/api/service-details?date=${item.date}`, {
+                                                  method: 'DELETE',
+                                                });
+
+                                                if (!response.ok) throw new Error('Failed to delete service details');
+
+                                                // Update the local state by removing service details
+                                                setServiceDetails(prev => {
+                                                  const newDetails = { ...prev };
+                                                  delete newDetails[item.date];
+                                                  return newDetails;
+                                                });
+                                              } catch (error) {
+                                                console.error('Error deleting service details:', error);
+                                                setAlertMessage('Error deleting service details');
+                                                setShowAlert(true);
+                                              }
+                                            }
+                                          }}
+                                          className="px-2 py-0.5 text-sm text-red-600 border border-red-600 rounded hover:bg-red-50"
+                                        >
+                                          Delete
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* Map through ordered service elements */}
+                                    {serviceDetails[item.date]?.elements?.map((element, index) => (
+                                      <div key={index} className="flex items-center gap-1 text-sm leading-tight">
+                                        <div className={`p-0.5 rounded ${element.type === 'song_hymn' ? 'bg-blue-50 text-blue-600' :
+                                          element.type === 'reading' ? 'bg-green-50 text-green-600' :
+                                            element.type === 'message' ? 'bg-purple-50 text-purple-600' :
+                                              element.type === 'liturgical_song' ? 'bg-amber-50 text-amber-600' :
+                                                'bg-gray-50 text-gray-600'
+                                          }`}>
+                                          {
+                                            element.type === 'song_hymn' ? <Music className="w-4 h-4" /> :
+                                              element.type === 'reading' ? <BookOpen className="w-4 h-4" /> :
+                                                element.type === 'message' ? <MessageSquare className="w-4 h-4" /> :
+                                                  element.type === 'liturgical_song' ? <Music2 className="w-4 h-4" /> :
+                                                    <Cross className="w-4 h-4" />
+                                          }
+                                        </div>
+                                        <div className="flex-1">
+                                          {element.content}
+                                        </div>
+                                      </div>
+                                    ))}
+
+                                    {/* Fallback message if no elements */}
+                                    {(!serviceDetails[item.date]?.elements || serviceDetails[item.date]?.elements.length === 0) && (
+                                      <div className="text-gray-500 italic">
+                                        No service details available yet.
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
 
               {/* Mobile Card View */}

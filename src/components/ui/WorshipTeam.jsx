@@ -480,8 +480,7 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
   };
 
   return (
-    <Card className="w-full max-w-6xl mx-auto relative bg-white shadow-lg">
-      {/* Alert Component */}
+    <Card className="w-full h-full mx-auto relative bg-white shadow-lg">
       {showAlert && (
         <Alert
           className="fixed z-[60] w-80 bg-white border-purple-700 shadow-lg rounded-lg"
@@ -500,228 +499,230 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
         </Alert>
       )}
 
-      {/* Header */}
-      <CardHeader className="border-b border-gray-200">
-        {/* Desktop Header */}
-        <div className="hidden md:flex items-center justify-center gap-12">
-          <img
-            src="/church-logo.png"
-            alt="Church Logo"
-            className="h-28 object-contain"
-          />
-          <div>
-            <h1 className="text-3xl font-bold text-center text-purple-700">Worship Team</h1>
-            <p className="text-2xl font-bold text-center text-gray-600">2025 Service Schedule</p>
-          </div>
-          <img
-            src="/ZionSyncLogo.png"
-            alt="ZionSync Logo"
-            className="h-28 object-contain"
-          />
-        </div>
+      <div className="flex flex-col h-full">
+        {/* Sticky Header Section */}
+        <div className="sticky top-0 z-10 bg-white">
+          {/* Logo Header */}
+          <CardHeader className="border-b border-gray-200">
+            {/* Desktop Header */}
+            <div className="hidden md:flex items-center justify-center gap-12">
+              <img
+                src="/church-logo.png"
+                alt="Church Logo"
+                className="h-28 object-contain"
+              />
+              <div>
+                <h1 className="text-3xl font-bold text-center text-purple-700">Worship Team</h1>
+                <p className="text-2xl font-bold text-center text-gray-600">2025 Service Schedule</p>
+              </div>
+              <img
+                src="/ZionSyncLogo.png"
+                alt="ZionSync Logo"
+                className="h-28 object-contain"
+              />
+            </div>
 
-        {/* Mobile Header */}
-        <div className="flex md:hidden flex-col gap-4">
-          <div className="flex justify-center gap-4 mb-2">
-            <div className="flex gap-2 items-center">
-              <img src="/church-logo.png" alt="Church Logo" className="h-10 object-contain" />
-              <img src="/worshipbg.jpg" alt="Worship Logo" className="h-10 object-contain" />
+            {/* Mobile Header */}
+            <div className="flex md:hidden flex-col gap-4">
+              <div className="flex justify-center gap-4 mb-2">
+                <div className="flex gap-2 items-center">
+                  <img src="/church-logo.png" alt="Church Logo" className="h-10 object-contain" />
+                  <img src="/worshipbg.jpg" alt="Worship Logo" className="h-10 object-contain" />
+                </div>
+              </div>
+              <div className="text-center">
+                <h1 className="text-xl font-bold text-purple-700">Worship Team</h1>
+                <p className="text-lg font-bold text-gray-600">2025 Service Schedule</p>
+              </div>
+            </div>
+          </CardHeader>
+
+          {/* User Selection Bar */}
+          <div className="p-4 border-b border-gray-200">
+            {/* Desktop User Selection */}
+            <div className="hidden md:flex justify-end items-center gap-4">
+              <div className="flex flex-wrap gap-2 justify-end">
+                {availableUsers
+                  .filter(user => (
+                    // Only show individual users and worship leader
+                    (user.role === 'leader' || (!user.name.includes('&') && !user.role)) &&
+                    // Exclude special groups
+                    user.role !== 'special' &&
+                    user.role !== 'pastor' &&
+                    // Exclude specific groups by name
+                    !user.name.includes('Confirmation') &&
+                    !user.name.includes('Sunday School')
+                  ))
+                  .map(user => (
+                    <button
+                      key={user.name}
+                      onClick={() => {
+                        // If clicking the current user, deselect them
+                        if (currentUser?.name === user.name) {
+                          setCurrentUser(null);
+                        } else {
+                          // Otherwise select the new user
+                          setCurrentUser({
+                            name: user.name,
+                            role: user.role,
+                            color: 'bg-purple-700 bg-opacity-20'
+                          });
+                        }
+                      }}
+                      className={`${currentUser?.name === user.name
+                        ? 'bg-purple-700 text-white'
+                        : 'bg-purple-700 bg-opacity-20 text-purple-700'
+                        } px-3 py-1 rounded flex flex-col items-center`}
+                    >
+                      <span>{user.name}</span>
+                      {user.role === 'leader' && (
+                        <span className="text-xs mt-0.5">Worship Leader</span>
+                      )}
+                    </button>
+                  ))}
+              </div>
+              <button
+                onClick={() => setShowUserManagement(true)}
+                className="px-3 py-1 rounded border border-purple-700 text-purple-700 hover:bg-purple-50"
+              >
+                Manage Users
+              </button>
+            </div>
+
+            {/* Mobile User Selection */}
+            <div className="md:hidden">
+              <button
+                onClick={() => setShowUserSelector(true)}
+                className="w-full px-3 py-2 rounded border border-purple-700 text-purple-700"
+              >
+                {currentUser ? `Selected: ${currentUser.name}` : 'Select User'}
+              </button>
             </div>
           </div>
-          <div className="text-center">
-            <h1 className="text-xl font-bold text-purple-700">Worship Team</h1>
-            <p className="text-lg font-bold text-gray-600">2025 Service Schedule</p>
-          </div>
         </div>
-      </CardHeader>
 
-      {/* User Management Section */}
-      <div className="sticky top-0 z-20 bg-white">
-        <div className="p-4 border-b border-gray-200">
-          {/* Desktop User Selection */}
-          <div className="hidden md:flex justify-end items-center gap-4">
-            <div className="flex flex-wrap gap-2 justify-end">
-              {availableUsers
-                .filter(user => (
-                  // Only show individual users and worship leader
-                  (user.role === 'leader' || (!user.name.includes('&') && !user.role)) &&
-                  // Exclude special groups
-                  user.role !== 'special' &&
-                  user.role !== 'pastor' &&
-                  // Exclude specific groups by name
-                  !user.name.includes('Confirmation') &&
-                  !user.name.includes('Sunday School')
-                ))
-                .map(user => (
-                  <button
-                    key={user.name}
-                    onClick={() => {
-                      // If clicking the current user, deselect them
-                      if (currentUser?.name === user.name) {
-                        setCurrentUser(null);
-                      } else {
-                        // Otherwise select the new user
-                        setCurrentUser({
-                          name: user.name,
-                          role: user.role,
-                          color: 'bg-purple-700 bg-opacity-20'
-                        });
+        {/* Scrollable Content Section */}
+        <div className="flex-1 overflow-hidden">
+          <CardContent className="h-full p-0">
+            <div className="h-full overflow-y-auto">
+              <div className="space-y-4 p-4">
+                {dates.map((item) => (
+                  <div key={item.date}>
+                    <ServiceSongSelector
+                      date={item.date}
+                      currentUser={currentUser}
+                      serviceDetails={serviceDetails[item.date]}
+                      setServiceDetails={setServiceDetails}
+                      customServices={customServices}
+                      availableSongs={availableSongs}
+                      team={assignments[item.date]?.team}
+                      expanded={expanded[item.date]}
+                      onSongSelect={handleSongSelection}
+                      onToggleExpand={(date) => {
+                        setExpanded(prev => ({
+                          ...prev,
+                          [date]: !prev[date]
+                        }));
+                      }}
+                      onEditTeam={() => handleEditTeam(item.date)}
+                      header={
+                        <div className="flex items-center justify-between w-full">
+                          {/* Left Side - Service Info - Now wrapped in a clickable div */}
+                          <div
+                            className="flex items-center flex-1 cursor-pointer hover:bg-gray-50 p-2 rounded"
+                            onClick={() => {
+                              setExpanded(prev => ({
+                                ...prev,
+                                [item.date]: !prev[item.date]
+                              }));
+                            }}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-4">
+                                {/* Larger date */}
+                                <div className="text-xl font-medium text-gray-600">
+                                  {item.date}
+                                </div>
+                                {/* Title and type on same line */}
+                                <div className="flex items-center gap-2">
+                                  <h3 className="font-medium text-black text-sm truncate">
+                                    {item.title}
+                                  </h3>
+                                  <span className={`text-xs px-2 py-0.5 rounded flex-shrink-0 ${serviceDetails[item.date]?.type ?
+                                      'text-gray-600 bg-gray-100' :
+                                      'text-amber-700 bg-amber-50 border border-amber-200'
+                                    }`}>
+                                    {serviceDetails[item.date]?.type === 'communion' ? 'Communion' :
+                                      serviceDetails[item.date]?.type === 'communion_potluck' ? 'Communion with Potluck' :
+                                        serviceDetails[item.date]?.type === 'no_communion' ? 'No Communion' :
+                                          customServices?.find(s => s.id === serviceDetails[item.date]?.type)?.name ||
+                                          'Not Set'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Add the expand/collapse icon inside the clickable area */}
+                            <div className="ml-4">
+                              {expanded[item.date] ?
+                                <ChevronUp className="w-5 h-5 text-purple-700" /> :
+                                <ChevronDown className="w-5 h-5 text-purple-700" />
+                              }
+                            </div>
+                          </div>
+
+                          {/* Right Side - Team Assignment (separated from clickable area) */}
+                          <div className="flex items-center gap-4 flex-shrink-0 ml-4">
+                            <div className="flex items-center gap-2">
+                              {/* Team Assignment Badge */}
+                              <div className="flex items-center gap-1 bg-purple-100 rounded px-2 py-0.5">
+                                <span className="text-xs text-purple-700 whitespace-nowrap">
+                                  {assignments[item.date]?.team || 'No team assigned'}
+                                </span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditTeam(item.date);
+                                  }}
+                                  className="p-1 hover:bg-purple-200 rounded"
+                                  title="Edit team assignment"
+                                >
+                                  <Edit2 className="w-4 h-4 text-purple-700" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       }
-                    }}
-                    className={`${currentUser?.name === user.name
-                      ? 'bg-purple-700 text-white'
-                      : 'bg-purple-700 bg-opacity-20 text-purple-700'
-                      } px-3 py-1 rounded flex flex-col items-center`}
-                  >
-                    <span>{user.name}</span>
-                    {user.role === 'leader' && (
-                      <span className="text-xs mt-0.5">Worship Leader</span>
-                    )}
-                  </button>
+                    />
+                  </div>
                 ))}
+              </div>
             </div>
-            <button
-              onClick={() => setShowUserManagement(true)}
-              className="px-3 py-1 rounded border border-purple-700 text-purple-700 hover:bg-purple-50"
-            >
-              Manage Users
-            </button>
-          </div>
-
-          {/* Mobile User Selection */}
-          <div className="md:hidden">
-            <button
-              onClick={() => setShowUserSelector(true)}
-              className="w-full px-3 py-2 rounded border border-purple-700 text-purple-700"
-            >
-              {currentUser ? `Selected: ${currentUser.name}` : 'Select User'}
-            </button>
-          </div>
+          </CardContent>
         </div>
       </div>
 
-      {/* Main Content */}
-      <CardContent className="p-0"> {/* Remove padding from CardContent */}
-        <div className="flex flex-col h-[calc(100vh-200px)]"> {/* Fixed height instead of max-height */}
-          <div className="flex-1 overflow-y-auto p-4"> {/* Move padding here */}
-            <div className="space-y-4">
-              {dates.map((item) => (
-                <div key={item.date}>
-                  <ServiceSongSelector
-                    date={item.date}
-                    currentUser={currentUser}
-                    serviceDetails={serviceDetails[item.date]}
-                    setServiceDetails={setServiceDetails}
-                    customServices={customServices}
-                    availableSongs={availableSongs}
-                    team={assignments[item.date]?.team}
-                    expanded={expanded[item.date]}
-                    onSongSelect={handleSongSelection}
-                    onToggleExpand={(date) => {
-                      setExpanded(prev => ({
-                        ...prev,
-                        [date]: !prev[date]
-                      }));
-                    }}
-                    onEditTeam={() => handleEditTeam(item.date)}
-                    header={
-                      <div className="flex items-center justify-between w-full">
-                        {/* Left Side - Service Info - Now wrapped in a clickable div */}
-                        <div 
-                          className="flex items-center flex-1 cursor-pointer hover:bg-gray-50 p-2 rounded"
-                          onClick={() => {
-                            setExpanded(prev => ({
-                              ...prev,
-                              [item.date]: !prev[item.date]
-                            }));
-                          }}
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-4">
-                              {/* Larger date */}
-                              <div className="text-xl font-medium text-gray-600">
-                                {item.date}
-                              </div>
-                              {/* Title and type on same line */}
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-medium text-black text-sm truncate">
-                                  {item.title}
-                                </h3>
-                                <span className={`text-xs px-2 py-0.5 rounded flex-shrink-0 ${
-                                  serviceDetails[item.date]?.type ? 
-                                  'text-gray-600 bg-gray-100' : 
-                                  'text-amber-700 bg-amber-50 border border-amber-200'
-                                }`}>
-                                  {serviceDetails[item.date]?.type === 'communion' ? 'Communion' :
-                                  serviceDetails[item.date]?.type === 'communion_potluck' ? 'Communion with Potluck' :
-                                  serviceDetails[item.date]?.type === 'no_communion' ? 'No Communion' :
-                                  customServices?.find(s => s.id === serviceDetails[item.date]?.type)?.name || 
-                                  'Not Set'}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Add the expand/collapse icon inside the clickable area */}
-                          <div className="ml-4">
-                            {expanded[item.date] ?
-                              <ChevronUp className="w-5 h-5 text-purple-700" /> :
-                              <ChevronDown className="w-5 h-5 text-purple-700" />
-                            }
-                          </div>
-                        </div>
-
-                        {/* Right Side - Team Assignment (separated from clickable area) */}
-                        <div className="flex items-center gap-4 flex-shrink-0 ml-4">
-                          <div className="flex items-center gap-2">
-                            {/* Team Assignment Badge */}
-                            <div className="flex items-center gap-1 bg-purple-100 rounded px-2 py-0.5">
-                              <span className="text-xs text-purple-700 whitespace-nowrap">
-                                {assignments[item.date]?.team || 'No team assigned'}
-                              </span>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEditTeam(item.date);
-                                }}
-                                className="p-1 hover:bg-purple-200 rounded"
-                                title="Edit team assignment"
-                              >
-                                <Edit2 className="w-4 h-4 text-purple-700" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    }
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Team Selector Modal */}
-        {showTeamSelector && editingDate && (
-          <TeamSelectorModal
-            date={editingDate}
-            onClose={() => {
-              setShowTeamSelector(false);
-              setEditingDate(null);
-            }}
-            assignments={assignments}
-            serviceDetails={serviceDetails}
-            users={users}
-            currentUser={currentUser}
-            setAssignments={setAssignments}
-            setAlertMessage={setAlertMessage}
-            setShowAlert={setShowAlert}
-            fetchAssignments={() => {
-              // Add your fetchAssignments logic here if needed
-            }}
-          />
-        )}
-      </CardContent>
+      {/* Team Selector Modal */}
+      {showTeamSelector && editingDate && (
+        <TeamSelectorModal
+          date={editingDate}
+          onClose={() => {
+            setShowTeamSelector(false);
+            setEditingDate(null);
+          }}
+          assignments={assignments}
+          serviceDetails={serviceDetails}
+          users={users}
+          currentUser={currentUser}
+          setAssignments={setAssignments}
+          setAlertMessage={setAlertMessage}
+          setShowAlert={setShowAlert}
+          fetchAssignments={() => {
+            // Add your fetchAssignments logic here if needed
+          }}
+        />
+      )}
 
       {/* Mobile User Select Component */}
       < MobileWorshipSelect
