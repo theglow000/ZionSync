@@ -3,6 +3,25 @@ import { Card } from '@/components/ui/card';
 import { ChevronRight, X } from 'lucide-react';
 import stringSimilarity from 'string-similarity';
 
+// Add at the top of the file
+const ELEMENT_TYPES = {
+  LITURGY: 'liturgy',
+  SONG_HYMN: 'song_hymn',
+  LITURGICAL_SONG: 'liturgical_song',
+  READING: 'reading',
+  MESSAGE: 'message'
+};
+
+// Add after the ELEMENT_TYPES constant
+const validateElementTypes = (elements) => {
+  return elements.map(el => ({
+    ...el,
+    type: Object.values(ELEMENT_TYPES).includes(el.type) 
+      ? el.type 
+      : ELEMENT_TYPES.LITURGY
+  }));
+};
+
 // Add after the imports and before the component:
 const liturgicalTerms = {
   songs: [
@@ -14,7 +33,10 @@ const liturgicalTerms = {
     'Change My Heart O God',
     'Lamb of God',
     'Glory to God',
-    'This is the Feast'
+    'This is the Feast',
+    'Hymn of the Day',  // Add this
+    'Opening Hymn',     // Add this
+    'Sending Song'      // Add this
   ],
   readings: [
     'First Reading',
@@ -82,7 +104,10 @@ const AddCustomService = ({
   const [step, setStep] = useState('input');
   const [serviceName, setServiceName] = useState(existingService?.name || '');
   const [rawOrder, setRawOrder] = useState(
-    existingService?.order || existingService?.template || ''
+    existingService?.elements?.map(el => el.content).join('\n') || 
+    existingService?.order || 
+    existingService?.template || 
+    ''
   );
   const [parsedElements, setParsedElements] = useState(
     existingService?.elements?.map(el => ({
@@ -96,91 +121,59 @@ const AddCustomService = ({
     const lines = text.split('\n').filter(line => line.trim());
 
     return lines.map(line => {
-      let type = 'liturgy';
       const lowerLine = line.toLowerCase().trim();
+      let type = 'liturgy'; // default type
       let suggestion = null;
 
-      // Check for misspellings in each category
-      let match = findClosestMatch(line, liturgicalTerms.songs);
-      if (match) {
-        type = 'liturgical_song';
-        suggestion = match.suggestion;
-      } else {
-        match = findClosestMatch(line, liturgicalTerms.readings);
-        if (match) {
-          type = 'reading';
-          suggestion = match.suggestion;
-        } else {
-          match = findClosestMatch(line, liturgicalTerms.liturgy);
-          if (match) {
-            type = 'liturgy';
-            suggestion = match.suggestion;
-          }
-        }
-      }
-
-      // Hymns/Songs - check for common patterns
-      if (lowerLine.includes('hymn') ||
-        lowerLine.includes('song') ||
-        lowerLine.includes('opening') ||
-        lowerLine.endsWith(':') ||
-        lowerLine.includes('sending')) {
+      // 1. First check for explicit hymns/songs (highest priority)
+      if (lowerLine.includes('hymn:') ||
+          lowerLine.includes('hymn of the day') ||
+          lowerLine.includes('opening hymn') ||
+          lowerLine.includes('sending song') ||
+          lowerLine.includes('anthem:') ||
+          lowerLine.includes('song:')) {
         type = 'song_hymn';
       }
-
-      // Liturgical songs - specific matches
-      else if (
-        lowerLine.includes('kyrie') ||
-        lowerLine.includes('alleluia') ||
-        lowerLine.includes('acclamation') ||
-        lowerLine.includes('canticle') ||  // Add canticle detection
-        lowerLine.includes('create in me') ||
-        lowerLine.includes('change my heart') ||
-        lowerLine.includes('lamb of god') ||
-        lowerLine.includes('glory to god') ||
-        lowerLine.includes('this is the feast')
-      ) {
+      // 2. Check for liturgical songs
+      else if (liturgicalTerms.songs.some(term => 
+        lowerLine.includes(term.toLowerCase()))) {
         type = 'liturgical_song';
       }
-
-      // Readings - look for common patterns
-      else if (
-        lowerLine.includes('reading') ||
-        lowerLine.includes('psalm') ||
-        (lowerLine.includes('gospel') && !lowerLine.includes('acclamation')) ||
-        lowerLine.includes('lesson') ||
-        lowerLine.includes('scripture')
-      ) {
+      // 3. Check for readings
+      else if (liturgicalTerms.readings.some(term => 
+        lowerLine.includes(term.toLowerCase()))) {
         type = 'reading';
       }
-
-      // Message/Sermon related
-      else if (
-        lowerLine.includes('sermon') ||
-        lowerLine.includes('message') ||
-        lowerLine.includes('homily') ||
-        lowerLine.includes("children's")
-      ) {
+      // 4. Check for messages/sermons
+      else if (lowerLine.includes('sermon:') ||
+               lowerLine.includes('message:') ||
+               lowerLine.includes('children')) {
         type = 'message';
       }
-
-      // Common liturgical elements
-      else if (
-        lowerLine.includes('confession') ||
-        lowerLine.includes('creed') ||
-        lowerLine.includes('prayer') ||
-        lowerLine.includes('blessing') ||
-        lowerLine.includes('peace') ||
-        lowerLine.includes('offering') ||
-        lowerLine.includes('communion') ||
-        lowerLine.includes('distribution') ||
-        lowerLine.includes('prelude') ||
-        lowerLine.includes('postlude') ||
-        lowerLine.includes('dismissal') ||
-        lowerLine.includes('greeting') ||
-        lowerLine.includes('announcements')
-      ) {
+      // 5. Check for liturgical elements (lowest priority)
+      else if (liturgicalTerms.liturgy.some(term => 
+        lowerLine.includes(term.toLowerCase()))) {
         type = 'liturgy';
+      }
+      // 6. Look for suggestions if no type was definitively determined
+      else {
+        let match = findClosestMatch(line, liturgicalTerms.songs);
+        if (match) {
+          type = 'liturgical_song';
+          suggestion = match.suggestion;
+        } else {
+          match = findClosestMatch(line, liturgicalTerms.readings);
+          if (match) {
+            type = 'reading';
+            suggestion = match.suggestion;
+          } else {
+            match = findClosestMatch(line, liturgicalTerms.liturgy);
+            if (match) {
+              type = 'liturgy';
+              suggestion = match.suggestion;
+            }
+          }
+        }
       }
 
       return {
@@ -188,7 +181,7 @@ const AddCustomService = ({
         content: line,
         reference: '',
         note: '',
-        suggestion: suggestion
+        suggestion
       };
     });
   };
@@ -371,17 +364,24 @@ const AddCustomService = ({
                   const serviceData = {
                     id: existingService?.id || `service_${Date.now()}`,
                     name: serviceName.trim(),
-                    elements: parsedElements.map(el => ({
+                    elements: validateElementTypes(parsedElements.map(el => ({
                       ...el,
                       type: el.type || 'liturgy',
                       content: el.content.trim(),
-                      // Ensure we preserve any reference, note, and suggestion data
                       reference: el.reference || '',
                       note: el.note || '',
                       suggestion: null // Clear suggestions after saving
-                    })),
-                    order: rawOrder.trim(),
-                    template: parsedElements.map(el => el.content.trim()).join('\n')
+                    }))),
+                    // Store the original template separately from the current content
+                    template: existingService?.template || rawOrder,
+                    // The order should reflect the current state with selections
+                    order: parsedElements.map(el => {
+                      const content = el.content.trim();
+                      const selection = el.selection ? 
+                        ` - ${typeof el.selection === 'object' ? el.selection.title || el.selection.text : el.selection}` : 
+                        '';
+                      return `${content}${selection}`;
+                    }).join('\n')
                   };
 
                   try {

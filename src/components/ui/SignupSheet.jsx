@@ -186,24 +186,59 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
               const existingElements = prev[date]?.elements || [];
               const newElements = data[date]?.elements || [];
 
-              // Improved merging logic for elements with song selections
+              // Improved merging logic for elements
               const mergedElements = newElements.map(newElement => {
-                const existingElement = existingElements.find(existing => 
-                  existing.type === newElement.type && 
-                  existing.id === newElement.id
-                );
-
-                // If it's a song element, preserve the selection from the new data
-                if (newElement.type === 'song_hymn' || newElement.type === 'song_contemporary') {
-                  return {
-                    ...existingElement,
-                    ...newElement,
-                    selection: newElement.selection || existingElement?.selection
-                  };
+                // Find matching existing element with more robust matching
+                const existingElement = existingElements.find(existing => {
+                  // Match by ID if available
+                  if (existing.id && newElement.id && existing.id === newElement.id) {
+                    return true;
+                  }
+                  
+                  // For readings and messages, match by type and content prefix
+                  if ((existing.type === 'reading' || existing.type === 'message') && 
+                      existing.type === newElement.type) {
+                    const existingPrefix = existing.content.split(':')[0];
+                    const newPrefix = newElement.content.split(':')[0];
+                    return existingPrefix === newPrefix;
+                  }
+                  
+                  // For songs, match by type and position
+                  if ((existing.type === 'song_hymn' || existing.type === 'song_contemporary' ||
+                       existing.type === 'liturgical_song') && existing.type === newElement.type) {
+                    // Try to match by position in the service
+                    const existingIndex = existingElements.indexOf(existing);
+                    const newIndex = newElements.indexOf(newElement);
+                    return existingIndex === newIndex;
+                  }
+                  
+                  return false;
+                });
+                
+                // If we found a matching element
+                if (existingElement) {
+                  // For songs, preserve selections while updating content
+                  if (newElement.type === 'song_hymn' || newElement.type === 'song_contemporary' ||
+                      newElement.type === 'liturgical_song') {
+                    return {
+                      ...newElement,
+                      selection: existingElement.selection || newElement.selection,
+                      reference: existingElement.reference || newElement.reference
+                    };
+                  }
+                  
+                  // For readings and messages, preserve formatting while updating content
+                  if (newElement.type === 'reading' || newElement.type === 'message') {
+                    return {
+                      ...existingElement,
+                      ...newElement,
+                      content: newElement.content || existingElement.content
+                    };
+                  }
                 }
-
-                // For non-song elements, prefer existing data
-                return existingElement || newElement;
+                
+                // For elements without a match or other element types, use the new data
+                return newElement;
               });
 
               merged[date] = {
@@ -1044,6 +1079,23 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                                         </div>
                                         <div className="flex-1">
                                           {element.content}
+                                          {element.selection && (element.type === 'song_hymn' || element.type === 'song_contemporary') && (
+                                            <span className="text-blue-600 font-semibold ml-1">
+                                              {typeof element.selection === 'object' ? (
+                                                element.selection.type === 'hymn' ? (
+                                                  // For hymns, show only number and hymnal if not already in content
+                                                  !element.content.includes('#') ? `#${element.selection.number || ''}` : ''
+                                                ) : (
+                                                  // For contemporary songs, show only author if not already in content
+                                                  element.selection.author && !element.content.includes(element.selection.author) ? 
+                                                    `(${element.selection.author})` : ''
+                                                )
+                                              ) : (
+                                                // Fallback for non-object selections (rare case)
+                                                element.selection && !element.content.includes(element.selection) ? element.selection : ''
+                                              )}
+                                            </span>
+                                          )}
                                         </div>
                                       </div>
                                     ))}
@@ -1206,23 +1258,49 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
       {showPastorInput && (
         <PastorServiceInput
           date={editingDate}
+          serviceDetails={serviceDetails}  // Add this line
           onClose={() => {
             setShowPastorInput(false);
             setEditingDate(null);
           }}
           onSave={async (serviceData) => {
             try {
-              // Keep existing elements that have selections/references
+              // Keep existing elements that have selections/references with improved matching
               const existingElements = serviceDetails[editingDate]?.elements || [];
               const updatedElements = serviceData.elements.map(newElement => {
-                // Find matching existing element
-                const existingElement = existingElements.find(
-                  existing =>
-                    existing.type === newElement.type &&
-                    existing.content.split(':')[0] === newElement.content.split(':')[0]
-                );
-
-                // Preserve selection and reference if they exist
+                // Find matching existing element with more robust matching
+                const existingElement = existingElements.find(existing => {
+                  // Match by ID if available
+                  if (existing.id && newElement.id && existing.id === newElement.id) {
+                    return true;
+                  }
+                  
+                  // For readings and messages, match by type and content prefix
+                  if ((existing.type === 'reading' || existing.type === 'message') && 
+                      existing.type === newElement.type) {
+                    const existingPrefix = existing.content.split(':')[0];
+                    const newPrefix = newElement.content.split(':')[0];
+                    return existingPrefix === newPrefix;
+                  }
+                  
+                  // For songs, try to match by type and position or content
+                  if ((existing.type === 'song_hymn' || existing.type === 'song_contemporary' ||
+                       existing.type === 'liturgical_song') && existing.type === newElement.type) {
+                    // If content has a match, consider it the same element
+                    if (existing.content && newElement.content) {
+                      return existing.content.split(':')[0] === newElement.content.split(':')[0];
+                    }
+                    
+                    // Try to match by position in the service
+                    const existingIndex = existingElements.indexOf(existing);
+                    const newIndex = serviceData.elements.indexOf(newElement);
+                    return existingIndex === newIndex;
+                  }
+                  
+                  return false;
+                });
+                
+                // If we found a match, preserve selections and references
                 if (existingElement?.selection || existingElement?.reference) {
                   return {
                     ...newElement,
@@ -1230,15 +1308,14 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                     reference: existingElement.reference
                   };
                 }
+                
                 return newElement;
               });
-
-              // Update MongoDB with merged data
+              
+              // Rest of the code remains unchanged
               const response = await fetch('/api/service-details', {
                 method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   date: editingDate,
                   content: serviceData.content,
@@ -1247,11 +1324,9 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                   elements: updatedElements  // Use merged elements
                 })
               });
-
-              if (!response.ok) {
-                throw new Error('Failed to save service details');
-              }
-
+              
+              if (!response.ok) throw new Error('Failed to save service details');
+              
               // Update local state with merged data
               setServiceDetails(prev => ({
                 ...prev,
@@ -1263,17 +1338,12 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                   content: serviceData.content
                 }
               }));
-
+              
               setShowPastorInput(false);
-              setEditingDate(null);
               setAlertMessage('Service details saved successfully');
-              setShowAlert(true);
-              setTimeout(() => setShowAlert(false), 3000);
             } catch (error) {
               console.error('Error saving service details:', error);
               setAlertMessage('Error saving service details. Please try again.');
-              setShowAlert(true);
-              setTimeout(() => setShowAlert(false), 3000);
             }
           }}
         />

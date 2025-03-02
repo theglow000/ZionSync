@@ -31,53 +31,60 @@ const getSundayInfo = (dateStr) => {
   };
 };
 
-// Add this parsing function at the top with other helper functions
+// Update the parseServiceContent function to be more specific with song detection
 const parseServiceContent = (content) => {
-  const elements = content.split('\n').map(line => {
+  return content.split('\n').map(line => {
     let type = 'liturgy';
     const lowerLine = line.toLowerCase().trim();
-
-    // Add debug logging
-    console.log('Processing line:', lowerLine);
-
-    // Songs that need worship team selection - exact matches
-    if (lowerLine === 'opening hymn:' ||
-      lowerLine === 'hymn of the day:' ||
-      lowerLine === 'sending song:' ||
-      lowerLine.endsWith('opening hymn:') ||
-      lowerLine.endsWith('hymn of the day:') ||
-      lowerLine.endsWith('sending song:')) {
+    
+    // Song/Hymn detection - expanded matching
+    if (
+      lowerLine.includes('hymn:') ||
+      lowerLine.includes('hymn of the day') ||
+      lowerLine.includes('opening hymn') ||
+      lowerLine.includes('sending song') ||
+      lowerLine.includes('anthem:') ||
+      lowerLine.includes('song:')
+    ) {
       type = 'song_hymn';
     }
-    // Liturgical songs - more specific matches
-    else if (lowerLine === 'kyrie & hymn of praise' ||
-      lowerLine === 'gospel acclamation - alleluia (pg. 102)' ||
-      lowerLine.includes('create in me') ||
-      lowerLine.includes('change my heart o god')) {
-      type = 'liturgical_song';
-    }
-    // Readings - exact matches
-    else if (lowerLine === 'first reading:' ||
-      lowerLine === 'psalm reading:' ||
-      lowerLine === 'second reading:' ||
-      lowerLine === 'gospel reading:') {
+    // Reading detection
+    else if (
+      lowerLine.includes('reading:') ||
+      lowerLine.includes('lesson:') ||
+      lowerLine.includes('psalm:') ||
+      lowerLine.includes('gospel:')
+    ) {
       type = 'reading';
     }
-    // Message - exact match
-    else if (lowerLine === 'sermon:') {
+    // Message/Sermon detection
+    else if (
+      lowerLine.includes('sermon:') ||
+      lowerLine.includes('message:') ||
+      lowerLine.includes('children')
+    ) {
       type = 'message';
     }
-
-    console.log(`Line "${line}" categorized as: ${type}`);
+    // Liturgical song detection
+    else if (
+      lowerLine.includes('kyrie') ||
+      lowerLine.includes('alleluia') ||
+      lowerLine.includes('create in me') ||
+      lowerLine.includes('lamb of god') ||
+      lowerLine.includes('this is the feast') ||
+      lowerLine.includes('glory to god') ||
+      lowerLine.includes('change my heart')
+    ) {
+      type = 'liturgical_song';
+    }
 
     return {
       type,
       content: line,
-      selection: null
+      selection: null,
+      required: type !== 'liturgy'
     };
   });
-
-  return elements;
 };
 
 const getDefaultServiceType = (dateStr) => {
@@ -99,7 +106,142 @@ const mainServiceTypes = [
   { id: 'communion_potluck', name: 'Communion with Potluck' }
 ];
 
-const PastorServiceInput = ({ date, onClose, onSave }) => {
+const getStandardServiceElements = (date) => ({
+  no_communion: [
+    { content: 'Prelude & Lighting of Candles', type: 'liturgy' },
+    { content: 'Welcome & Announcements', type: 'liturgy' },
+    { content: 'Opening Hymn:', type: 'song_hymn' },
+    { content: 'Confession and Forgiveness (pg. 94-96)', type: 'liturgy' },
+    { content: 'Greeting', type: 'liturgy' },
+    { content: 'Kyrie & Hymn of Praise', type: 'liturgical_song' },
+    { content: 'Prayer of the Day', type: 'liturgy' },
+    { content: "Children's Message", type: 'message' },
+    { content: 'First Reading:', type: 'reading' },
+    { content: 'Psalm Reading:', type: 'reading' },
+    { content: 'Second Reading:', type: 'reading' },
+    { content: 'Gospel Acclamation - Alleluia (pg. 102)', type: 'liturgical_song' },
+    { content: 'Gospel Reading:', type: 'reading' },
+    { content: 'Sermon:', type: 'message' },
+    { content: 'Hymn of the Day:', type: 'song_hymn' },
+    { content: "The Apostle's Creed", type: 'liturgy' },
+    { content: 'Prayers of the Church', type: 'liturgy' },
+    { content: 'Sharing of the Peace', type: 'liturgy' },
+    { content: 'Offering & Offertory - "Create In Me" (#186)', type: 'liturgical_song' },
+    { content: 'Offering Prayer', type: 'liturgy' },
+    { content: 'Blessing', type: 'liturgy' },
+    { content: 'Sending Song:', type: 'song_hymn' },
+    { content: 'Dismissal', type: 'liturgy' },
+    { content: 'Postlude', type: 'liturgy' }
+  ],
+  
+  communion: [
+    { content: 'Prelude & Lighting of Candles', type: 'liturgy' },
+    { content: 'Welcome & Announcements', type: 'liturgy' },
+    { content: 'Opening Hymn:', type: 'song_hymn' },
+    { content: 'Confession and Forgiveness (pg. 94-96)', type: 'liturgy' },
+    { content: 'Greeting', type: 'liturgy' },
+    { content: 'Kyrie & Hymn of Praise', type: 'liturgical_song' },
+    { content: 'Prayer of the Day', type: 'liturgy' },
+    { content: "Children's Message", type: 'message' },
+    { content: 'First Reading:', type: 'reading' },
+    { content: 'Psalm Reading:', type: 'reading' },
+    { content: 'Second Reading:', type: 'reading' },
+    { content: 'Gospel Acclamation - Alleluia (pg. 102)', type: 'liturgical_song' },
+    { content: 'Gospel Reading:', type: 'reading' },
+    { content: 'Sermon:', type: 'message' },
+    { content: 'Hymn of the Day:', type: 'song_hymn' },
+    { content: "The Apostle's Creed", type: 'liturgy' },
+    { content: 'Prayers of the Church', type: 'liturgy' },
+    { content: 'Sharing of the Peace', type: 'liturgy' },
+    { content: 'Offering & Offertory -"Create In Me" (#186)', type: 'liturgical_song' },
+    { content: 'Offering Prayer', type: 'liturgy' },
+    { content: 'Words of Institution', type: 'liturgy' },
+    { content: getLordsPrayerFormat(date), type: 'liturgical_song' },
+    { content: 'Communion Preparation Hymn - "Change My Heart O God" (#801 Cranberry)', type: 'liturgical_song' },
+    { content: 'Distribution of Communion', type: 'liturgy' },
+    { content: 'Blessing', type: 'liturgy' },
+    { content: 'Sending Song:', type: 'song_hymn' },
+    { content: 'Dismissal', type: 'liturgy' },
+    { content: 'Postlude', type: 'liturgy' }
+  ],
+
+  communion_potluck: [
+    { content: 'Prelude & Lighting of Candles', type: 'liturgy' },
+    { content: 'Welcome & Announcements', type: 'liturgy' },
+    { content: 'Opening Hymn:', type: 'song_hymn' },
+    { content: 'Confession and Forgiveness (pg. 94-96)', type: 'liturgy' },
+    { content: 'Greeting', type: 'liturgy' },
+    { content: 'Kyrie & Hymn of Praise', type: 'liturgical_song' },
+    { content: 'Prayer of the Day', type: 'liturgy' },
+    { content: "Children's Message", type: 'message' },
+    { content: 'First Reading:', type: 'reading' },
+    { content: 'Psalm Reading:', type: 'reading' },
+    { content: 'Second Reading:', type: 'reading' },
+    { content: 'Gospel Acclamation - Alleluia (pg. 102)', type: 'liturgical_song' },
+    { content: 'Gospel Reading:', type: 'reading' },
+    { content: 'Sermon:', type: 'message' },
+    { content: 'Hymn of the Day:', type: 'song_hymn' },
+    { content: "The Apostle's Creed", type: 'liturgy' },
+    { content: 'Prayers of the Church', type: 'liturgy' },
+    { content: 'Sharing of the Peace', type: 'liturgy' },
+    { content: 'Offering & Offertory -"Create In Me" (#186)', type: 'liturgical_song' },
+    { content: 'Offering Prayer', type: 'liturgy' },
+    { content: 'Words of Institution', type: 'liturgy' },
+    { content: getLordsPrayerFormat(date), type: 'liturgical_song' },
+    { content: 'Communion Preparation Hymn - "Change My Heart O God" (#801 Cranberry)', type: 'liturgical_song' },
+    { content: 'Distribution of Communion', type: 'liturgy' },
+    { content: 'Blessing', type: 'liturgy' },
+    { content: 'Sending Song:', type: 'song_hymn' },
+    { content: 'Table Prayer', type: 'liturgy' },
+    { content: 'Dismissal', type: 'liturgy' },
+    { content: 'Postlude', type: 'liturgy' }
+  ]
+});
+
+const determineElementType = (line) => {
+  const lowerLine = line.toLowerCase().trim();
+  
+  // Song/Hymn detection
+  if (lowerLine.includes('hymn:') || 
+      lowerLine.includes('hymn of the day') ||
+      lowerLine.includes('opening hymn') ||
+      lowerLine.includes('sending song') ||
+      lowerLine.includes('anthem:') ||
+      lowerLine.includes('song:')) {
+    return 'song_hymn';
+  }
+  
+  // Reading detection
+  if (lowerLine.includes('reading:') ||
+      lowerLine.includes('lesson:') ||
+      lowerLine.includes('psalm:') ||
+      lowerLine.includes('gospel:')) {
+    return 'reading';
+  }
+  
+  // Message/Sermon detection
+  if (lowerLine.includes('sermon:') ||
+      lowerLine.includes('message:') ||
+      lowerLine.includes('children')) {
+    return 'message';
+  }
+  
+  // Liturgical song detection
+  if (lowerLine.includes('kyrie') ||
+      lowerLine.includes('alleluia') ||
+      lowerLine.includes('create in me') ||
+      lowerLine.includes('lamb of god') ||
+      lowerLine.includes('this is the feast') ||
+      lowerLine.includes('glory to god') ||
+      lowerLine.includes('change my heart')) {
+    return 'liturgical_song';
+  }
+  
+  // Default to liturgy
+  return 'liturgy';
+};
+
+const PastorServiceInput = ({ date, onClose, onSave, serviceDetails }) => {
   // State management
   const [selectedType, setSelectedType] = useState(() => getDefaultServiceType(date));
   const [showCustomDropdown, setShowCustomDropdown] = useState(false);
@@ -109,6 +251,9 @@ const PastorServiceInput = ({ date, onClose, onSave }) => {
   const [customServices, setCustomServices] = useState([]);
   const [hasExistingContent, setHasExistingContent] = useState(false);
   const [isCustomService, setIsCustomService] = useState(false);
+
+  // Add this at the start of the component
+  const standardServiceElements = getStandardServiceElements(date);
 
   // Service Templates
   const getServiceTemplates = () => ({
@@ -280,13 +425,15 @@ Postlude`
     });
   }, [selectedType, isCustomService, orderOfWorship, hasExistingContent]);
 
-  // Simplify handleServiceTypeChange
+  // Update the handleServiceTypeChange to preserve selections when possible
   const handleServiceTypeChange = (typeId) => {
-    console.log('Changing service type to:', typeId);
     if (!hasExistingContent || window.confirm('Changing service type will reset the order of worship. Continue?')) {
+      const elements = standardServiceElements[typeId];
+      const content = elements.map(el => el.content).join('\n');
+      
       setSelectedType(typeId);
       setIsCustomService(false);
-      setOrderOfWorship(getServiceTemplates()[typeId]);
+      setOrderOfWorship(content);
       setHasExistingContent(false);
     }
   };
@@ -299,6 +446,78 @@ Postlude`
     }
     // ... rest of your existing fetchExistingContent effect
   }, [date, customServices]);
+
+  // Replace the custom service selection handler
+  const handleCustomServiceSelection = (service) => {
+    if (!hasExistingContent || window.confirm('Changing service type will reset the order of worship. Continue?')) {
+      setSelectedType(service.id);
+      setIsCustomService(true);
+      // Use order to preserve selections, fall back to template for new services
+      setOrderOfWorship(service.order || service.template);
+      setShowCustomDropdown(false);
+    }
+  };
+
+  // Replace the existing custom service effect
+  useEffect(() => {
+    if (isCustomService && selectedType && !hasExistingContent) {
+      const customService = customServices.find(s => s.id === selectedType);
+      if (customService) {
+        setOrderOfWorship(customService.order || customService.template);
+      }
+    }
+  }, [isCustomService, selectedType, customServices, hasExistingContent]);
+
+  // 2. Update the save button handler
+  const handleSave = () => {
+    if (orderOfWorship) {
+      const currentLines = orderOfWorship.split('\n').map(line => line.trim()).filter(Boolean);
+      let elements = [];
+      
+      if (isCustomService) {
+        const customService = customServices.find(s => s.id === selectedType);
+        
+        elements = currentLines.map(line => {
+          const templateElement = customService.elements.find(el => 
+            line.startsWith(el.content.split(' - ')[0])
+          );
+
+          const existingElement = serviceDetails?.[date]?.elements?.find(
+            e => e.content.split(' - ')[0].trim() === line.split(' - ')[0].trim()
+          );
+
+          return {
+            ...(templateElement || { type: determineElementType(line) }),
+            content: line,
+            selection: existingElement?.selection || null
+          };
+        });
+      } else {
+        // Similar approach for standard services
+        elements = currentLines.map(line => {
+          const standardElement = standardServiceElements[selectedType].find(el => 
+            line.startsWith(el.content.split(' - ')[0])
+          );
+
+          const existingElement = serviceDetails?.[date]?.elements?.find(
+            e => e.content.split(' - ')[0].trim() === line.split(' - ')[0].trim()
+          );
+
+          return {
+            ...(standardElement || { type: determineElementType(line) }),
+            content: line,
+            selection: existingElement?.selection || null
+          };
+        });
+      }
+
+      onSave({
+        type: selectedType,
+        content: orderOfWorship,
+        elements: elements
+      });
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
@@ -380,19 +599,7 @@ Postlude`
                       className="flex items-center justify-between p-2 hover:bg-[#FFD700] hover:bg-opacity-20"
                     >
                       <button
-                        onClick={() => {
-                          if (!hasExistingContent || window.confirm('Changing service type will reset the order of worship. Continue?')) {
-                            setSelectedType(service.id);
-                            setIsCustomService(true);
-                            if (service.order) {
-                              setOrderOfWorship(service.order);
-                            } else if (service.template) {
-                              setOrderOfWorship(service.template);
-                            }
-                            setHasExistingContent(false);
-                            setShowCustomDropdown(false);
-                          }
-                        }}
+                        onClick={() => handleCustomServiceSelection(service)}
                         className="flex-1 text-left text-black font-normal" // Added text-black and font-normal
                       >
                         {service.name}
@@ -457,6 +664,9 @@ Postlude`
           {/* Order of Worship Editor */}
           <div>
             <h3 className="text-base font-bold text-[#6B8E23] mb-2">Order of Worship</h3>
+            <div className="text-sm text-gray-600 mb-2">
+              Note: Song selections must be made in the Worship Team tab
+            </div>
             <textarea
               value={orderOfWorship}
               onChange={(e) => setOrderOfWorship(e.target.value)}
@@ -473,20 +683,7 @@ Postlude`
             Cancel
           </button>
           <button
-            onClick={() => {
-              if (orderOfWorship) {
-                // If using a custom service, use its elements directly
-                const elements = isCustomService
-                  ? customServices.find(s => s.id === selectedType)?.elements
-                  : parseServiceContent(orderOfWorship);
-
-                onSave({
-                  type: selectedType,
-                  content: orderOfWorship,
-                  elements: elements
-                });
-              }
-            }}
+            onClick={handleSave}
             className="px-4 py-2 bg-[#6B8E23] text-white rounded hover:bg-[#556B2F]"
           >
             Save Service Details

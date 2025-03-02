@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Link, Youtube } from 'lucide-react';
+import { titleCase, spellCheckAndCorrect } from '@/lib/utils'; // Import our new utility functions
 
 const isValidUrl = (url) => {
   if (!url) return false;
@@ -24,6 +25,16 @@ const SongSection = ({
   // State
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [localTitle, setLocalTitle] = useState(songState.title || '');
+  const [localAuthor, setLocalAuthor] = useState(songState.author || '');
+  const [titleTimer, setTitleTimer] = useState(null);
+  const [authorTimer, setAuthorTimer] = useState(null);
+
+  // Use useEffect to sync the local state with props when they change externally
+  useEffect(() => {
+    setLocalTitle(songState.title || '');
+    setLocalAuthor(songState.author || '');
+  }, [songState.title, songState.author]);
 
   // Refs
   const inputRef = useRef(null);
@@ -44,17 +55,61 @@ const SongSection = ({
     });
   }, [slot, songState, onSongStateUpdate]);
 
+  // Update handleInputChange for title and author to use delayed formatting
   const handleInputChange = useCallback((field, value) => {
-    onSongStateUpdate(slot, {
-      ...songState,
-      [field]: value
-    });
-  }, [slot, songState, onSongStateUpdate]);
+    if (field === 'title') {
+      // Update local state immediately for responsive typing
+      setLocalTitle(value);
+      
+      // Clear any existing timers
+      if (titleTimer) clearTimeout(titleTimer);
+      
+      // Set a new timer to apply formatting after a short delay
+      const timer = setTimeout(() => {
+        const formattedValue = spellCheckAndCorrect(value);
+        onSongStateUpdate(slot, {
+          ...songState,
+          title: formattedValue
+        });
+      }, 800); // 800ms delay before formatting
+      
+      setTitleTimer(timer);
+    } 
+    else if (field === 'author') {
+      // Update local state immediately
+      setLocalAuthor(value);
+      
+      // Clear any existing timers
+      if (authorTimer) clearTimeout(authorTimer);
+      
+      // Set a new timer to apply formatting after a short delay
+      const timer = setTimeout(() => {
+        const formattedValue = titleCase(value);
+        onSongStateUpdate(slot, {
+          ...songState,
+          author: formattedValue
+        });
+      }, 800); // 800ms delay
+      
+      setAuthorTimer(timer);
+    }
+    else {
+      // For other fields, update immediately without formatting
+      onSongStateUpdate(slot, {
+        ...songState,
+        [field]: value
+      });
+    }
+  }, [slot, songState, onSongStateUpdate, titleTimer, authorTimer]);
 
   const handleSuggestionSelect = useCallback((suggestion) => {
+    // Format the title and author using our utility functions
+    const formattedTitle = spellCheckAndCorrect(suggestion.title);
+    const formattedAuthor = suggestion.author ? titleCase(suggestion.author) : '';
+    
     onSongStateUpdate(slot, {
       ...songState,
-      title: suggestion.title,
+      title: formattedTitle,
       ...(isHymn ? {
         number: suggestion.number || '',
         hymnal: suggestion.hymnal || '',
@@ -62,7 +117,7 @@ const SongSection = ({
         youtube: suggestion.youtubeLink || '',
         notes: suggestion.notes || ''
       } : {
-        author: suggestion.author || '',
+        author: formattedAuthor,
         sheetMusic: suggestion.songSelectLink || '',
         youtube: suggestion.youtubeLink || '',
         notes: suggestion.notes || ''
@@ -105,6 +160,14 @@ const SongSection = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Clean up timers when component unmounts
+  useEffect(() => {
+    return () => {
+      if (titleTimer) clearTimeout(titleTimer);
+      if (authorTimer) clearTimeout(authorTimer);
+    };
+  }, [titleTimer, authorTimer]);
+
   return (
     <div className="border rounded p-1.5">
       <div className="flex items-center gap-2 mb-1">
@@ -134,7 +197,7 @@ const SongSection = ({
             <input
               ref={inputRef}
               type="text"
-              value={songState.title}
+              value={localTitle}
               onChange={(e) => {
                 handleInputChange('title', e.target.value);
                 updateSuggestions(e.target.value);
@@ -199,7 +262,7 @@ const SongSection = ({
         {!isHymn && (
           <input
             type="text"
-            value={songState.author}
+            value={localAuthor}
             onChange={(e) => handleInputChange('author', e.target.value)}
             placeholder="Artist/Author"
             className="w-full p-1 text-sm border rounded text-black placeholder:text-gray-500"

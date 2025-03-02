@@ -54,34 +54,42 @@ export async function GET(request) {
   }
 }
 
-// Add the parseServiceContent function at the top of the file
+// Update the parseServiceContent function to match
 const parseServiceContent = (content) => {
   return content.split('\n').map(line => {
     let type = 'liturgy';
     const lowerLine = line.toLowerCase().trim();
-
-    if (lowerLine === 'opening hymn:' ||
-      lowerLine === 'hymn of the day:' ||
-      lowerLine === 'sending song:' ||
-      lowerLine.endsWith('opening hymn:') ||
-      lowerLine.endsWith('hymn of the day:') ||
-      lowerLine.endsWith('sending song:')) {
-      type = 'song_hymn';
-    }
-    else if (lowerLine === 'kyrie & hymn of praise' ||
-      lowerLine === 'gospel acclamation - alleluia (pg. 102)' ||
-      lowerLine.includes('create in me') ||
-      lowerLine.includes('change my heart o god')) {
-      type = 'liturgical_song';
-    }
-    else if (lowerLine === 'first reading:' ||
-      lowerLine === 'psalm reading:' ||
-      lowerLine === 'second reading:' ||
-      lowerLine === 'gospel reading:') {
+    
+    // Reading detection
+    if (lowerLine.includes('reading:') ||
+        lowerLine.includes('lesson:') ||
+        lowerLine.includes('psalm:') ||
+        lowerLine.includes('gospel:')) {
       type = 'reading';
     }
-    else if (lowerLine === 'sermon:') {
+    // Message/Sermon detection
+    else if (lowerLine.includes('sermon:') ||
+             lowerLine.includes('message:') ||
+             lowerLine.includes('children')) {
       type = 'message';
+    }
+    // Song/Hymn detection
+    else if (lowerLine.includes('hymn:') ||
+             lowerLine.includes('song:') ||
+             lowerLine.includes('anthem:')) {
+      type = 'song_hymn';
+    }
+    // Liturgical song detection
+    else if (
+      lowerLine.includes('kyrie') ||
+      lowerLine.includes('alleluia') ||
+      lowerLine.includes('create in me') ||
+      lowerLine.includes('lamb of god') ||
+      lowerLine.includes('this is the feast') ||
+      lowerLine.includes('glory to god') ||
+      lowerLine.includes('change my heart')
+    ) {
+      type = 'liturgical_song';
     }
 
     return {

@@ -28,7 +28,7 @@ export async function POST(request) {
     const client = await clientPromise;
     const db = client.db("church");
 
-    // 1. Update service_songs (no changes needed here)
+    // Update service_songs collection first
     await db.collection("service_songs").updateOne(
       { date: body.date },
       { 
@@ -42,29 +42,47 @@ export async function POST(request) {
       { upsert: true }
     );
 
-    // 2. Update serviceDetails with the selections
+    // Then update serviceDetails with the selections
     const serviceDetails = await db.collection("serviceDetails").findOne({ date: body.date });
     if (serviceDetails?.elements) {
+      let currentSongIndex = 0;
+      
       const updatedElements = serviceDetails.elements.map(element => {
-        // Check if element is a song that needs updating
         if (element.type === 'song_hymn') {
-          // Find matching song from selections
-          const songMatch = Object.entries(body.selections).find(([_, song]) => {
-            // Match based on content (e.g., "Opening Hymn: Blessed Assurance")
-            return element.content.toLowerCase().includes(song.title.toLowerCase());
-          });
+          const matchingSong = Object.values(body.selections)[currentSongIndex];
+          currentSongIndex++;
 
-          if (songMatch) {
-            const [_, songData] = songMatch;
+          if (matchingSong) {
+            // Extract only the prefix part, removing any existing song details
+            const prefix = element.content.split(':')[0].split(' - ')[0].trim();
+            
+            // Format the song details without duplicating the title
+            let songDetails;
+            if (matchingSong.type === 'hymn') {
+              songDetails = `${matchingSong.title} #${matchingSong.number} (${formatHymnalName(matchingSong.hymnal)})`;
+            } else {
+              songDetails = matchingSong.author ? 
+                `${matchingSong.title} - ${matchingSong.author}` : 
+                matchingSong.title;
+            }
+
+            // Combine prefix with formatted song details
+            const formattedContent = `${prefix}: ${songDetails}`;
+
             return {
               ...element,
-              selection: songData
+              content: formattedContent,
+              selection: {
+                ...matchingSong,
+                originalPrefix: prefix
+              }
             };
           }
         }
         return element;
       });
 
+      // Update the database with the new elements
       await db.collection("serviceDetails").updateOne(
         { date: body.date },
         { $set: { elements: updatedElements } }
@@ -77,3 +95,9 @@ export async function POST(request) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
+
+// Helper function to format hymnal names
+const formatHymnalName = (hymnal) => {
+  if (!hymnal) return '';
+  return hymnal.charAt(0).toUpperCase() + hymnal.slice(1);
+};

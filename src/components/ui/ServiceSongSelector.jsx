@@ -415,6 +415,25 @@ const ServiceSongSelector = ({
     return hymnal.charAt(0).toUpperCase() + hymnal.slice(1);
   };
 
+  // Update the formatSongDisplay function
+const formatSongDisplay = (song) => {
+  if (!song?.title) return null;
+  
+  // Preserve the original label from the element content
+  const prefix = song.content?.split(':')[0] || 'Song';
+  
+  // Format based on song type
+  let songDetails;
+  if (song.type === 'hymn') {
+    songDetails = `${song.title} #${song.number} (${formatHymnalName(song.hymnal)})`;
+  } else {
+    // Contemporary song
+    songDetails = song.author ? `${song.title} - ${song.author}` : song.title;
+  }
+  
+  return `${prefix}: ${songDetails}`;
+};
+
   // Handle form submission
   // Update the handleSubmit function to include duplicate song checking
   const handleSubmit = async (e) => {
@@ -485,41 +504,48 @@ const ServiceSongSelector = ({
 
       // Then map the songs to the elements array
       const updatedElements = serviceDetails.elements.map(element => {
-        if (element.type === 'song_hymn' && currentSongIndex < songSelections.length) {
+        if (element.type === 'song_hymn') {
           const matchingSong = songSelections[currentSongIndex];
           currentSongIndex++;
 
-          // If all relevant fields are empty, treat it as no selection
-          const isEmpty = !matchingSong?.title && 
-                         !matchingSong?.number && 
-                         !matchingSong?.author;
+          // Get the original prefix/label WITHOUT any existing song info
+          const prefix = element.content.split(':')[0].split(' - ')[0].trim();
 
-          if (isEmpty) {
+          if (matchingSong?.title) {
+            // Format song details based on type
+            const songDetails = matchingSong.type === 'hymn'
+              ? `${matchingSong.title} #${matchingSong.number} (${formatHymnalName(matchingSong.hymnal)})`
+              : matchingSong.author 
+                ? `${matchingSong.title} - ${matchingSong.author}`
+                : matchingSong.title;
+
+            console.log('Formatting song:', {
+              prefix,
+              songDetails,
+              finalContent: `${prefix}: ${songDetails}`
+            });
+
             return {
               ...element,
-              selection: null,
-              content: element.content.split(':')[0] + ':', // Reset to just the label
-              reference: ''
+              selection: {
+                ...matchingSong,
+                content: prefix // Store original prefix with selection
+              },
+              content: `${prefix}: ${songDetails}`
             };
           }
-
-          // Continue with existing song update logic for non-empty songs
-          const [baseContent] = element.content.split(':');
-          const songDetails = matchingSong.type === 'hymn' 
-            ? `${matchingSong.title}${matchingSong.number ? ` #${matchingSong.number}` : ''}${matchingSong.hymnal ? ` (${formatHymnalName(matchingSong.hymnal)})` : ''}`
-            : `${matchingSong.title}${matchingSong.author ? ` - ${matchingSong.author}` : ''}`;
-
+          
           return {
             ...element,
-            selection: matchingSong,
-            content: `${baseContent}: ${songDetails}`,
-            reference: matchingSong.type === 'hymn' 
-              ? `#${matchingSong.number} - ${matchingSong.hymnal}` 
-              : matchingSong.author || ''
+            selection: null,
+            content: `${prefix}: <Awaiting Song Selection>`
           };
         }
         return element;
       });
+
+      // Debug the final elements array
+      console.log('Final updated elements:', updatedElements);
 
       // Update serviceDetails collection
       const serviceDetailsResponse = await fetch('/api/service-details', {
