@@ -11,6 +11,7 @@ import UserSelectionModal from './UserSelectionModal';
 import useResponsive from '../../hooks/useResponsive';
 import './table.css'
 import PastorServiceInput from './PastorServiceInput'; // Add this import
+import { downloadICSFile } from '../../lib/ics-generator'; // Change this import
 
 const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
   const { isMobile } = useResponsive();

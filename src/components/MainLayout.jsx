@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import SignupSheet from './ui/SignupSheet';
 import AVTeam from './ui/AVTeam';
 import WorshipTeam from './ui/WorshipTeam';
@@ -72,25 +72,27 @@ const MobileTabButton = ({ active, label, onClick, colors, isHome }) => (
   </button>
 );
 
-const MainLayout = () => {
+// Create a client component that safely uses useSearchParams
+const TabInitializer = ({ setActiveTab, setShowSplash }) => {
   const searchParams = useSearchParams();
-  const tabParam = searchParams.get('tab');
   
-  const [showSplash, setShowSplash] = useState(!tabParam);
-  const [activeTab, setActiveTab] = useState(tabParam || 'presentation');
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam) {
+      setActiveTab(tabParam);
+      setShowSplash(false);
+    }
+  }, [searchParams, setActiveTab, setShowSplash]);
+  
+  return null;
+};
+
+const MainLayout = () => {
+  const [showSplash, setShowSplash] = useState(true);
+  const [activeTab, setActiveTab] = useState('presentation');
   const [serviceDetails, setServiceDetails] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const { isMobile } = useResponsive();
-
-  // Set the initial tab based on URL parameter
-  useEffect(() => {
-    if (tabParam) {
-      if (tabParam === 'worship') {
-        setActiveTab('worship');
-        setShowSplash(false);
-      }
-    }
-  }, [tabParam]);
 
   // Add this useEffect to fetch service details
   useEffect(() => {
@@ -177,6 +179,9 @@ const MainLayout = () => {
   if (showSplash) {
     return (
       <div className="w-full min-h-screen">
+        <Suspense fallback={null}>
+          <TabInitializer setActiveTab={setActiveTab} setShowSplash={setShowSplash} />
+        </Suspense>
         <SplashScreen onEnter={() => setShowSplash(false)} setActiveTab={setActiveTab} />
       </div>
     );
@@ -187,6 +192,9 @@ const MainLayout = () => {
       className="min-h-screen bg-cover bg-center bg-fixed transition-all duration-500"
       style={{ backgroundImage: activeTabData.background }}
     >
+      <Suspense fallback={null}>
+        <TabInitializer setActiveTab={setActiveTab} setShowSplash={setShowSplash} />
+      </Suspense>
       {isMobile ? (
         <div className="min-h-screen flex flex-col relative">
           {/* Main content area */}
