@@ -1,271 +1,378 @@
-import React from 'react';
-import { ChevronDown, ChevronUp, Check, Trash2, Music2 } from 'lucide-react';
-import { Music, BookOpen, MessageSquare, Cross } from 'lucide-react';
+'use client';
 
-const MobileServiceCard = ({
-    item,
-    checkForSelectedSongs,
-    checkForOrderOfWorship,
-    expanded,
-    completed,
-    signups,
-    currentUser,
-    selectedDates,
-    serviceDetails,
-    setSignups,
-    setSignupDetails,
-    setSelectedDates,
-    alertPosition,
-    setAlertPosition,
-    setAlertMessage,
-    setShowAlert,
-    setShowPastorInput,
-    setEditingDate,
-    onExpand,
-    onRemove,
-    onComplete,
-    onSelectDate,
+// Update the import to include Cross
+import React, { useState } from 'react';
+import { ChevronDown, ChevronUp, Check, Calendar, BookOpen, MessageSquare, Music, Music2, Cross, Trash2, UserCircle, CheckCircle, Pencil } from 'lucide-react';
+import UserSelectionModal from './UserSelectionModal';
+
+const MobileServiceCard = ({ 
+  item,
+  signups,
+  completed,
+  selectedDates,
+  serviceDetails,
+  availableUsers,
+  checkForSelectedSongs,
+  checkForOrderOfWorship,
+  setSelectedDates,
+  onExpand,
+  onAssignUser,
+  onRemoveAssignment,
+  onComplete,
+  onSelectDate,
+  onServiceDetailChange,
+  setAlertMessage,
+  setShowAlert,
+  setAlertPosition,
+  customServices,
+  onEditService,
+  onDeleteService
 }) => {
-    return (
-        <div className="bg-white rounded-lg shadow-sm border p-4 mb-2">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-2">
-                <div>
-                    <div className="flex items-center gap-2">
-                        <h3 className="font-medium text-black">{item.title}</h3>
-                        <div className="flex items-center gap-1">
-                            {checkForOrderOfWorship(item.date) && (
-                                <BookOpen
-                                    className="w-4 h-4 text-green-600"
-                                    title="Order of Worship available"
-                                />
-                            )}
-                            {checkForSelectedSongs(item.date) && (
-                                <Music2
-                                    className="w-4 h-4 text-purple-700"
-                                    title="Songs selected"
-                                />
-                            )}
-                        </div>
-                        <div className="text-sm text-gray-600">{item.day}, {item.date}</div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        {signups[item.date] === currentUser?.name && (
-                            <div className="flex flex-col items-center">
-                                <input
-                                    type="checkbox"
-                                    checked={selectedDates.includes(item.date)}
-                                    onChange={() => onSelectDate(item.date)}
-                                    className="w-4 h-4 rounded border-gray-300"
-                                />
-                                <span className="text-[10px] text-gray-900 text-center leading-tight">Add to{"\n"}calendar</span>
-                            </div>
-                        )}
-                        <div className="flex flex-col items-center">
-                            <button
-                                onClick={() => onComplete(item.date)}
-                                className={`w-4 h-4 rounded border ${completed[item.date]
-                                    ? 'bg-[#6B8E23] border-[#556B2F]'
-                                    : 'bg-white border-gray-300'
-                                    } flex items-center justify-center`}
-                            >
-                                {completed[item.date] && <Check className="w-3 h-3 text-white" />}
-                            </button>
-                            <span className="text-[10px] text-gray-900">Complete</span>
-                        </div>
-                    </div>
-                </div>
+  // Remove currentUser prop if it's not being used anymore
+  const [expanded, setExpanded] = useState(false);
+  const [showUserSelection, setShowUserSelection] = useState(false);
+  
+  // Extract properties from item
+  const { date, title, day } = item;
+  const isCompleted = completed[date];
+  
+  // Check if there's a user assigned to this date
+  const assignedUser = signups[date];
 
-                {/* Signup Section */}
-                <div className="flex items-center justify-between mb-2">
-                    {signups[item.date] ? (
-                        <div className="flex items-center justify-between w-full p-2 rounded bg-[#6B8E23] bg-opacity-20">
-                            <span className="text-gray-900 font-medium">{signups[item.date]}</span>
-                            {signups[item.date] === currentUser?.name && (
-                                <button
-                                    onClick={() => onRemove(item.date)}
-                                    className="text-red-500 hover:text-red-700"
-                                    title="Remove reservation"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
-                            )}
-                        </div>
-                    ) : (
-                        <button
-                            onClick={(e) => {
-                                if (!currentUser) {
-                                    const rect = e.currentTarget.getBoundingClientRect();
-                                    setAlertPosition({
-                                        x: rect.left + (rect.width / 2),
-                                        y: rect.top
-                                    });
+  // Check if this date is selected for calendar
+  const isDateSelected = selectedDates.includes(date);
 
-                                    setAlertMessage('Please select a user first');
-                                    setShowAlert(true);
-                                    setTimeout(() => setShowAlert(false), 3000);
-                                    const button = e.currentTarget;
-                                    button.style.borderColor = '#EF4444';
-                                    setTimeout(() => {
-                                        button.style.borderColor = '';
-                                    }, 1000);
-                                    return;
-                                }
+  // Check for order of worship and songs
+  const hasOrderOfWorship = checkForOrderOfWorship ? checkForOrderOfWorship(date) : false;
+  const hasSongs = checkForSelectedSongs ? checkForSelectedSongs(date) : false;
 
-                                try {
-                                    fetch('/api/signups', {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                        },
-                                        body: JSON.stringify({
-                                            date: item.date,
-                                            name: currentUser.name
-                                        })
-                                    }).then(response => {
-                                        if (!response.ok) throw new Error('Failed to save signup');
-                                        setSignups(prev => ({
-                                            ...prev,
-                                            [item.date]: currentUser.name
-                                        }));
-                                        setSignupDetails(prev => ({
-                                            ...prev,
-                                            [item.date]: {
-                                                name: currentUser.name
-                                            }
-                                        }));
+  const handleExpandToggle = () => {
+    const newExpanded = !expanded;
+    setExpanded(newExpanded);
+    if (onExpand) {
+      onExpand(date);
+    }
+  };
 
-                                        const [itemMonth, itemDay, shortYear] = item.date.split('/').map(num => parseInt(num, 10));
-                                        const itemYear = 2000 + shortYear;
-                                        const itemDate = new Date(itemYear, itemMonth - 1, itemDay);
-                                        const today = new Date('2025-01-14');
-                                        today.setHours(0, 0, 0, 0);
+  // Handle user assignment
+  const handleAssign = (userName) => {
+    if (onAssignUser) {
+      onAssignUser(date, userName);
+    }
+  };
 
-                                        if (itemDate > today) {
-                                            setSelectedDates(prev => [...prev, item.date]);
-                                        }
+  // Handle removing assignment
+  const handleRemoveAssignment = () => {
+    if (onRemoveAssignment) {
+      onRemoveAssignment(date);
+    }
+  };
 
-                                        setAlertMessage('Successfully signed up!');
-                                        setShowAlert(true);
-                                        setTimeout(() => setShowAlert(false), 3000);
-                                    });
-                                } catch (error) {
-                                    console.error('Error saving signup:', error);
-                                    setAlertMessage('Error saving signup. Please try again.');
-                                    setShowAlert(true);
-                                    setTimeout(() => setShowAlert(false), 3000);
-                                }
-                            }}
-                            className="w-full p-2 border rounded-md text-[#6B8E23] border-[#6B8E23] hover:bg-[#6B8E23] hover:text-white transition-colors duration-300"
-                        >
-                            Sign Up
-                        </button>
-                    )}
-                </div>
+  // Handle completing service
+  const handleCompleted = (e) => {
+    e.stopPropagation(); // Prevent card expansion
+    if (onComplete) {
+      onComplete(date);
+    }
+  };
 
-                {/* Order of Worship Section */}
-                <div>
-                    <div className={`${expanded[item.date] ? 'sticky top-0 bg-white z-10 border-b pb-2' : ''}`}>
-                        <button
-                            onClick={() => onExpand(item.date)}
-                            className="flex items-center gap-1 text-sm text-[#6B8E23] w-full justify-between px-2 py-1 rounded-md hover:bg-[#6B8E23] hover:bg-opacity-10"
-                        >
-                            <span>Order of Worship</span>
-                            {expanded[item.date] ? (
-                                <ChevronUp className="w-4 h-4" />
-                            ) : (
-                                <ChevronDown className="w-4 h-4" />
-                            )}
-                        </button>
-                    </div>
+  // Handle calendar selection
+  const handleCalendarSelection = (e) => {
+    e.stopPropagation(); // Prevent card expansion
+    if (onSelectDate) {
+      onSelectDate(date);
+    }
+  };
 
-                    {expanded[item.date] && (
-                        <div className="mt-3 space-y-2">
-                            <div className="flex justify-between items-center mb-2">
-                                <h3 className="text-base font-bold text-[#6B8E23]">Order of Worship</h3>
-                                <div className="flex gap-2">
-                                    <button
-                                        className="px-2 py-0.5 text-sm text-[#6B8E23] border border-[#6B8E23] rounded hover:bg-[#6B8E23] hover:text-white"
-                                        onClick={() => {
-                                            setEditingDate(item.date);
-                                            setShowPastorInput(true);
-                                        }}
-                                    >
-                                        Pastor Edit
-                                    </button>
-                                    <button
-                                        onClick={async () => {
-                                            if (confirm('Are you sure you want to delete this service\'s details?')) {
-                                                try {
-                                                    const response = await fetch(`/api/service-details?date=${item.date}`, {
-                                                        method: 'DELETE',
-                                                    });
+  // Handle pastor edit button click
+  const handlePastorEdit = (e) => {
+    e.stopPropagation(); // Prevent card expansion
+    if (onEditService) {
+      onEditService(date);
+    }
+  };
 
-                                                    if (!response.ok) {
-                                                        throw new Error('Failed to delete service details');
-                                                    }
+  // Handle delete service button click
+  const handleDeleteService = async (e) => {
+    e.stopPropagation(); // Prevent card expansion
+    
+    // Confirm before deletion
+    if (window.confirm('Are you sure you want to delete this service\'s details?')) {
+      if (onDeleteService) {
+        onDeleteService(date);
+      }
+    }
+  };
 
-                                                    // Update the local state by removing service details
-                                                    setServiceDetails(prev => ({
-                                                        ...prev,
-                                                        [item.date]: {
-                                                            ...prev[item.date],
-                                                            elements: [],
-                                                            content: null,
-                                                            type: null
-                                                        }
-                                                    }));
+  // Show the user selection modal
+  const openUserSelection = (e) => {
+    if (e) e.stopPropagation(); // Prevent card expansion
+    setShowUserSelection(true);
+  };
 
-                                                    setAlertMessage('Service details deleted successfully');
-                                                    setShowAlert(true);
-                                                    setTimeout(() => setShowAlert(false), 3000);
-                                                } catch (error) {
-                                                    console.error('Error deleting service details:', error);
-                                                    setAlertMessage('Error deleting service details. Please try again.');
-                                                    setShowAlert(true);
-                                                    setTimeout(() => setShowAlert(false), 3000);
-                                                }
-                                            }
-                                        }}
-                                        className="px-2 py-0.5 text-sm text-red-600 border border-red-600 rounded hover:bg-red-50"
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
-                            </div>
+  // Add this helper function near the top of the file
+  const isSongElementFullyLoaded = (element) => {
+    if (element.type !== 'song_hymn') return true;
+    
+    // If it has selection with title, it's fully loaded
+    if (element.selection?.title) return true;
+    
+    // If the content includes only a label with colon and nothing more,
+    // or it shows the placeholder text for Awaiting Song Selection,
+    // then it needs worship team selection
+    const contentParts = element.content?.split(':') || [];
+    if (contentParts.length > 1) {
+      const textAfterColon = contentParts.slice(1).join(':').trim();
+      if (textAfterColon === '' || textAfterColon === ' <Awaiting Song Selection>') {
+        return 'needs-selection';
+      }
+      // If there's some content after colon but no selection, it might be mid-loading
+      if (textAfterColon && !element.selection?.title) {
+        return false; // Still loading
+      }
+    }
+    
+    return true; // Default to fully loaded if we can't determine
+  };
 
-                            {/* Service Elements */}
-                            {expanded[item.date] && serviceDetails[item.date]?.elements?.map((element, index) => (
-                                <div key={index} className="flex items-center gap-1 text-sm leading-tight">
-                                    <div className={`p-0.5 rounded ${element.type === 'hymn' ? 'bg-blue-50 text-blue-600' :
-                                        element.type === 'reading' ? 'bg-green-50 text-green-600' :
-                                            element.type === 'message' ? 'bg-purple-50 text-purple-600' :
-                                                'bg-amber-50 text-amber-600'
-                                        }`}>
-                                        {element.type === 'hymn' ? <Music className="w-4 h-4" /> :
-                                            element.type === 'reading' ? <BookOpen className="w-4 h-4" /> :
-                                                element.type === 'message' ? <MessageSquare className="w-4 h-4" /> :
-                                                    <Cross className="w-4 h-4" />}
-                                    </div>
-                                    <div className="flex-1 text-gray-900">
-                                        {element.content}
-                                    </div>
-                                </div>
-                            ))}
+  return (
+    <div className={`
+      mb-4 rounded-lg overflow-hidden shadow-md
+      ${isCompleted ? 'bg-gray-100' : 'bg-white'}
+    `}>
+      {/* User Selection Modal */}
+      <UserSelectionModal 
+        showModal={showUserSelection}
+        onClose={() => setShowUserSelection(false)}
+        availableUsers={availableUsers}
+        initialUserName={assignedUser}
+        onSelect={handleAssign}
+        onDelete={handleRemoveAssignment}
+        title={assignedUser ? "Reassign Service" : "Assign User"}
+      />
 
-                            {/* Fallback for no elements */}
-                            {expanded[item.date] && (!serviceDetails[item.date]?.elements ||
-                                serviceDetails[item.date]?.elements.length === 0) && (
-                                    <div className="text-gray-500 italic">
-                                        No service details available yet.
-                                        </div>
-                                )}
-                        </div>
-                    )}
-                </div>
-            </div>
+      {/* Card Header - Always visible */}
+      <div 
+        className="flex items-center p-4 cursor-pointer"
+        onClick={handleExpandToggle}
+      >
+        {/* Service Info Column */}
+        <div className="flex-1 min-w-0">
+          {/* Date and Title */}
+          <div className="flex items-center">
+            <span className="text-sm font-medium text-gray-700 mr-2 w-[60px] flex-shrink-0">
+              {date}
+            </span>
+            <span className="font-medium text-black truncate">
+              {title}
+            </span>
+          </div>
+          
+          {/* Day and Assignment */}
+          <div className="flex items-center mt-1">
+            <span className="text-xs text-gray-500 w-[80px] flex-shrink-0">
+              {day}
+            </span>
+            
+            {assignedUser ? (
+              <div className="flex items-center overflow-hidden max-w-[calc(100%-85px)]">
+                <UserCircle className="w-3 h-3 text-[#6B8E23] mr-1 flex-shrink-0" />
+                <span className="text-xs font-medium text-[#6B8E23] truncate">
+                  {assignedUser}
+                </span>
+              </div>
+            ) : (
+              <span className="text-xs italic text-gray-400">Unassigned</span>
+            )}
+          </div>
         </div>
-    );
+        
+        {/* Status Indicators */}
+        <div className="flex items-center ml-2">
+          <div className="flex space-x-1 mr-3">
+            {isCompleted && (
+              <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                <CheckCircle className="w-4 h-4 text-green-600" />
+              </div>
+            )}
+            {hasOrderOfWorship && (
+              <div className="w-5 h-5 rounded-full bg-blue-50 flex items-center justify-center">
+                <BookOpen className="w-3 h-3 text-blue-600" />
+              </div>
+            )}
+            {hasSongs && (
+              <div className="w-5 h-5 rounded-full bg-purple-50 flex items-center justify-center">
+                <Music2 className="w-3 h-3 text-purple-700" />
+              </div>
+            )}
+          </div>
+          
+          {/* Expand/Collapse */}
+          <div className="w-6 h-6 flex items-center justify-center">
+            {expanded ? (
+              <ChevronUp className="w-5 h-5 text-gray-500" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-gray-500" />
+            )}
+          </div>
+        </div>
+      </div>
+      
+      {/* Expanded Content */}
+      {expanded && (
+        <div className="border-t border-gray-200">
+          {/* Action Bar */}
+          <div className="flex items-center justify-between p-3 bg-gray-50 border-b border-gray-200">
+            {/* User Assignment Section */}
+            <div className="flex-1 flex items-center">
+              {!assignedUser ? (
+                <button
+                  onClick={openUserSelection}
+                  disabled={isCompleted}
+                  className={`px-3 py-1 text-sm rounded-lg flex items-center ${isCompleted ? 
+                    'bg-gray-300 text-gray-700' : 
+                    'bg-[#6B8E23] text-white hover:bg-[#556B2F]'}`}
+                >
+                  <UserCircle className="w-4 h-4 mr-1" />
+                  Assign User
+                </button>
+              ) : (
+                <div className="flex items-center flex-1">
+                  <div className="flex items-center">
+                    <UserCircle className="w-4 h-4 text-[#6B8E23] mr-2" />
+                    <span className="text-sm font-medium text-[#6B8E23] truncate mr-2">
+                      {assignedUser}
+                    </span>
+                  </div>
+                  <button
+                    onClick={openUserSelection}
+                    className="ml-2 p-1 rounded-full bg-gray-100 hover:bg-gray-200"
+                  >
+                    <Pencil className="w-3 h-3 text-gray-600" />
+                  </button>
+                </div>
+              )}
+            </div>
+            
+            {/* Calendar Selection - Only show when assigned */}
+            {assignedUser && (
+              <div className="flex items-center mr-3 ml-2">
+                <input
+                  type="checkbox"
+                  checked={isDateSelected}
+                  onChange={handleCalendarSelection}
+                  className="w-4 h-4 rounded border-gray-300"
+                />
+                <span className="text-sm text-black ml-1">Calendar</span>
+              </div>
+            )}
+            
+            {/* Completed Checkbox */}
+            <div className="flex items-center ml-auto">
+              <button
+                onClick={handleCompleted}
+                className={`w-6 h-6 rounded border ${isCompleted
+                  ? 'bg-[#6B8E23] border-[#556B2F]'
+                  : 'bg-white border-gray-300'
+                } flex items-center justify-center`}
+              >
+                {isCompleted && <Check className="w-4 h-4 text-white" />}
+              </button>
+              <span className="text-sm text-black ml-1">Done</span>
+            </div>
+          </div>
+
+          {/* Order of Worship Section */}
+          <div className="p-3">
+            {/* Service Type Header */}
+            <div className="flex items-center gap-2 mb-2">
+              <h3 className="text-sm font-medium text-[#6B8E23]">Order of Worship</h3>
+              {serviceDetails[date]?.type && (
+                <span className="px-2 py-0.5 text-xs bg-gray-200 text-gray-800 rounded">
+                  {serviceDetails[date]?.type === 'communion' ? 'Communion' :
+                   serviceDetails[date]?.type === 'no_communion' ? 'No Communion' :
+                   serviceDetails[date]?.type === 'communion_potluck' ? 'Communion with Potluck' :
+                   customServices?.find(s => s.id === serviceDetails[date]?.type)?.name || 'Not Set'}
+                </span>
+              )}
+            </div>
+            
+            {/* Service Elements */}
+            <div className="space-y-0">
+              {serviceDetails[date]?.elements?.map((element, index) => (
+                <div key={index} className="flex items-start gap-1 text-sm border-b border-gray-50 last:border-b-0 py-0.5">
+                  <div className={`p-0.5 mt-0.5 rounded flex-shrink-0 ${element.type === 'song_hymn' ? 'bg-blue-50 text-blue-600' :
+                    element.type === 'reading' ? 'bg-green-50 text-green-600' :
+                    element.type === 'message' ? 'bg-purple-50 text-purple-600' :
+                    element.type === 'liturgical_song' ? 'bg-amber-50 text-amber-600' :
+                    'bg-gray-50 text-gray-600'}`}
+                  >
+                    {element.type === 'song_hymn' ? <Music className="w-3 h-3" /> :
+                     element.type === 'reading' ? <BookOpen className="w-3 h-3" /> :
+                     element.type === 'message' ? <MessageSquare className="w-3 h-3" /> :
+                     element.type === 'liturgical_song' ? <Music2 className="w-3 h-3" /> :
+                     <Cross className="w-3 h-3" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    {element.type === 'song_hymn' && isSongElementFullyLoaded(element) === false ? (
+                      <>
+                        <span className="font-bold">{element.content?.split(':')?.[0]}</span>:
+                        <span className="ml-1 italic text-gray-400">Loading...</span>
+                      </>
+                    ) : element.type === 'song_hymn' && isSongElementFullyLoaded(element) === 'needs-selection' ? (
+                      <>
+                        <span className="font-bold">{element.content?.split(':')?.[0]}</span>:
+                        <span className="ml-1 italic text-amber-600">Waiting for Worship Team song selection</span>
+                      </>
+                    ) : (
+                      <span className="text-sm text-black inline">
+                        {element.content?.includes(':') ? (
+                          <>
+                            <span className="font-bold">{element.content.split(':')[0]}</span>:
+                            <span>{element.content.split(':').slice(1).join(':')}</span>
+                          </>
+                        ) : (
+                          element.content
+                        )}
+                        {element.selection && (element.type === 'song_hymn' || element.type === 'song_contemporary') && (
+                          <span className="text-blue-600 font-medium ml-1 text-xs inline">
+                            {/* ...existing selection code... */}
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+              
+              {(!serviceDetails[date]?.elements || serviceDetails[date]?.elements.length === 0) && (
+                <div className="text-black italic py-1 text-sm">
+                  No service details available yet.
+                </div>
+              )}
+            </div>
+            
+            {/* Bottom Action Buttons */}
+            <div className="flex justify-between mt-3 pt-2 border-t border-gray-100">
+              <button
+                onClick={handlePastorEdit}
+                className="px-2 py-1 text-xs text-[#6B8E23] border border-[#6B8E23] rounded hover:bg-[#6B8E23] hover:text-white"
+              >
+                Pastor Edit
+              </button>
+              
+              <button
+                onClick={handleDeleteService}
+                className="px-2 py-1 text-xs text-red-600 border border-red-600 rounded hover:bg-red-50"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default MobileServiceCard;

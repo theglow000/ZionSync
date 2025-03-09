@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Mail, UserCircle, X, Music2, CheckCircle2, ChevronUp, ChevronDown, AlertCircle, Edit2 } from 'lucide-react';
+import { Mail, UserCircle, X, Music2, CheckCircle2, ChevronUp, ChevronDown, AlertCircle, Edit2, Pencil, Database } from 'lucide-react';
 import ServiceSongSelector from './ServiceSongSelector';
+import MobileWorshipServiceCard from './MobileWorshipServiceCard';
 import MobileWorshipSelect from './MobileWorshipSelect';
+import useResponsive from '../../hooks/useResponsive';
+import Link from 'next/link';
 
 // Dates array
 const DATES = [
@@ -218,12 +221,14 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
   const [showTeamSelector, setShowTeamSelector] = useState(false);
   const [editingDate, setEditingDate] = useState(null);
   const [teams, setTeams] = useState([]);
-  const [worshipLeader, setWorshipLeader] = useState({ name: 'Tammy', role: 'leader' });
   const [assignments, setAssignments] = useState({});
   const [users, setUsers] = useState([]);
   const dates = useMemo(() => DATES, []);
   const [customServices, setCustomServices] = useState([]);
   const POLLING_INTERVAL = 30000;
+
+  // Add this hook for responsive detection
+  const { isMobile } = useResponsive();
 
   // Add this useEffect to fetch custom services
   useEffect(() => {
@@ -275,13 +280,9 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
 
         // Filter and organize users
         const allUsers = data.users || [];
-        const leaderUser = allUsers.find(u => u.role === 'leader');
-
+        
         setUsers(allUsers);
         setAvailableUsers(allUsers);
-        if (leaderUser) {
-          setWorshipLeader({ name: leaderUser.name, role: leaderUser.role });
-        }
 
         // Fetch assignments
         const assignmentsResponse = await fetch('/api/worship-assignments', {
@@ -527,7 +528,7 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
               <div className="flex justify-center gap-4 mb-2">
                 <div className="flex gap-2 items-center">
                   <img src="/church-logo.png" alt="Church Logo" className="h-10 object-contain" />
-                  <img src="/worshipbg.jpg" alt="Worship Logo" className="h-10 object-contain" />
+                  <img src="/ZionSyncLogo.png" alt="ZionSync Logo" className="h-10 object-contain" />
                 </div>
               </div>
               <div className="text-center">
@@ -539,58 +540,72 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
 
           {/* User Selection Bar */}
           <div className="p-4 border-b border-gray-200">
-            {/* Desktop User Selection */}
-            <div className="hidden md:flex justify-end items-center gap-4">
-              <div className="flex flex-wrap gap-2 justify-end">
-                {availableUsers
-                  .filter(user => (
-                    // Only show individual users and worship leader
-                    (user.role === 'leader' || (!user.name.includes('&') && !user.role)) &&
-                    // Exclude special groups
-                    user.role !== 'special' &&
-                    user.role !== 'pastor' &&
-                    // Exclude specific groups by name
-                    !user.name.includes('Confirmation') &&
-                    !user.name.includes('Sunday School')
-                  ))
-                  .map(user => (
-                    <button
-                      key={user.name}
-                      onClick={() => {
-                        // If clicking the current user, deselect them
-                        if (currentUser?.name === user.name) {
-                          setCurrentUser(null);
-                        } else {
-                          // Otherwise select the new user
-                          setCurrentUser({
-                            name: user.name,
-                            role: user.role,
-                            color: 'bg-purple-700 bg-opacity-20'
-                          });
-                        }
-                      }}
-                      className={`${currentUser?.name === user.name
-                        ? 'bg-purple-700 text-white'
-                        : 'bg-purple-700 bg-opacity-20 text-purple-700'
-                        } px-3 py-1 rounded flex flex-col items-center`}
-                    >
-                      <span>{user.name}</span>
-                      {user.role === 'leader' && (
-                        <span className="text-xs mt-0.5">Worship Leader</span>
-                      )}
-                    </button>
-                  ))}
+            {/* Combined Header with all buttons on a single line */}
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Link href="/song-management">
+                  <button className="flex items-center gap-2 px-3 py-2 bg-purple-700 text-white rounded-md hover:bg-purple-800 transition-colors">
+                    <Database className="w-4 h-4" />
+                    <span>Manage Song Database</span>
+                  </button>
+                </Link>
+                
+                {/* Remove worship leader indicator */}
               </div>
-              <button
-                onClick={() => setShowUserManagement(true)}
-                className="px-3 py-1 rounded border border-purple-700 text-purple-700 hover:bg-purple-50"
-              >
-                Manage Users
-              </button>
+
+              {/* Desktop User Selection - now in the same row */}
+              <div className="hidden md:flex items-center gap-4">
+                <div className="flex flex-wrap gap-2 justify-end">
+                  {availableUsers
+                    .filter(user => (
+                      // Only show individual users and worship leader
+                      (user.role === 'leader' || (!user.name.includes('&') && !user.role)) &&
+                      // Exclude special groups
+                      user.role !== 'special' &&
+                      user.role !== 'pastor' &&
+                      // Exclude specific groups by name
+                      !user.name.includes('Confirmation') &&
+                      !user.name.includes('Sunday School')
+                    ))
+                    .map(user => (
+                      <button
+                        key={user.name}
+                        onClick={() => {
+                          // If clicking the current user, deselect them
+                          if (currentUser?.name === user.name) {
+                            setCurrentUser(null);
+                          } else {
+                            // Otherwise select the new user
+                            setCurrentUser({
+                              name: user.name,
+                              role: user.role,
+                              color: 'bg-purple-700 bg-opacity-20'
+                            });
+                          }
+                        }}
+                        className={`${currentUser?.name === user.name
+                          ? 'bg-purple-700 text-white'
+                          : 'bg-purple-700 bg-opacity-20 text-purple-700'
+                          } px-3 py-1 rounded flex items-center`}
+                      >
+                        <span>{user.name}</span>
+                        {user.role === 'leader' && (
+                          <span className="text-xs ml-1">(Leader)</span>
+                        )}
+                      </button>
+                    ))}
+                </div>
+                <button
+                  onClick={() => setShowUserManagement(true)}
+                  className="px-3 py-1 rounded border border-purple-700 text-white bg-purple-700 hover:bg-purple-800"
+                >
+                  Manage Users
+                </button>
+              </div>
             </div>
 
             {/* Mobile User Selection */}
-            <div className="md:hidden">
+            <div className="md:hidden mt-2">
               <button
                 onClick={() => setShowUserSelector(true)}
                 className="w-full px-3 py-2 rounded border border-purple-700 text-purple-700"
@@ -599,6 +614,7 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
               </button>
             </div>
           </div>
+
         </div>
 
         {/* Scrollable Content Section */}
@@ -606,7 +622,8 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
           <CardContent className="h-full p-0">
             <div className="h-full overflow-y-auto">
               <div className="space-y-4 p-4">
-                {dates.map((item) => (
+                {/* Desktop View */}
+                {!isMobile && dates.map((item) => (
                   <div key={item.date}>
                     <ServiceSongSelector
                       date={item.date}
@@ -627,7 +644,7 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
                       onEditTeam={() => handleEditTeam(item.date)}
                       header={
                         <div className="flex items-center justify-between w-full">
-                          {/* Left Side - Service Info - Now wrapped in a clickable div */}
+                          {/* Left Side - Service Info */}
                           <div
                             className="flex items-center flex-1 cursor-pointer hover:bg-gray-50 p-2 rounded"
                             onClick={() => {
@@ -661,41 +678,76 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
                                 </div>
                               </div>
                             </div>
+                          </div>
 
-                            {/* Add the expand/collapse icon inside the clickable area */}
-                            <div className="ml-4">
+                          {/* Right Side - Team Assignment plus icon */}
+                          <div className="flex items-center gap-3 flex-shrink-0">
+                            {/* Check for songs - add music icon */}
+                            {serviceDetails[item.date]?.elements?.some(e => e.type === 'song_hymn' && e.selection?.title) && (
+                              <div className="w-5 h-5 rounded-full bg-purple-50 flex items-center justify-center">
+                                <Music2 className="w-3 h-3 text-purple-700" />
+                              </div>
+                            )}
+                            
+                            {/* Team Assignment Badge - More like presentation team */}
+                            <div className="flex items-center gap-1">
+                              <div className="flex items-center bg-purple-100 rounded px-2 py-0.5">
+                                <UserCircle className="w-3 h-3 text-purple-700 mr-1" />
+                                <span className="text-xs text-purple-700">
+                                  {assignments[item.date]?.team || 'No team assigned'}
+                                </span>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditTeam(item.date);
+                                }}
+                                className="p-1 hover:bg-gray-100 rounded"
+                                title="Edit team assignment"
+                              >
+                                <Pencil className="w-3 h-3 text-purple-700" />
+                              </button>
+                            </div>
+                            
+                            {/* Expand/Collapse button */}
+                            <button
+                              onClick={() => setExpanded(prev => ({...prev, [item.date]: !prev[item.date]}))}
+                              className="ml-1"
+                            >
                               {expanded[item.date] ?
                                 <ChevronUp className="w-5 h-5 text-purple-700" /> :
                                 <ChevronDown className="w-5 h-5 text-purple-700" />
                               }
-                            </div>
-                          </div>
-
-                          {/* Right Side - Team Assignment (separated from clickable area) */}
-                          <div className="flex items-center gap-4 flex-shrink-0 ml-4">
-                            <div className="flex items-center gap-2">
-                              {/* Team Assignment Badge */}
-                              <div className="flex items-center gap-1 bg-purple-100 rounded px-2 py-0.5">
-                                <span className="text-xs text-purple-700 whitespace-nowrap">
-                                  {assignments[item.date]?.team || 'No team assigned'}
-                                </span>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditTeam(item.date);
-                                  }}
-                                  className="p-1 hover:bg-purple-200 rounded"
-                                  title="Edit team assignment"
-                                >
-                                  <Edit2 className="w-4 h-4 text-purple-700" />
-                                </button>
-                              </div>
-                            </div>
+                            </button>
                           </div>
                         </div>
                       }
                     />
                   </div>
+                ))}
+                
+                {/* Mobile View */}
+                {isMobile && dates.map((item) => (
+                  <MobileWorshipServiceCard
+                    key={item.date}
+                    date={item.date}
+                    title={item.title}
+                    day={item.day}
+                    serviceDetails={serviceDetails[item.date]}
+                    assignments={assignments}
+                    currentUser={currentUser}
+                    expanded={expanded[item.date]}
+                    onToggleExpand={(date) => {
+                      setExpanded(prev => ({
+                        ...prev,
+                        [date]: !prev[date]
+                      }));
+                    }}
+                    onEditTeam={() => handleEditTeam(item.date)}
+                    customServices={customServices}
+                    availableSongs={availableSongs}
+                    setServiceDetails={setServiceDetails}
+                  />
                 ))}
               </div>
             </div>

@@ -88,26 +88,44 @@ const recordSongUsage = async (songs, date, serviceType, currentUser) => {
     // Filter out empty songs before recording
     const validSongs = songs.filter(song => song?.title?.trim());
 
-    await Promise.all(validSongs.map(song =>
-      fetch('/api/song-usage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: song.title,
-          type: song.type,
-          date: date,
-          service: serviceType,
-          addedBy: currentUser?.name || 'Unknown',
-          number: song.number,
-          hymnal: song.hymnal,
-          author: song.author,
-          hymnaryLink: song.sheetMusic,
-          songSelectLink: song.sheetMusic,
-          youtubeLink: song.youtube,
-          notes: song.notes
-        })
-      })
-    ));
+    // Process each song one by one to better handle errors
+    for (const song of validSongs) {
+      try {
+        // First check if this song+date combination already exists
+        const checkResponse = await fetch(`/api/song-usage/check?title=${encodeURIComponent(song.title)}&date=${encodeURIComponent(date)}`);
+        const checkResult = await checkResponse.json();
+        
+        // If this song is already recorded for this date, skip it
+        if (checkResult.exists) {
+          console.log(`Song "${song.title}" already recorded for ${date}, skipping`);
+          continue;
+        }
+        
+        // Add new usage record
+        await fetch('/api/song-usage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: song.title,
+            type: song.type,
+            date: date,
+            service: serviceType,
+            addedBy: currentUser?.name || 'Unknown',
+            number: song.number,
+            hymnal: song.hymnal,
+            author: song.author,
+            hymnaryLink: song.sheetMusic,
+            songSelectLink: song.sheetMusic,
+            youtubeLink: song.youtube,
+            notes: song.notes
+          })
+        });
+        
+        console.log(`Successfully recorded usage for "${song.title}" on ${date}`);
+      } catch (songError) {
+        console.error(`Error recording song "${song.title}":`, songError);
+      }
+    }
   } catch (error) {
     console.error('Error recording song usage:', error);
   }
@@ -172,6 +190,39 @@ const isValidSongData = (song) => {
   return Boolean(song.title);
 };
 
+// Add this function near other helper functions
+const checkForMissingLinks = (songSelections) => {
+  const songsWithMissingLinks = songSelections
+    .filter(song => song?.title) // Only check songs with titles
+    .map(song => {
+      const missingLinks = [];
+      
+      if (song.type === 'hymn') {
+        if (!song.sheetMusic) missingLinks.push('Hymnary.org');
+      } else { // Contemporary
+        if (!song.sheetMusic) missingLinks.push('SongSelect');
+      }
+      
+      if (!song.youtube) missingLinks.push('YouTube');
+      
+      return {
+        title: song.title,
+        missingLinks
+      };
+    })
+    .filter(result => result.missingLinks.length > 0);
+  
+  return songsWithMissingLinks;
+};
+
+const formatLinkWarning = (songsWithMissingLinks) => {
+  const formattedMessage = songsWithMissingLinks.map(song => {
+    return `• "${song.title}" is missing: ${song.missingLinks.join(', ')}`;
+  }).join('\n');
+
+  return `The following songs are missing reference links:\n\n${formattedMessage}\n\nAdding links helps other team members find resources for these songs.\n\nDo you want to save anyway?`;
+};
+
 const ServiceSongSelector = ({
   date,
   currentUser,
@@ -184,6 +235,7 @@ const ServiceSongSelector = ({
   customServices,
   availableSongs,
   header,
+  isMobile = false, // Add this prop
   ...props
 }) => {
   // Set context for all logs in this component
@@ -457,6 +509,21 @@ const formatSongDisplay = (song) => {
           return; // Exit without saving if user cancels
         }
       }
+      
+      // Add missing links check
+      const songsWithMissingLinks = checkForMissingLinks(songSelections);
+      if (songsWithMissingLinks.length > 0) {
+        // Create warning message
+        const linkWarningMessage = formatLinkWarning(songsWithMissingLinks);
+
+        // Show confirmation dialog
+        const confirmSave = window.confirm(linkWarningMessage);
+
+        if (!confirmSave) {
+          setIsSaving(false);
+          return; // Exit without saving if user cancels
+        }
+      }
 
       // Add this section to save songs to the songs collection
       await Promise.all(songSelections.map(async (song) => {
@@ -502,8 +569,18 @@ const formatSongDisplay = (song) => {
       // Get all song selections as an array
       let currentSongIndex = 0;
 
+      // FIXED: Update how we access service details
+      // First check if serviceDetails is an object with date keys or if it's already the data for this date
+      const serviceDetailsForDate = serviceDetails[date] || serviceDetails;
+      
+      // Now check if we have elements
+      if (!serviceDetailsForDate?.elements) {
+        console.error('Service details structure:', serviceDetails);
+        throw new Error(`No service elements found for date: ${date}`);
+      }
+
       // Then map the songs to the elements array
-      const updatedElements = serviceDetails.elements.map(element => {
+      const updatedElements = serviceDetailsForDate.elements.map(element => {
         if (element.type === 'song_hymn') {
           const matchingSong = songSelections[currentSongIndex];
           currentSongIndex++;
@@ -547,16 +624,16 @@ const formatSongDisplay = (song) => {
       // Debug the final elements array
       console.log('Final updated elements:', updatedElements);
 
-      // Update serviceDetails collection
+      // FIXED: Update the API request to use the right structure based on what we received
       const serviceDetailsResponse = await fetch('/api/service-details', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           date,
           elements: updatedElements,
-          content: serviceDetails.content,
-          type: serviceDetails.type,
-          setting: serviceDetails.setting
+          content: serviceDetailsForDate?.content,
+          type: serviceDetailsForDate?.type,
+          setting: serviceDetailsForDate?.setting
         })
       });
 
@@ -565,20 +642,29 @@ const formatSongDisplay = (song) => {
       }
 
       // After successful save, record the song usage
-      await recordSongUsage(songSelections, date, serviceDetails?.type, currentUser);
+      await recordSongUsage(songSelections, date, serviceDetailsForDate?.type, currentUser);
 
-      // Update local state
-      setServiceDetails(prev => ({
-        ...prev,
-        [date]: {
-          ...prev[date],
+      // Update local state - adapt based on the structure of serviceDetails
+      if (serviceDetails[date]) {
+        // If serviceDetails has dates as keys
+        setServiceDetails(prev => ({
+          ...prev,
+          [date]: {
+            ...prev[date],
+            elements: updatedElements
+          }
+        }));
+      } else {
+        // If serviceDetails is already for the current date
+        setServiceDetails(prev => ({
+          ...prev,
           elements: updatedElements
-        }
-      }));
+        }));
+      }
 
-      console.log('About to show success message'); // Add this
+      console.log('About to show success message');
       showAlertMessage('Songs saved successfully');
-      console.log('Success message should be shown'); // Add this
+      console.log('Success message should be shown');
     } catch (error) {
       console.error('Error saving songs:', error);
       showAlertMessage('Failed to save songs', 'error');
@@ -586,6 +672,9 @@ const formatSongDisplay = (song) => {
       setIsSaving(false);
     }
   };
+
+  // Add this before the return statement - define readings variable
+  const readings = getReadingSections(serviceDetails);
 
   return (
     <div className="border rounded-lg shadow-sm bg-white flex flex-col relative"> {/* Add relative */}
@@ -608,139 +697,189 @@ const formatSongDisplay = (song) => {
         </Alert>
       )}
 
-      <div className={getWeekClasses(date)}>
-        <div className="flex items-center justify-between w-full">
-          {header ? (
-            <div className="w-full">{header}</div>
-          ) : (
-            <div className="flex items-center justify-between w-full">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-medium text-black truncate">
-                    {dates?.find(d => d.date === date)?.title || 'Service Title'}
-                  </h3>
-                  {serviceDetails?.type ? (
-                    <span className="text-xs px-2 py-0.5 rounded flex-shrink-0 text-gray-600 bg-gray-100">
-                      {serviceDetails.type === 'communion' ? 'Communion' :
-                        serviceDetails.type === 'communion_potluck' ? 'Communion & Potluck' :
-                          serviceDetails.type === 'no_communion' ? 'No Communion' :
-                            (serviceDetails.type.startsWith('service_') && customServices?.find(s => s.id === serviceDetails.type)?.name) ||
-                            serviceDetails.name ||
-                            'Custom Service'}
-                    </span>
-                  ) : (
-                    <span className="text-xs px-2 py-0.5 rounded flex-shrink-0 text-amber-600 bg-amber-50 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      Awaiting Pastor Input
-                    </span>
-                  )}
+      {/* Only show this header if not in mobile mode or if no header is provided */}
+      {!isMobile && (
+        <div className={getWeekClasses(date)}>
+          <div className="flex items-center justify-between w-full">
+            {header ? (
+              <div className="w-full">{header}</div>
+            ) : (
+              // Properly structure this section that had closing tag issues
+              <div className="flex items-center justify-between w-full">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium text-black truncate">
+                      {dates?.find(d => d.date === date)?.title || 'Service Title'}
+                    </h3>
+                    {serviceDetails?.type ? (
+                      <span className="text-xs px-2 py-0.5 rounded flex-shrink-0 text-gray-600 bg-gray-100">
+                        {serviceDetails.type === 'communion' ? 'Communion' :
+                          serviceDetails.type === 'communion_potluck' ? 'Communion & Potluck' :
+                            serviceDetails.type === 'no_communion' ? 'No Communion' :
+                              (serviceDetails.type.startsWith('service_') && customServices?.find(s => s.id === serviceDetails.type)?.name) ||
+                              serviceDetails.name ||
+                              'Custom Service'}
+                      </span>
+                    ) : (
+                      <span className="text-xs px-2 py-0.5 rounded flex-shrink-0 text-amber-600 bg-amber-50 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        Awaiting Pastor Input
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-600">{date}</div>
                 </div>
-                <div className="text-xs text-gray-600">{date}</div>
-              </div>
 
-              <div className="flex items-center gap-4 flex-shrink-0 ml-4">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="flex items-center gap-1 bg-purple-100 rounded px-2 py-0.5 cursor-pointer hover:bg-purple-200"
+                <div className="flex items-center gap-4 flex-shrink-0 ml-4">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="flex items-center gap-1 bg-purple-100 rounded px-2 py-0.5 cursor-pointer hover:bg-purple-200"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onEditTeam) {
+                          onEditTeam(date); // Pass the date when calling onEditTeam
+                        }
+                      }}
+                    >
+                      <span className="text-xs text-purple-700">
+                        {team || 'No team assigned'}
+                      </span>
+                      <Edit2 className="w-3 h-3 flex-shrink-0 text-purple-700" />
+                    </div>
+                  </div>
+                  <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (onEditTeam) {
-                        onEditTeam(date); // Pass the date when calling onEditTeam
-                      }
+                      onToggleExpand(date);
                     }}
+                    className="ml-2"
                   >
-                    <span className="text-xs text-purple-700 whitespace-nowrap">
-                      {team || 'No team assigned'}
-                    </span>
-                    <Edit2 className="w-3 h-3 text-purple-700" />
-                  </div>
+                    {expanded ?
+                      <ChevronUp className="w-5 h-5 text-purple-700" /> :
+                      <ChevronDown className="w-5 h-5 text-purple-700" />
+                    }
+                  </button>
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleExpand(date);
-                  }}
-                  className="ml-2"
-                >
-                  {expanded ?
-                    <ChevronUp className="w-5 h-5 text-purple-700" /> :
-                    <ChevronDown className="w-5 h-5 text-purple-700" />
-                  }
-                </button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {expanded && (
-        <div className="grid grid-cols-3 gap-4 p-3 overflow-y-auto">
-          <div className="col-span-1 flex flex-col h-full">
-            <div className="flex-1 bg-gray-50 rounded p-2 text-xs">
-              <div className="flex items-center gap-1 mb-1 text-purple-700">
-                <BookOpen className="w-3 h-3" />
-                <span className="font-medium">Readings</span>
-              </div>
-              <div className="space-y-1">
-                {serviceDetails ? (
-                  getReadingSections(serviceDetails).map((section) => (
-                    <p
-                      key={section.id}
-                      className={`text-black ${section.isSermon ? 'mt-2 pt-1 border-t text-purple-700' : ''}`}
+        <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-3'} gap-4 p-3 overflow-y-auto`}>
+          {/* Readings Section - For mobile, make it collapsible */}
+          {(!isMobile || (isMobile && readings.length > 0)) && (
+            <div className={`${isMobile ? 'col-span-1' : 'col-span-1'} flex flex-col h-full`}>
+              {isMobile ? (
+                /* Mobile collapsible readings section */
+                <details className="mb-2 group">
+                  <summary className="flex items-center justify-between cursor-pointer text-purple-700 p-2 bg-gray-50 rounded font-medium text-sm">
+                    <div className="flex items-center gap-1">
+                      <BookOpen className="w-4 h-4" />
+                      <span>Readings & Sermon</span>
+                    </div>
+                    <ChevronDown className="w-4 h-4 group-open:rotate-180 transition-transform" />
+                  </summary>
+                  <div className="p-2 text-xs bg-gray-50 rounded-b mt-1">
+                    {readings.map((section) => (
+                      <p
+                        key={section.id}
+                        className={`text-black ${section.isSermon ? 'mt-2 pt-1 border-t text-purple-700' : ''}`}
+                      >
+                        {section.label && (
+                          <span className="font-medium">{section.label}:</span>
+                        )}
+                        <span className="text-gray-900"> {section.content}</span>
+                        {section.reference && (
+                          <span className="text-gray-600 italic ml-1">
+                            ({section.reference})
+                          </span>
+                        )}
+                      </p>
+                    ))}
+                  </div>
+                </details>
+              ) : (
+                /* Desktop readings section - keep as is */
+                <div className="flex-1 bg-gray-50 rounded p-2 text-xs">
+                  <div className="flex items-center gap-1 mb-1 text-purple-700">
+                    <BookOpen className="w-3 h-3" />
+                    <span className="font-medium">Readings</span>
+                  </div>
+                  <div className="space-y-1">
+                    {serviceDetails ? (
+                      getReadingSections(serviceDetails).map((section) => (
+                        <p
+                          key={section.id}
+                          className={`text-black ${section.isSermon ? 'mt-2 pt-1 border-t text-purple-700' : ''}`}
+                        >
+                          {section.label && (
+                            <span className="font-medium">{section.label}:</span>
+                          )}
+                          <span className="text-gray-900"> {section.content}</span>
+                          {section.reference && (
+                            <span className="text-gray-600 italic ml-1">
+                              ({section.reference})
+                            </span>
+                          )}
+                        </p>
+                      ))
+                    ) : (
+                      <p className="text-black italic">
+                        Readings not yet available. Songs can be updated later.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Keep reference links - more compact for mobile */}
+              {isMobile ? (
+                <div className="flex justify-center gap-3 text-xs p-1">
+                  <a href="https://hymnary.org" target="_blank" className="text-purple-700">Hymnary</a>
+                  <a href="https://songselect.ccli.com" target="_blank" className="text-purple-700">SongSelect</a>
+                  <a href="https://youtube.com" target="_blank" className="text-purple-700">YouTube</a>
+                </div>
+              ) : (
+                /* Desktop reference links - keep as is */
+                <div className="mt-auto p-2 text-xs">
+                  <div className="flex gap-2 text-gray-500">
+                    <span>Reference:</span>
+                    <a
+                      href="https://hymnary.org"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-purple-700 hover:underline"
                     >
-                      {section.label && (
-                        <span className="font-medium">{section.label}:</span>
-                      )}
-                      <span className="text-gray-900"> {section.content}</span>
-                      {section.reference && (
-                        <span className="text-gray-600 italic ml-1">
-                          ({section.reference})
-                        </span>
-                      )}
-                    </p>
-                  ))
-                ) : (
-                  <p className="text-black italic">
-                    Readings not yet available. Songs can be updated later.
-                  </p>
-                )}
-              </div>
+                      Hymnary.org
+                    </a>
+                    <span>•</span>
+                    <a
+                      href="https://songselect.ccli.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-purple-700 hover:underline"
+                    >
+                      SongSelect
+                    </a>
+                    <span>•</span>
+                    <a
+                      href="https://youtube.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-purple-700 hover:underline"
+                    >
+                      YouTube
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
-
-            <div className="mt-auto p-2 text-xs">
-              <div className="flex gap-2 text-gray-500">
-                <span>Reference:</span>
-                <a
-                  href="https://hymnary.org"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-purple-700 hover:underline"
-                >
-                  Hymnary.org
-                </a>
-                <span>•</span>
-                <a
-                  href="https://songselect.ccli.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-purple-700 hover:underline"
-                >
-                  SongSelect
-                </a>
-                <span>•</span>
-                <a
-                  href="https://youtube.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-purple-700 hover:underline"
-                >
-                  YouTube
-                </a>
-              </div>
-            </div>
-          </div>
-
-          <div className="col-span-2">
+          )}
+          
+          {/* Song selection area - full width on mobile */}
+          <div className={`${isMobile ? 'col-span-1' : 'col-span-2'}`}>
             <form ref={formRef} onSubmit={handleSubmit} className="space-y-2">
               {isLoading ? (
                 <div className="flex justify-center py-4">
@@ -767,6 +906,7 @@ const formatSongDisplay = (song) => {
                       availableSongs={availableSongs}
                       currentUser={currentUser}
                       hymnalVersions={hymnalVersions}
+                      isMobile={isMobile}
                     />
                   ))}
                   <div className="flex justify-end">

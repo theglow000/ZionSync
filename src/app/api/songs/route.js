@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 export async function GET() {
   try {
@@ -39,10 +40,13 @@ export async function POST(request) {
     };
 
     // Check if song already exists
-    const existingSong = await db.collection("songs").findOne({ title: body.title });
+    const existingSong = body._id 
+      ? await db.collection("songs").findOne({ _id: new ObjectId(body._id) })
+      : await db.collection("songs").findOne({ title: body.title });
+      
     if (existingSong) {
       const result = await db.collection("songs").updateOne(
-        { title: body.title },
+        body._id ? { _id: new ObjectId(body._id) } : { title: body.title },
         {
           $set: {
             ...songData,
@@ -63,6 +67,66 @@ export async function POST(request) {
     return NextResponse.json(result);
   } catch (e) {
     console.error('Error in POST /api/songs:', e);
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    
+    if (!id) {
+      return NextResponse.json({ error: 'Song ID is required' }, { status: 400 });
+    }
+    
+    const client = await clientPromise;
+    const db = client.db("church");
+    
+    // First, get the song to be deleted to know its title
+    const songToDelete = await db.collection("songs").findOne({
+      _id: new ObjectId(id)
+    });
+    
+    if (!songToDelete) {
+      return NextResponse.json({ error: 'Song not found' }, { status: 404 });
+    }
+    
+    // Check if this song has usage history
+    const usageHistory = await db.collection("song_usage").findOne({
+      title: songToDelete.title
+    });
+    
+    // Delete the song from the songs collection
+    const result = await db.collection("songs").deleteOne({
+      _id: new ObjectId(id)
+    });
+    
+    if (result.deletedCount === 0) {
+      return NextResponse.json({ error: 'Song not found' }, { status: 404 });
+    }
+    
+    // If this song has usage history, handle it by marking as deleted 
+    // but preserving the history for analytics
+    if (usageHistory) {
+      await db.collection("song_usage").updateOne(
+        { title: songToDelete.title },
+        { 
+          $set: { 
+            status: "deleted",
+            deletedAt: new Date(),
+            originalData: songToDelete
+          } 
+        }
+      );
+    }
+    
+    return NextResponse.json({ 
+      success: true,
+      hadUsageHistory: !!usageHistory
+    });
+  } catch (e) {
+    console.error('Error in DELETE /api/songs:', e);
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }

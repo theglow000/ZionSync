@@ -1,5 +1,10 @@
 # ZionSync Troubleshooting Guide
 
+Rule 1: Use best coding practice. Don't make assumptions when offering solutions. Output investigative commands for the user to input into the terminal to discover relevant information.
+Rule 2: Don't take shortcuts when output changes to code. The user will apply code via VS Code editor.
+Rule 3: Do not ouput investigative commands and code solutions in the same response. You need to the user to show the results of investigations before offering code solutions.
+Rule 4: When providing code solutions, always format them as properly structured markdown code blocks with accurate file paths as comments. Include complete implementations rather than partial snippets. This allows the user to apply changes directly using the "apply to..." button in the VS Code interface without manual copy-pasting.
+
 ## Interaction Process in VS Code Environment
 
 1. **Problem Description**

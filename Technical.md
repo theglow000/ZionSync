@@ -64,8 +64,8 @@ Worship Team
 
 AV Team
 ├── Data: Team Rotation, Assignments
-├── Operations: Schedule Management
-└── Updates: Position Tracking
+├── Operations: Schedule Management, Position Assignments
+└── Updates: Team Member Tracking, Service Coverage
 
 3. Data Synchronization
 ├── Real-time Updates

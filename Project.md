@@ -60,19 +60,27 @@ The welcome screen provides direct navigation to each team's section. Features:
 2. **Viewing Services**
    - Click service header to expand/collapse
    - Shows:
-     - Complete order of worship
+     - Complete order of worship with **bold labels**
      - Service type
      - Selected songs
      - Current signups
    > Note: Past dates remain visible but show with reduced opacity
 
-3. **Service Signup**
+3. **Service Elements Display**
+   - Element labels (like "Opening Hymn:", "First Reading:") display in **bold**
+   - Element content displays in regular text 
+   - Song elements show different status indicators:
+     - "Waiting for Worship Team song selection" when songs need to be selected
+     - Selected song details once the Worship Team has made selections
+     - "Loading..." briefly appears while song data is being fetched
+
+4. **Service Signup**
    - Click your name button at top
    - Click "Sign Up" in service header
    - Your name appears under service
    - Click "Remove" to cancel signup
 
-4. **Service Completion**
+5. **Service Completion**
    - Click "Mark Complete" after creating Proclaim presentation
    - Updates status for all users
 
@@ -102,7 +110,14 @@ The welcome screen provides direct navigation to each team's section. Features:
      - Scripture readings
      - Message/sermon sections
    - Click "Save Service Details" to update
-   > Note: Songs and hymns marked in the order of worship will be selected by the Worship Team
+   > Note: Previously entered readings and sermon content are preserved when editing
+
+4. **Content Preservation**
+   - When editing an existing service:
+     - Song selections are preserved
+     - Reading and sermon content is maintained
+     - Only modified elements are updated
+   - This allows incremental updates without losing previously entered information
 
 ### Custom Service Management
 > Note: Use for special services that don't follow standard templates
@@ -134,6 +149,7 @@ The welcome screen provides direct navigation to each team's section. Features:
 - Full functionality preserved
 - Touch-optimized interface
 - Scrollable service list
+- Bold labels for improved readability
 
 ## Worship Team
 
@@ -217,6 +233,7 @@ The welcome screen provides direct navigation to each team's section. Features:
      - Hymnary.org
      - SongSelect
      - YouTube
+   - Missing reference link warnings
 
 ### Song Selection Process
 
@@ -240,19 +257,13 @@ The welcome screen provides direct navigation to each team's section. Features:
    - Click "Save Songs" to update selections
    - Updates visible in Presentation Team tab after saving
 
-2. **Song Usage Tracking**
+3. **Song Usage Tracking**
    - System checks last 4 weeks of song usage
    - Warns of duplicate songs within this window
    - Shows dates of recent uses
    - Helps maintain song variety
 
-3. **Song Database Features**
-   - Separate hymn and contemporary song databases
-   - Auto-complete shows matching songs as you type
-   - New songs automatically added to database
-   - Reference links saved with songs for future use
-
-3. **Completion Status**
+4. **Completion Status**
    - 🎵 Purple music icon appears when all required songs selected
    - Indicates to Presentation Team that songs are ready
 
@@ -280,6 +291,7 @@ The welcome screen provides direct navigation to each team's section. Features:
    - Church logo and ZionSync logo
    - "Audio/Video Team" title in red
    - "2025 Service Schedule" subtitle
+   - "Manage Users" button for team management
 
 2. **User Selection**
    - Row of user name buttons at top
@@ -290,13 +302,13 @@ The welcome screen provides direct navigation to each team's section. Features:
 
 1. **Fixed Positions**
    - Team Member 1: Ben (Primary Position)
-   - Team Member 2: Rotation Schedule (Doug, Jaimes, Laila, Brett)
+   - Team Member 2: Rotation Schedule (Doug, Jaimes, Justin, Brett)
    - Team Member 3: Volunteer Position
-   > Note: The rotation automatically cycles through the year, ensuring equal distribution of assignments
+   > Note: The rotation automatically cycles through the year, ensuring equal distribution of assignments. Team member assignment does not correlate with role during service. This is determined prior to each service.
 
 2. **Rotation Schedule**
    - Automatically assigns Team Member 2
-   - Follows order: Doug → Jaimes → Laila → Brett
+   - Follows order: Doug → Jaimes → Justin → Brett
    - Cycles through entire year
 
 ### Service Management
@@ -320,25 +332,26 @@ The welcome screen provides direct navigation to each team's section. Features:
 4. **Team Member 3 (Volunteer)**
    - "Sign Up" button when position open
    - Shows volunteer name when filled
-   - Volunteer can remove themselves
+   - Volunteer can remove themselves using trash icon
 
-### User Actions
+### User Assignment System
 
-1. **Signing Up**
-   - Select your name from user buttons
-   - Find desired service date
-   - Click "Sign Up" in Team Member 3 position
-   - Your name appears in position
-
-2. **Removing Signup**
-   - Only can remove your own signup
-   - Click trash icon next to your name
-   - Position becomes available again
-
-3. **Editing Assignments**
-   - Click edit icon next to position
-   - Must have user selected
+1. **Assignment Process**
+   - Click edit icon or sign up button to open user selection modal
+   - Select from available team members
+   - Already-assigned team members appear grayed out
    - Changes update immediately
+
+2. **Removing Assignments**
+   - Team Member 3: Click trash icon next to name
+   - Or use "Remove Assignment" from selection modal
+
+3. **User Selection Modal**
+   - Shows all available team members
+   - Highlights currently assigned member
+   - Grays out users already assigned to other positions
+   - "Remove Assignment" button for easy unassignment
+   - "Cancel" button to exit without changes
 
 ### User Management
 
@@ -352,10 +365,11 @@ The welcome screen provides direct navigation to each team's section. Features:
    - Click "Manage Users"
    - Find user in list
    - Click trash icon
-   - Confirm removal
+   - User removed from system and any assignments
 
 ### Mobile Support
-- Compact header with logos
-- Collapsible service cards
+- Responsive design optimized for mobile devices
+- Card-based interface for small screens
 - Touch-friendly buttons
-- Full signup functionality
+- Same functionality as desktop version
+- Improved readability with black text on mobile cards

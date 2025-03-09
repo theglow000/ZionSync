@@ -1,16 +1,20 @@
 'use client'
-import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Check, X, Mail, UserCircle, Trash2, Calendar, Music, Music2, BookOpen, MessageSquare, Cross } from 'lucide-react';
+
+// Add UserSelectionModal to the imports at the top
+import React, { useState, useEffect, useRef } from 'react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { UserCircle, Calendar, Check, ChevronDown, ChevronUp, Mail, X, Music2, BookOpen, Pencil, Trash2, Cross, MessageSquare, Music } from 'lucide-react';
+import { format, addMonths, subMonths, isSameMonth } from 'date-fns';
 import MobileServiceCard from './MobileServiceCard';
-import MobileUserSelect from './MobileUserSelect';
-import PastorServiceInput from './PastorServiceInput';
-import { Alert, AlertDescription } from './alert';
-import { Card, CardHeader, CardContent } from './card';
+import UserSelectionModal from './UserSelectionModal';
+import useResponsive from '../../hooks/useResponsive';
 import './table.css'
+import PastorServiceInput from './PastorServiceInput'; // Add this import
 
 const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
+  const { isMobile } = useResponsive();
   // Initialize all state at the top of component
-  const [currentUser, setCurrentUser] = useState(null);
   const [expanded, setExpanded] = useState({});
   const [showRegistration, setShowRegistration] = useState(false);
   const [signups, setSignups] = useState({});
@@ -25,13 +29,13 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [usersToDelete, setUsersToDelete] = useState([]);
   const [serviceDetailsError, setServiceDetailsError] = useState(null);
-  const [showUserSelector, setShowUserSelector] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const [showPastorInput, setShowPastorInput] = useState(false);
   const [editingDate, setEditingDate] = useState(null);
   const [alertPosition, setAlertPosition] = useState({ x: 0, y: 0 });
   const POLLING_INTERVAL = 30000;
   const [customServices, setCustomServices] = useState([]);
+  const [showUserSelectModal, setShowUserSelectModal] = useState(null); // { date, currentAssignment }
 
   const checkForOrderOfWorship = (date) => {
     const elements = serviceDetails[date]?.elements;
@@ -100,9 +104,6 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
       });
 
       // If current user was deleted, clear current user
-      if (currentUser?.name === userName) {
-        setCurrentUser(null);
-      }
     } catch (error) {
       console.error('Error removing user:', error);
       setAlertMessage('Error removing user');
@@ -385,7 +386,6 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
         }
       }));
 
-      setCurrentUser(newUser);
       setSelectedDates(prev => [...prev, currentDate]);
       setShowRegistration(false);
       setAlertMessage('Successfully signed up! Date added to calendar selection.');
@@ -454,9 +454,7 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
   };
 
   const handleRemoveReservation = async (date) => {
-    if (!currentUser) return;
-
-    if (signups[date] === currentUser.name) {
+    if (signups[date]) {
       try {
         await fetch('/api/signups', {
           method: 'DELETE',
@@ -465,7 +463,7 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
           },
           body: JSON.stringify({
             date: date,
-            name: currentUser.name
+            name: signups[date]
           })
         });
 
@@ -518,21 +516,23 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
 
   const handleCalendarDownload = async () => {
     try {
-      // Filter the dates array to only include selected dates
-      const userSelectedDates = selectedDates.filter(date => signups[date] === currentUser?.name);
-      const eventsToDownload = dates.filter(date => userSelectedDates.includes(date.date));
+      // Use selected dates directly without filtering by currentUser
+      const eventsToDownload = dates.filter(date => selectedDates.includes(date.date));
 
       // Create events array for ICS
       const events = eventsToDownload.map(event => {
         const [month, day, parsedYear] = event.date.split('/').map(num => parseInt(num, 10));
         const year = 2000 + parsedYear;
 
+        // Get the assigned user for this date
+        const assignedUser = signups[event.date] || 'Unassigned';
+
         return {
           uid: `proclaim-presentation-${event.date}`,
           start: [year, month, day, 9, 0],
           duration: { hours: 1, minutes: 0 },
           title: `Proclaim Presentation - ${event.title}`,
-          description: 'Thank you for signing up to build the Proclaim Presentation for this service.',
+          description: `Assigned to: ${assignedUser}\n\nService: ${event.title}`,
           url: 'https://zion-presentation-sign-up.vercel.app/',
           alarms: [{
             trigger: '-P3D',
@@ -545,29 +545,22 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
         };
       });
 
-      // Generate ICS file content
-      const { error, value } = await new Promise((resolve) => {
-        import('ics').then(ics => {
-          ics.createEvents(events, (error, value) => {
-            resolve({ error, value });
-          });
-        });
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      // Create and download the file
-      const blob = new Blob([value], { type: 'text/calendar;charset=utf-8' });
+      // Create and download ICS file
+      const { createEvents } = await import('@/lib/ics-generator');
+      
+      const icsContent = createEvents(events);
+      
+      // Create a blob and trigger download
+      const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = window.URL.createObjectURL(blob);
-      link.download = 'proclaim-presentations.ics';
+      link.href = url;
+      link.setAttribute('download', 'proclaim-presentation-schedule.ics');
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
 
-      setAlertMessage('Calendar events downloaded successfully');
+      setAlertMessage('Calendar file downloaded successfully');
       setShowAlert(true);
       setTimeout(() => setShowAlert(false), 3000);
     } catch (error) {
@@ -594,15 +587,89 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
     );
   };
 
+  const handleAssignUser = async (date, userName) => {
+    try {
+      const response = await fetch('/api/signups', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          date: date,
+          name: userName
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to save signup');
+      
+      setSignups(prev => ({
+        ...prev,
+        [date]: userName
+      }));
+      
+      setSignupDetails(prev => ({
+        ...prev,
+        [date]: {
+          name: userName
+        }
+      }));
+
+      // Add to selected dates for future dates
+      const [month, day, shortYear] = date.split('/').map(num => parseInt(num, 10));
+      const year = 2000 + shortYear;
+      const dateObj = new Date(year, month - 1, day);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (dateObj >= today) {
+        setSelectedDates(prev => [...prev, date]);
+      }
+
+      setAlertMessage(`Successfully assigned to ${userName}!`);
+      setShowAlert(true);
+      setTimeout(() => setShowAlert(false), 3000);
+    } catch (error) {
+      console.error('Error saving signup:', error);
+      setAlertMessage('Error saving assignment. Please try again.');
+      setShowAlert(true);
+      setTimeout(() => setShowAlert(false), 3000);
+    }
+  };
+
+  // Add this helper function near your other helper functions
+  const isSongElementFullyLoaded = (element) => {
+    if (element.type !== 'song_hymn') return true;
+    
+    // If it has selection with title, it's fully loaded
+    if (element.selection?.title) return true;
+    
+    // If the content includes only a label with colon and nothing more,
+    // or it shows the placeholder text for Awaiting Song Selection,
+    // then it needs worship team selection
+    const contentParts = element.content?.split(':') || [];
+    if (contentParts.length > 1) {
+      const textAfterColon = contentParts.slice(1).join(':').trim();
+      if (textAfterColon === '' || textAfterColon === ' <Awaiting Song Selection>') {
+        return 'needs-selection';
+      }
+      // If there's some content after colon but no selection, it might be mid-loading
+      if (textAfterColon && !element.selection?.title) {
+        return false; // Still loading
+      }
+    }
+    
+    return true; // Default to fully loaded if we can't determine
+  };
+
   return (
  <Card className="w-full h-full mx-auto relative bg-white shadow-lg">
       {showAlert && (
         <Alert
-          className="fixed z-[60] w-80 bg-white border-[#6B8E23] shadow-lg rounded-lg"
+          className="fixed z-[200] w-80 bg-white border-[#6B8E23] shadow-lg rounded-lg"
           style={{
-            top: `${alertPosition.y}px`,
-            left: `${alertPosition.x}px`,
-            transform: 'translate(-50%, -120%)'  // Position it above the click
+            top: isMobile ? '50%' : `${alertPosition.y}px`,
+            left: isMobile ? '50%' : `${alertPosition.x}px`,
+            transform: isMobile ? 'translate(-50%, -50%)' : 'translate(-50%, -120%)'
           }}
         >
           <div className="flex items-center gap-2 p-2">
@@ -635,7 +702,6 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                   type="text"
                   className="w-full p-2 border rounded text-black"
                   placeholder="Enter your name"
-                  defaultValue={currentUser?.name || ''}
                 />
               </div>
               <button
@@ -687,17 +753,17 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
           </CardHeader>
           {/* User Management Section */}
           <div className="p-4 border-b border-gray-200">
-            {/* Desktop User Management */}
-            <div className="hidden md:flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-              <div className="flex items-center gap-2 w-full md:w-auto">
-                {selectedDates.length > 0 && currentUser && (
+            <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                {selectedDates.length > 0 && (
                   <div className="flex items-center gap-2">
                     <button
                       onClick={handleCalendarDownload}
                       className="flex items-center px-3 py-1.5 text-sm bg-[#6B8E23] text-white rounded hover:bg-[#556B2F] transition-colors"
                     >
                       <Calendar className="w-4 h-4 mr-1" />
-                      Download Calendar Events ({selectedDates.filter(date => signups[date] === currentUser?.name).length})
+                      <span className="hidden sm:inline">Download Calendar Events</span>
+                      <span className="sm:hidden">Calendar ({selectedDates.length})</span>
                     </button>
                     <div className="relative group">
                       <button className="w-6 h-6 rounded-full bg-[#6B8E23] bg-opacity-20 text-[#6B8E23] flex items-center justify-center font-bold hover:bg-opacity-30">
@@ -723,112 +789,17 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                   </div>
                 )}
               </div>
-
-              <div className="flex flex-wrap gap-2 justify-start md:justify-end items-center w-full md:w-auto">
-                {availableUsers.map(user => (
-                  <div key={user.name} className="relative">
-                    <button
-                      onClick={() => setCurrentUser({
-                        name: user.name,
-                        color: 'bg-[#6B8E23] bg-opacity-20'
-                      })}
-                      className={`${currentUser?.name === user.name
-                        ? 'bg-[#6B8E23] text-white'
-                        : 'bg-[#6B8E23] bg-opacity-20 text-[#6B8E23]'
-                        } px-3 py-1 rounded flex items-center gap-2 transition-colors`}
-                    >
-                      <UserCircle className={`w-4 h-4 ${currentUser?.name === user.name ? 'text-white' : 'text-[#6B8E23]'}`} />
-                      <span>{user.name}</span>
-                    </button>
-                  </div>
-                ))}
-                <button
-                  onClick={() => setShowUserManagement(true)}
-                  className="px-3 py-1 rounded border border-[#6B8E23] text-[#6B8E23] hover:bg-[#6B8E23] hover:text-white transition-colors"
-                >
-                  Manage Users
-                </button>
-              </div>
-            </div>
-
-            {/* Mobile User Management */}
-            <div className="md:hidden flex flex-col gap-3">
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-gray-700">Select User</label>
-                <div className="flex justify-between items-center gap-2">
-                  <button
-                    onClick={() => setShowUserSelector(true)}
-                    className="flex-1 px-3 py-1.5 rounded border border-[#6B8E23] text-[#6B8E23]"
-                  >
-                    {currentUser ? (
-                      <span className="flex items-center gap-2">
-                        <UserCircle className="w-4 h-4" />
-                        {currentUser.name}
-                      </span>
-                    ) : (
-                      'Select User'
-                    )}
-                  </button>
-                  <button
-                    onClick={() => setShowUserManagement(true)}
-                    className="px-3 py-1.5 rounded border border-[#6B8E23] text-[#6B8E23]"
-                  >
-                    Manage Users
-                  </button>
-                </div>
-              </div>
-              {currentUser && selectedDates.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleCalendarDownload}
-                    className="flex items-center justify-center px-3 py-1.5 text-sm bg-[#6B8E23] text-white rounded"
-                  >
-                    <Calendar className="w-4 h-4 mr-1" />
-                    Download Events ({selectedDates.filter(date => signups[date] === currentUser?.name).length})
-                  </button>
-                  <div className="relative">
-                    <button
-                      onClick={() => {
-                        console.log('Tooltip button clicked'); // Debug line
-                        setShowTooltip(!showTooltip);
-                      }}
-                      className="w-6 h-6 rounded-full bg-[#6B8E23] bg-opacity-20 text-[#6B8E23] flex items-center justify-center font-bold hover:bg-opacity-30"
-                    >
-                      ?
-                    </button>
-                    {showTooltip && (
-                      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-                        <div className="bg-white rounded-lg p-4 max-w-sm w-full relative">
-                          <button
-                            onClick={() => setShowTooltip(false)}
-                            className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-                          >
-                            <X className="w-5 h-5" />
-                          </button>
-                          <div className="mt-4">
-                            <p className="font-bold mb-2 text-slate-900">How to import events:</p>
-                            <p className="font-bold mt-2 text-slate-900">After downloading:</p>
-                            <ol className="list-decimal ml-4 mb-4">
-                              <li className="text-slate-900 mb-2">Tap the downloaded file when it appears at the top or bottom of your screen</li>
-                              <li className="text-slate-900 mb-2">Select either:
-                                <ul className="list-disc ml-4 mt-1">
-                                  <li className="text-slate-900">Google Calendar to add to your Google Calendar</li>
-                                  <li className="text-slate-900">Outlook to add to your Outlook Calendar</li>
-                                </ul>
-                              </li>
-                              <li className="text-slate-900">Follow the app's prompts to complete the import</li>
-                            </ol>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+              
+              <button
+                onClick={() => setShowUserManagement(true)}
+                className="px-3 py-1.5 rounded border border-[#6B8E23] text-[#6B8E23] hover:bg-[#6B8E23] hover:text-white transition-colors"
+              >
+                Manage Users
+              </button>
             </div>
           </div>
         </div>
-        {/* Scrollable Content Section */}
+      {/* Scrollable Content Section */}
         <div className="flex-1 overflow-hidden"> {/* This wrapper prevents double scrollbar */}
           <CardContent className="h-full p-0"> {/* Remove default padding */}
             <div className="h-full">
@@ -854,7 +825,7 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                           <React.Fragment key={item.date}>
                             <tr className={index % 2 === 0 ? 'bg-gray-50' : ''}>
                               <td style={{ width: '64px' }} className="p-2 border-r border-gray-300 text-center">
-                                {signups[item.date] === currentUser?.name && (
+                                {signups[item.date] && (
                                   <input
                                     type="checkbox"
                                     checked={selectedDates.includes(item.date)}
@@ -903,93 +874,26 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                               </td>
                               <td style={{ width: '150px' }} className="p-2 border-r border-gray-300">
                                 {signups[item.date] ? (
-                                  <div className="p-2 rounded bg-[#6B8E23] bg-opacity-20 flex items-center">
-                                    {isLoading ? (
-                                      <span>Loading...</span>
-                                    ) : (
-                                      <>
-                                        <span className="flex-1 text-center">{signupDetails[item.date]?.name}</span>
-                                        {signups[item.date] === currentUser?.name && (
-                                          <button
-                                            onClick={() => handleRemoveReservation(item.date)}
-                                            className="ml-2 text-red-500 hover:text-red-700"
-                                            title="Remove reservation"
-                                          >
-                                            <Trash2 className="w-4 h-4" />
-                                          </button>
-                                        )}
-                                      </>
-                                    )}
+                                  <div className="p-2 rounded bg-[#6B8E23] bg-opacity-20 flex items-center gap-2">
+                                    <span className="flex-1">
+                                      <UserCircle className="w-4 h-4 text-[#6B8E23] inline-block mr-1" />
+                                      <span className="text-[#6B8E23] font-medium">{signups[item.date]}</span>
+                                    </span>
+                                    <button
+                                      onClick={() => setShowUserSelectModal({ date: item.date, currentAssignment: signups[item.date] })}
+                                      className="p-1 rounded-full bg-gray-100 hover:bg-gray-200"
+                                      title="Change assignment"
+                                    >
+                                      <Pencil className="w-3 h-3 text-gray-600" />
+                                    </button>
                                   </div>
                                 ) : (
                                   <button
-                                    onClick={(e) => {
-                                      if (!currentUser) {
-                                        // Get the button's position
-                                        const rect = e.currentTarget.getBoundingClientRect();
-                                        setAlertPosition({
-                                          x: rect.left + (rect.width / 2),
-                                          y: rect.top
-                                        });
-
-                                        setAlertMessage('Please select a user first');
-                                        setShowAlert(true);
-                                        setTimeout(() => setShowAlert(false), 3000);
-                                        const button = e.currentTarget;
-                                        button.style.borderColor = '#EF4444';
-                                        setTimeout(() => {
-                                          button.style.borderColor = '';
-                                        }, 1000);
-                                        return;
-                                      }
-
-                                      try {
-                                        fetch('/api/signups', {
-                                          method: 'POST',
-                                          headers: {
-                                            'Content-Type': 'application/json',
-                                          },
-                                          body: JSON.stringify({
-                                            date: item.date,
-                                            name: currentUser.name
-                                          })
-                                        }).then(response => {
-                                          if (!response.ok) throw new Error('Failed to save signup');
-                                          setSignups(prev => ({
-                                            ...prev,
-                                            [item.date]: currentUser.name
-                                          }));
-                                          setSignupDetails(prev => ({
-                                            ...prev,
-                                            [item.date]: {
-                                              name: currentUser.name
-                                            }
-                                          }));
-
-                                          const [itemMonth, itemDay, shortYear] = item.date.split('/').map(num => parseInt(num, 10));
-                                          const itemYear = 2000 + shortYear;
-                                          const itemDate = new Date(itemYear, itemMonth - 1, itemDay);
-                                          const today = new Date('2025-01-14');
-                                          today.setHours(0, 0, 0, 0);
-
-                                          if (itemDate > today) {
-                                            setSelectedDates(prev => [...prev, item.date]);
-                                          }
-
-                                          setAlertMessage('Successfully signed up!');
-                                          setShowAlert(true);
-                                          setTimeout(() => setShowAlert(false), 3000);
-                                        });
-                                      } catch (error) {
-                                        console.error('Error saving signup:', error);
-                                        setAlertMessage('Error saving signup. Please try again.');
-                                        setShowAlert(true);
-                                        setTimeout(() => setShowAlert(false), 3000);
-                                      }
-                                    }}
-                                    className="w-full p-2 border rounded hover:bg-gray-50 transition-colors duration-300"
+                                    onClick={() => setShowUserSelectModal({ date: item.date })}
+                                    className="w-full p-2 border rounded flex items-center justify-center gap-1 hover:bg-gray-50"
                                   >
-                                    Sign Up
+                                    <UserCircle className="w-4 h-4" />
+                                    <span>Assign User</span>
                                   </button>
                                 )}
                               </td>
@@ -1046,10 +950,14 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                                                   delete newDetails[item.date];
                                                   return newDetails;
                                                 });
+                                                setAlertMessage('Service details deleted successfully');
+                                                setShowAlert(true);
+                                                setTimeout(() => setShowAlert(false), 3000);
                                               } catch (error) {
                                                 console.error('Error deleting service details:', error);
                                                 setAlertMessage('Error deleting service details');
                                                 setShowAlert(true);
+                                                setTimeout(() => setShowAlert(false), 3000);
                                               }
                                             }
                                           }}
@@ -1059,7 +967,6 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                                         </button>
                                       </div>
                                     </div>
-
                                     {/* Map through ordered service elements */}
                                     {serviceDetails[item.date]?.elements?.map((element, index) => (
                                       <div key={index} className="flex items-center gap-1 text-sm leading-tight">
@@ -1069,37 +976,53 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                                               element.type === 'liturgical_song' ? 'bg-amber-50 text-amber-600' :
                                                 'bg-gray-50 text-gray-600'
                                           }`}>
-                                          {
-                                            element.type === 'song_hymn' ? <Music className="w-4 h-4" /> :
-                                              element.type === 'reading' ? <BookOpen className="w-4 h-4" /> :
-                                                element.type === 'message' ? <MessageSquare className="w-4 h-4" /> :
-                                                  element.type === 'liturgical_song' ? <Music2 className="w-4 h-4" /> :
-                                                    <Cross className="w-4 h-4" />
+                                          {element.type === 'song_hymn' ? <Music className="w-4 h-4" /> :
+                                            element.type === 'reading' ? <BookOpen className="w-4 h-4" /> :
+                                              element.type === 'message' ? <MessageSquare className="w-4 h-4" /> :
+                                                element.type === 'liturgical_song' ? <Music2 className="w-4 h-4" /> :
+                                                  <Cross className="w-4 h-4" />
                                           }
                                         </div>
                                         <div className="flex-1">
-                                          {element.content}
-                                          {element.selection && (element.type === 'song_hymn' || element.type === 'song_contemporary') && (
-                                            <span className="text-blue-600 font-semibold ml-1">
-                                              {typeof element.selection === 'object' ? (
-                                                element.selection.type === 'hymn' ? (
-                                                  // For hymns, show only number and hymnal if not already in content
-                                                  !element.content.includes('#') ? `#${element.selection.number || ''}` : ''
-                                                ) : (
-                                                  // For contemporary songs, show only author if not already in content
-                                                  element.selection.author && !element.content.includes(element.selection.author) ? 
-                                                    `(${element.selection.author})` : ''
-                                                )
+                                          {element.type === 'song_hymn' && isSongElementFullyLoaded(element) === false ? (
+                                            <>
+                                              <span className="font-bold">{element.content?.split(':')?.[0]}</span>:
+                                              <span className="ml-1 italic text-gray-400">Loading...</span>
+                                            </>
+                                          ) : element.type === 'song_hymn' && isSongElementFullyLoaded(element) === 'needs-selection' ? (
+                                            <>
+                                              <span className="font-bold">{element.content?.split(':')?.[0]}</span>:
+                                              <span className="ml-1 italic text-amber-600">Waiting for Worship Team song selection</span>
+                                            </>
+                                          ) : (
+                                            <>
+                                              {element.content?.includes(':') ? (
+                                                <>
+                                                  <span className="font-bold">{element.content.split(':')[0]}</span>:
+                                                  <span>{element.content.split(':').slice(1).join(':')}</span>
+                                                </>
                                               ) : (
-                                                // Fallback for non-object selections (rare case)
-                                                element.selection && !element.content.includes(element.selection) ? element.selection : ''
+                                                element.content
                                               )}
-                                            </span>
+                                              {element.selection && (element.type === 'song_hymn' || element.type === 'song_contemporary') && (
+                                                <span className="text-blue-600 font-semibold ml-1">
+                                                  {typeof element.selection === 'object' ? (
+                                                    element.selection.type === 'hymn' ? (
+                                                      !element.content.includes('#') ? `#${element.selection.number || ''}` : ''
+                                                    ) : (
+                                                      element.selection.author && !element.content.includes(element.selection.author) ? 
+                                                        `(${element.selection.author})` : ''
+                                                    )
+                                                  ) : (
+                                                    element.selection && !element.content.includes(element.selection) ? element.selection : ''
+                                                  )}
+                                                </span>
+                                              )}
+                                            </>
                                           )}
                                         </div>
                                       </div>
                                     ))}
-
                                     {/* Fallback message if no elements */}
                                     {(!serviceDetails[item.date]?.elements || serviceDetails[item.date]?.elements.length === 0) && (
                                       <div className="text-gray-500 italic">
@@ -1117,7 +1040,6 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                   </div>
                 </div>
               </div>
-
               {/* Mobile Card View */}
               <div className="md:hidden">
                 {dates.map((item) => (
@@ -1129,21 +1051,20 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                     expanded={expanded}
                     completed={completed}
                     signups={signups}
-                    currentUser={currentUser}
+                    availableUsers={availableUsers}
                     selectedDates={selectedDates}
                     serviceDetails={serviceDetails}
-                    setSignups={setSignups}
-                    setSignupDetails={setSignupDetails}
                     setSelectedDates={setSelectedDates}
                     setAlertMessage={setAlertMessage}
                     setShowAlert={setShowAlert}
-                    alertPosition={alertPosition}
                     setAlertPosition={setAlertPosition}
+                    customServices={customServices}
                     onExpand={(date) => setExpanded(prev => ({
                       ...prev,
                       [date]: !prev[date]
                     }))}
-                    onRemove={handleRemoveReservation}
+                    onAssignUser={handleAssignUser}
+                    onRemoveAssignment={handleRemoveReservation}
                     onComplete={handleCompleted}
                     onSelectDate={(date) => {
                       setSelectedDates(prev =>
@@ -1153,6 +1074,35 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                       );
                     }}
                     onServiceDetailChange={handleServiceDetailChange}
+                    onEditService={(date) => {
+                      setEditingDate(date);
+                      setShowPastorInput(true);
+                    }}
+                    onDeleteService={async (date) => {
+                      try {
+                        await fetch('/api/service-details', {
+                          method: 'DELETE',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ date })
+                        });
+
+                        // Update local state
+                        setServiceDetails(prev => {
+                          const newState = { ...prev };
+                          delete newState[date];
+                          return newState;
+                        });
+
+                        setAlertMessage('Service details deleted successfully');
+                        setShowAlert(true);
+                        setTimeout(() => setShowAlert(false), 3000);
+                      } catch (error) {
+                        console.error('Error deleting service details:', error);
+                        setAlertMessage('Error deleting service details');
+                        setShowAlert(true);
+                        setTimeout(() => setShowAlert(false), 3000);
+                      }
+                    }}
                   />
                 ))}
               </div>
@@ -1160,7 +1110,6 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
           </CardContent>
         </div>
       </div>
-
       {/* User Management Modal */}
       {showUserManagement && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -1245,16 +1194,6 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
           </div>
         </div>
       )}
-
-      {/* Mobile User Select Component */}
-      <MobileUserSelect
-        showSelector={showUserSelector}
-        setShowSelector={setShowUserSelector}
-        availableUsers={availableUsers}
-        currentUser={currentUser}
-        setCurrentUser={setCurrentUser}
-      />
-
       {showPastorInput && (
         <PastorServiceInput
           date={editingDate}
@@ -1311,8 +1250,7 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                 
                 return newElement;
               });
-              
-              // Rest of the code remains unchanged
+
               const response = await fetch('/api/service-details', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1341,11 +1279,26 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
               
               setShowPastorInput(false);
               setAlertMessage('Service details saved successfully');
+              setShowAlert(true);
+              setTimeout(() => setShowAlert(false), 3000);
             } catch (error) {
               console.error('Error saving service details:', error);
               setAlertMessage('Error saving service details. Please try again.');
+              setShowAlert(true);
+              setTimeout(() => setShowAlert(false), 3000);
             }
           }}
+        />
+      )}
+      {showUserSelectModal && (
+        <UserSelectionModal
+          showModal={!!showUserSelectModal}
+          onClose={() => setShowUserSelectModal(null)}
+          availableUsers={availableUsers}
+          initialUserName={showUserSelectModal.currentAssignment}
+          onSelect={(userName) => handleAssignUser(showUserSelectModal.date, userName)}
+          onDelete={() => handleRemoveReservation(showUserSelectModal.date)}
+          title={showUserSelectModal.currentAssignment ? "Reassign Service" : "Assign User"}
         />
       )}
     </Card>

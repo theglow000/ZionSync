@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { ChevronDown, X, Edit2, Trash2 } from 'lucide-react';
 import AddCustomService from './AddCustomService';
+import useResponsive from '../../hooks/useResponsive';
 
 // Helper functions
 const getSundayInfo = (dateStr) => {
@@ -242,6 +243,9 @@ const determineElementType = (line) => {
 };
 
 const PastorServiceInput = ({ date, onClose, onSave, serviceDetails }) => {
+  // Add the responsive hook
+  const { isMobile } = useResponsive();
+  
   // State management
   const [selectedType, setSelectedType] = useState(() => getDefaultServiceType(date));
   const [showCustomDropdown, setShowCustomDropdown] = useState(false);
@@ -520,14 +524,19 @@ Postlude`
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-2xl bg-white rounded-lg shadow-xl flex flex-col max-h-[90vh]">
-        {/* Header */}
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[200]">
+      <Card className={`w-full ${isMobile ? 'max-w-full max-h-[calc(100vh-56px)]' : 'max-w-2xl max-h-[90vh]'} bg-white shadow-xl flex flex-col ${isMobile ? 'rounded-none' : 'rounded-lg'}`}
+           style={isMobile ? { marginBottom: "56px" } : {}}>
+        {/* Header - Adjusted for mobile */}
         <div className="p-4 border-b">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-2xl font-bold text-[#6B8E23]">{getSundayInfo(date).formattedDate}</h2>
-              <p className="text-lg text-[#6B8E23]">{getSundayInfo(date).sundayInfo}</p>
+              <h2 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-[#6B8E23]`}>
+                {getSundayInfo(date).formattedDate}
+              </h2>
+              <p className={`${isMobile ? 'text-base' : 'text-lg'} text-[#6B8E23]`}>
+                {getSundayInfo(date).sundayInfo}
+              </p>
             </div>
             <button
               onClick={onClose}
@@ -538,21 +547,23 @@ Postlude`
           </div>
         </div>
 
-        {/* Content */}
+        {/* Content - Adjusted for mobile scrolling */}
         <div className="p-4 space-y-3 overflow-y-auto flex-1">
-          {/* Liturgical Setting */}
-          <div className="flex justify-end items-start">
-            <div className="text-right text-sm text-gray-600 bg-[#FFD700] bg-opacity-10 p-3 rounded">
-              <h4 className="font-medium text-[#6B8E23] mb-1">Standard Schedule:</h4>
-              <p>1st Sunday: Communion & Sing Lord's Prayer</p>
-              <p>3rd Sunday: Communion with Potluck</p>
+          {/* Liturgical Setting - Hidden on mobile to save space */}
+          {!isMobile && (
+            <div className="flex justify-end items-start">
+              <div className="text-right text-sm text-gray-600 bg-[#FFD700] bg-opacity-10 p-3 rounded">
+                <h4 className="font-medium text-[#6B8E23] mb-1">Standard Schedule:</h4>
+                <p>1st Sunday: Communion & Sing Lord's Prayer</p>
+                <p>3rd Sunday: Communion with Potluck</p>
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Service Type Selection */}
+          {/* Service Type Selection - Adjusted grid for mobile */}
           <div>
             <h3 className="text-base font-bold text-[#6B8E23] mb-2">Service Type</h3>
-            <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-3'} gap-3 mb-4`}>
               {mainServiceTypes.map(type => (
                 <label
                   key={type.id}
@@ -592,7 +603,7 @@ Postlude`
               </button>
 
               {showCustomDropdown && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded shadow-lg z-10">
+                <div className={`absolute top-full left-0 right-0 mt-1 bg-white border rounded shadow-lg z-10 ${isMobile ? 'max-h-48 overflow-y-auto' : ''}`}>
                   {customServices.map(service => (
                     <div
                       key={service.id}
@@ -600,7 +611,7 @@ Postlude`
                     >
                       <button
                         onClick={() => handleCustomServiceSelection(service)}
-                        className="flex-1 text-left text-black font-normal" // Added text-black and font-normal
+                        className="flex-1 text-left text-black font-normal"
                       >
                         {service.name}
                       </button>
@@ -661,7 +672,7 @@ Postlude`
             </div>
           </div>
 
-          {/* Order of Worship Editor */}
+          {/* Order of Worship Editor - Adjusted height for mobile */}
           <div>
             <h3 className="text-base font-bold text-[#6B8E23] mb-2">Order of Worship</h3>
             <div className="text-sm text-gray-600 mb-2">
@@ -670,12 +681,16 @@ Postlude`
             <textarea
               value={orderOfWorship}
               onChange={(e) => setOrderOfWorship(e.target.value)}
-              className="w-full h-[calc(100vh-500px)] min-h-[300px] p-3 border rounded font-mono text-sm resize-none text-black hover:border-[#6B8E23] focus:border-[#6B8E23] focus:ring-1 focus:ring-[#6B8E23]"
+              className={`w-full ${
+                isMobile ? 'h-[calc(100vh-450px)]' : 'h-[calc(100vh-500px)]'
+              } min-h-[150px] p-3 border rounded font-mono text-sm resize-none text-black hover:border-[#6B8E23] focus:border-[#6B8E23] focus:ring-1 focus:ring-[#6B8E23]`}
+              style={{ fontSize: isMobile ? '14px' : '16px' }}
             />
           </div>
         </div>
+        
         {/* Footer */}
-        <div className="p-4 border-t bg-[#FFD700] bg-opacity-10 flex justify-end gap-3">
+        <div className={`p-4 border-t bg-[#FFD700] bg-opacity-10 flex justify-end gap-3 ${isMobile ? 'safe-area-bottom' : ''}`}>
           <button
             onClick={onClose}
             className="px-4 py-2 border border-[#6B8E23] text-[#6B8E23] rounded hover:bg-[#6B8E23] hover:text-white"
