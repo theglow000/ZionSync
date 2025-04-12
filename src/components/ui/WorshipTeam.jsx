@@ -7,6 +7,9 @@ import MobileWorshipServiceCard from './MobileWorshipServiceCard';
 import MobileWorshipSelect from './MobileWorshipSelect';
 import useResponsive from '../../hooks/useResponsive';
 import Link from 'next/link';
+import '../../styles/liturgical-themes.css';
+import { getSeasonClass, getSpecialServiceType, getHeaderClass, SpecialServiceIndicator } from '../liturgical/LiturgicalStyling';
+import { LiturgicalDebugger } from '../liturgical/LiturgicalDebug';
 
 // Dates array
 const DATES = [
@@ -40,8 +43,8 @@ const DATES = [
   { date: '5/18/25', day: 'Sunday', title: 'Sunday Worship' },
   { date: '5/25/25', day: 'Sunday', title: 'Sunday Worship' },
   { date: '6/1/25', day: 'Sunday', title: 'VBS Week' },
-  { date: '6/8/25', day: 'Sunday', title: 'Confirmation Sunday' },
-  { date: '6/15/25', day: 'Sunday', title: 'Father\'s Day' },
+  { date: '6/8/25', day: 'Sunday', title: 'Pentecost/Confirmation Sunday' },
+  { date: '6/15/25', day: 'Sunday', title: 'Trinity Sunday/Father\'s Day' },
   { date: '6/22/25', day: 'Sunday', title: 'Sunday Worship' },
   { date: '6/29/25', day: 'Sunday', title: 'Sunday Worship' },
   { date: '7/6/25', day: 'Sunday', title: 'Sunday Worship' },
@@ -60,11 +63,11 @@ const DATES = [
   { date: '10/5/25', day: 'Sunday', title: 'Sunday Worship' },
   { date: '10/12/25', day: 'Sunday', title: 'Sunday Worship' },
   { date: '10/19/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '10/26/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '11/2/25', day: 'Sunday', title: 'Sunday Worship' },
+  { date: '10/26/25', day: 'Sunday', title: 'Reformation Sunday' },
+  { date: '11/2/25', day: 'Sunday', title: 'All Saint\'s Day' },
   { date: '11/9/25', day: 'Sunday', title: 'Sunday Worship' },
   { date: '11/16/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '11/23/25', day: 'Sunday', title: 'Sunday Worship' },
+  { date: '11/23/25', day: 'Sunday', title: 'Christ the King' },
   { date: '11/26/25', day: 'Wednesday', title: 'Thanksgiving Eve' },
   { date: '11/30/25', day: 'Sunday', title: 'Advent 1' },
   { date: '12/7/25', day: 'Sunday', title: 'Advent 2' },
@@ -280,7 +283,7 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
 
         // Filter and organize users
         const allUsers = data.users || [];
-        
+
         setUsers(allUsers);
         setAvailableUsers(allUsers);
 
@@ -480,6 +483,32 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
     }
   };
 
+  // Add a function to determine special services
+  const isSpecialService = (title) => {
+    const specialTitles = [
+      'ash wednesday', 'palm sunday', 'maundy thursday', 'good friday',
+      'easter', 'pentecost', 'reformation', 'all saints', 'thanksgiving',
+      'christmas eve', 'christmas day', 'epiphany', 'transfiguration',
+      'confirmation', 'baptism'
+    ];
+
+    const lowerTitle = title.toLowerCase();
+    return specialTitles.some(special => lowerTitle.includes(special));
+  };
+
+  // Helper to get season info from a date
+  const getSeasonInfo = (date) => {
+    const service = serviceDetails[date];
+    if (!service?.liturgical) return { name: "", color: "", hasSpecialDay: false };
+
+    return {
+      name: service.liturgical.seasonName || "",
+      color: service.liturgical.color || "",
+      hasSpecialDay: !!service.liturgical.specialDay,
+      specialDay: service.liturgical.specialDayName || ""
+    };
+  };
+
   return (
     <Card className="w-full h-full mx-auto relative bg-white shadow-lg">
       {showAlert && (
@@ -546,10 +575,10 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
                 <Link href="/song-management">
                   <button className="flex items-center gap-2 px-3 py-2 bg-purple-700 text-white rounded-md hover:bg-purple-800 transition-colors">
                     <Database className="w-4 h-4" />
-                    <span>Manage Song Database</span>
+                    <span>Worship Planning</span>
                   </button>
                 </Link>
-                
+
                 {/* Remove worship leader indicator */}
               </div>
 
@@ -643,10 +672,10 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
                       }}
                       onEditTeam={() => handleEditTeam(item.date)}
                       header={
-                        <div className="flex items-center justify-between w-full">
+                        <div className={`w-full ${getHeaderClass(item.date)}`}>
                           {/* Left Side - Service Info */}
                           <div
-                            className="flex items-center flex-1 cursor-pointer hover:bg-gray-50 p-2 rounded"
+                            className="flex items-center flex-1 cursor-pointer hover:bg-gray-50 hover:bg-opacity-50 p-2 rounded"
                             onClick={() => {
                               setExpanded(prev => ({
                                 ...prev,
@@ -660,14 +689,16 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
                                 <div className="text-xl font-medium text-gray-600">
                                   {item.date}
                                 </div>
+
                                 {/* Title and type on same line */}
                                 <div className="flex items-center gap-2">
                                   <h3 className="font-medium text-black text-sm truncate">
                                     {item.title}
                                   </h3>
+                                  {getSpecialServiceType(item.date) && <SpecialServiceIndicator date={item.date} />}
                                   <span className={`text-xs px-2 py-0.5 rounded flex-shrink-0 ${serviceDetails[item.date]?.type ?
-                                      'text-gray-600 bg-gray-100' :
-                                      'text-amber-700 bg-amber-50 border border-amber-200'
+                                    'text-gray-600 bg-gray-100' :
+                                    'text-amber-700 bg-amber-50 border border-amber-200'
                                     }`}>
                                     {serviceDetails[item.date]?.type === 'communion' ? 'Communion' :
                                       serviceDetails[item.date]?.type === 'communion_potluck' ? 'Communion with Potluck' :
@@ -688,7 +719,7 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
                                 <Music2 className="w-3 h-3 text-purple-700" />
                               </div>
                             )}
-                            
+
                             {/* Team Assignment Badge - More like presentation team */}
                             <div className="flex items-center gap-1">
                               <div className="flex items-center bg-purple-100 rounded px-2 py-0.5">
@@ -708,10 +739,10 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
                                 <Pencil className="w-3 h-3 text-purple-700" />
                               </button>
                             </div>
-                            
+
                             {/* Expand/Collapse button */}
                             <button
-                              onClick={() => setExpanded(prev => ({...prev, [item.date]: !prev[item.date]}))}
+                              onClick={() => setExpanded(prev => ({ ...prev, [item.date]: !prev[item.date] }))}
                               className="ml-1"
                             >
                               {expanded[item.date] ?
@@ -725,7 +756,7 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
                     />
                   </div>
                 ))}
-                
+
                 {/* Mobile View */}
                 {isMobile && dates.map((item) => (
                   <MobileWorshipServiceCard

@@ -2,14 +2,33 @@ import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Music, FileText, BarChart2, Plus, X, Edit, Trash2, Save, AlertCircle, GitMerge } from 'lucide-react';
+import { Search, Music, FileText, Plus, X, Edit, Trash2, Save, AlertCircle, GitMerge, Check, X as XIcon, Repeat, ArrowUpRight, TagIcon, BookOpen, Calendar, ChevronDown, ChevronUp, PlusCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import SeasonalTaggingTool from './SeasonalTaggingTool';
+import ReferenceSongPanel from './ReferenceSongPanel';
+import SongRediscoveryPanel from './SongRediscoveryPanel';
+import SeasonalPlanningGuide from './SeasonalPlanningGuide';
 
 // Hymnal options
 const hymnalVersions = [
   { id: 'cranberry', name: 'Cranberry' },
   { id: 'green', name: 'Green' },
   { id: 'blue', name: 'Blue' }
+];
+
+// Liturgical seasons
+const liturgicalSeasons = [
+  { id: 'advent', name: 'Advent', color: '#4b0082' },
+  { id: 'christmas', name: 'Christmas', color: '#ffffff' },
+  { id: 'epiphany', name: 'Epiphany', color: '#006400' },
+  { id: 'lent', name: 'Lent', color: '#800080' },
+  { id: 'holyWeek', name: 'Holy Week', color: '#8b0000' },
+  { id: 'easter', name: 'Easter', color: '#ffd700' },
+  { id: 'pentecost', name: 'Pentecost', color: '#ff0000' },
+  { id: 'ordinaryTime', name: 'Ordinary Time', color: '#008000' },
+  { id: 'reformation', name: 'Reformation', color: '#ff0000' },
+  { id: 'allSaints', name: 'All Saints', color: '#ffffff' },
+  { id: 'thanksgiving', name: 'Thanksgiving', color: '#a0522d' }
 ];
 
 const SongDatabase = () => {
@@ -26,11 +45,6 @@ const SongDatabase = () => {
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState('success');
   const [showAlert, setShowAlert] = useState(false);
-  const [songAnalytics, setSongAnalytics] = useState({
-    frequency: [],
-    byType: { hymn: 0, contemporary: 0 },
-    seasonal: []
-  });
 
   // Add a new state for the merge modal
   const [showMergeModal, setShowMergeModal] = useState(false);
@@ -38,9 +52,20 @@ const SongDatabase = () => {
   const [mergeSearchTerm, setMergeSearchTerm] = useState('');
   const [mergeCandidates, setMergeCandidates] = useState([]);
 
-  // Fetch songs and analytics data when component mounts
+  // Add this state inside the SongDatabase component
+  const [showTaggingTool, setShowTaggingTool] = useState(false);
+
+  // Add these state variables near the top of the SongDatabase component, with the other state declarations
+  const [showServiceModal, setShowServiceModal] = useState(false);
+  const [upcomingServices, setUpcomingServices] = useState([]);
+  const [loadingServices, setLoadingServices] = useState(false);
+  const [selectedPosition, setSelectedPosition] = useState('general');
+  const [selectedService, setSelectedService] = useState(null);
+  const [isAddingSong, setIsAddingSong] = useState(false);
+
+  // Fetch songs when component mounts
   useEffect(() => {
-    const fetchSongsAndAnalytics = async () => {
+    const fetchSongs = async () => {
       setIsLoading(true);
       try {
         // Fetch songs
@@ -51,24 +76,6 @@ const SongDatabase = () => {
         // Sort songs alphabetically by title
         songsData.sort((a, b) => a.title.localeCompare(b.title));
         setSongs(songsData);
-        
-        // Fetch song usage analytics
-        const analyticsResponse = await fetch('/api/song-usage/analytics');
-        if (analyticsResponse.ok) {
-          const analyticsData = await analyticsResponse.json();
-          
-          // Process analytics data
-          const byType = {
-            hymn: songsData.filter(song => song.type === 'hymn').length,
-            contemporary: songsData.filter(song => song.type === 'contemporary').length
-          };
-          
-          setSongAnalytics({
-            frequency: analyticsData.frequency || [],
-            byType,
-            seasonal: analyticsData.seasonal || []
-          });
-        }
       } catch (err) {
         setError(err.message);
         showAlertMessage(err.message, 'error');
@@ -77,7 +84,7 @@ const SongDatabase = () => {
       }
     };
 
-    fetchSongsAndAnalytics();
+    fetchSongs();
   }, []);
 
   // Filter songs based on search term and filter type
@@ -222,8 +229,8 @@ const SongDatabase = () => {
       
       showAlertMessage('Songs merged successfully');
       
-      // Refresh song list and analytics
-      fetchSongsAndAnalytics();
+      // Refresh song list
+      fetchSongs();
       
     } catch (err) {
       showAlertMessage(err.message, 'error');
@@ -248,6 +255,194 @@ const SongDatabase = () => {
     setMergeCandidates(candidates.slice(0, 5)); // Limit to 5 suggestions
   };
 
+  // Add this function to handle seasonal tags
+  const handleSeasonalTagToggle = (season) => {
+    if (!editingSong) return;
+    
+    const seasonalTags = editingSong.seasonalTags || [];
+    const updatedTags = seasonalTags.includes(season)
+      ? seasonalTags.filter(tag => tag !== season)
+      : [...seasonalTags, season];
+      
+    setEditingSong(prev => ({
+      ...prev,
+      seasonalTags: updatedTags
+    }));
+  };
+
+  // Add this function to the SongDatabase component to get rotation status display
+  const getRotationStatusDisplay = (song) => {
+    if (!song.rotationStatus) return null;
+    
+    const status = [];
+    
+    if (song.rotationStatus.isLearning) {
+      status.push({
+        label: 'Learning Song',
+        icon: <Repeat className="w-4 h-4 mr-1" />,
+        tooltip: `Used in ${song.rotationStatus.consecutiveUses} consecutive services`,
+        color: 'bg-yellow-100 text-yellow-800 border-yellow-300'
+      });
+    }
+    
+    if (song.rotationStatus.isInRotation) {
+      status.push({
+        label: 'In Rotation',
+        icon: <Music className="w-4 h-4 mr-1" />,
+        tooltip: `Used ${song.rotationStatus.recentUses} times in recent services`,
+        color: 'bg-green-100 text-green-800 border-green-300'
+      });
+    }
+    
+    if (status.length === 0 && song.rotationStatus.lastUsed) {
+      const lastUsedDate = new Date(song.rotationStatus.lastUsed);
+      const formattedDate = lastUsedDate.toLocaleDateString();
+      
+      status.push({
+        label: 'Last Used',
+        icon: <ArrowUpRight className="w-4 h-4 mr-1" />,
+        tooltip: `Last used on ${formattedDate}`,
+        color: 'bg-gray-100 text-gray-800 border-gray-300'
+      });
+    }
+    
+    return status;
+  };
+
+  // Fix fetchUpcomingServices function based on the actual API response structure
+  const fetchUpcomingServices = async () => {
+    try {
+      setLoadingServices(true);
+      setError(null);
+      
+      // Fetch upcoming services with their full details
+      const response = await fetch('/api/upcoming-services?limit=8');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch upcoming services');
+      }
+      
+      // Handle different response structures
+      const responseData = await response.json();
+      const services = Array.isArray(responseData) ? responseData :
+                      Array.isArray(responseData.value) ? responseData.value : [];
+      
+      // Process the services data
+      const enhancedServices = services.map(service => {
+        // Identify song positions that need to be filled
+        const songPositions = service.elements
+          ?.filter(element => element.type === 'song_hymn')
+          .map((element, index) => {
+            // Extract label from content
+            const label = element.content?.split(':')[0]?.trim() || `Song ${index + 1}`;
+            
+            // Check if this position already has a song
+            const hasSelection = !!element.selection;
+            
+            return {
+              id: `song_${index}`,
+              label,
+              hasSelection,
+              selectionDetails: element.selection ? {
+                title: element.selection.title,
+                type: element.selection.type,
+                number: element.selection.number,
+                hymnal: element.selection.hymnal,
+                author: element.selection.author
+              } : null
+            };
+          }) || [];
+        
+        // Get service type display name
+        let serviceTypeDisplay = 'Sunday Service';
+        if (service.type) {
+          serviceTypeDisplay = service.type === 'communion' ? 'Communion' :
+                             service.type === 'communion_potluck' ? 'Communion & Potluck' :
+                             service.type === 'no_communion' ? 'No Communion' : 'Custom Service';
+        }
+        
+        return {
+          ...service,
+          songPositions,
+          serviceTypeDisplay
+        };
+      });
+      
+      setUpcomingServices(enhancedServices);
+    } catch (err) {
+      console.error('Error fetching upcoming services:', err);
+      showAlertMessage('Failed to load upcoming services', 'error');
+    } finally {
+      setLoadingServices(false);
+    }
+  };
+
+  // Add this function to handle opening the service modal
+  const handleOpenServiceModal = () => {
+    setShowServiceModal(true);
+    setSelectedService(null);
+    setSelectedPosition('general');
+    fetchUpcomingServices();
+  };
+
+  // Update the addSongToService function to correctly use the ReferenceSongPanel approach
+  const addSongToService = async () => {
+    if (!selectedSong || !selectedService || !selectedPosition) {
+      showAlertMessage('Please select both a service and a position', 'error');
+      return;
+    }
+    
+    try {
+      setIsAddingSong(true);
+      
+      // Use the exact same approach as ReferenceSongPanel for adding songs
+      const response = await fetch('/api/reference-songs/import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          referenceSongId: selectedSong._id,
+          serviceDate: selectedService.date,
+          position: selectedPosition,
+          songData: {
+            type: selectedSong.type,
+            title: selectedSong.title,
+            number: selectedSong.number || '',
+            hymnal: selectedSong.hymnal || '',
+            author: selectedSong.author || '',
+            sheetMusic: selectedSong.type === 'hymn' 
+                       ? selectedSong.hymnaryLink 
+                       : selectedSong.songSelectLink,
+            youtube: selectedSong.youtubeLink || '',
+            notes: `Added from Song Database panel. ${selectedSong.notes || ''}`
+          }
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API error response:', errorText);
+        console.error('Response status:', response.status, response.statusText);
+        throw new Error(`Failed to add song: ${response.status} ${response.statusText}`);
+      }
+      
+      // Success handling
+      showAlertMessage(`Added "${selectedSong.title}" to service on ${selectedService.date}`);
+      
+      // Close the modal
+      setTimeout(() => {
+        setShowServiceModal(false);
+      }, 1500);
+      
+    } catch (error) {
+      console.error('Error adding song to service:', error);
+      showAlertMessage(`Error adding song: ${error.message}`, 'error');
+    } finally {
+      setIsAddingSong(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Alert for notifications */}
@@ -261,20 +456,27 @@ const SongDatabase = () => {
           </div>
         </Alert>
       )}
-      
-      <Tabs defaultValue="library" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100">
+
+      <Tabs defaultValue="planning" className="w-full">
+        <TabsList className="grid w-full grid-cols-4 mb-6 bg-gray-100">
+          <TabsTrigger value="planning" className="flex items-center gap-2 data-[state=active]:bg-white">
+            <Calendar className="w-4 h-4" />
+            <span>Planning Guide</span>
+          </TabsTrigger>
           <TabsTrigger value="library" className="flex items-center gap-2 data-[state=active]:bg-white">
             <Music className="w-4 h-4" />
             <span>Song Library</span>
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center gap-2 data-[state=active]:bg-white">
-            <BarChart2 className="w-4 h-4" />
-            <span>Song Analytics</span>
+          <TabsTrigger value="reference" className="flex items-center gap-2 data-[state=active]:bg-white">
+            <BookOpen className="w-4 h-4" />
+            <span>Reference Songs</span>
+          </TabsTrigger>
+          <TabsTrigger value="rediscovery" className="flex items-center gap-2 data-[state=active]:bg-white">
+            <Repeat className="w-4 h-4" />
+            <span>Rediscovery</span>
           </TabsTrigger>
         </TabsList>
 
-        {/* Song Library Tab */}
         <TabsContent value="library" className="space-y-4">
           {/* Search and Filter */}
           <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -289,6 +491,16 @@ const SongDatabase = () => {
               />
             </div>
             <div className="flex gap-2">
+              {/* Add this button */}
+              <Button 
+                variant="outline" 
+                onClick={() => setShowTaggingTool(true)}
+                className="flex items-center gap-1"
+              >
+                <TagIcon className="w-4 h-4" />
+                <span className="hidden sm:inline">Batch Tag</span>
+              </Button>
+              {/* Existing filter buttons */}
               <Button
                 variant={filterType === 'all' ? 'default' : 'outline'}
                 onClick={() => setFilterType('all')}
@@ -358,7 +570,7 @@ const SongDatabase = () => {
                   )}
                 </div>
               </div>
-              
+
               {/* Song Details/Editor */}
               <div className="md:col-span-2 border rounded-lg overflow-hidden bg-white">
                 {selectedSong ? (
@@ -448,12 +660,27 @@ const SongDatabase = () => {
                         )}
                         
                         <div className="mb-4">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">YouTube Link</label>
-                          <Input 
-                            value={editingSong.youtubeLink || ''} 
-                            onChange={e => handleEditorInputChange('youtubeLink', e.target.value)} 
-                          />
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Seasonal Appropriateness</label>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                            {liturgicalSeasons.map(season => (
+                              <button
+                                key={season.id}
+                                onClick={() => handleSeasonalTagToggle(season.id)}
+                                className={`flex items-center justify-between p-2 rounded-md border ${
+                                  editingSong.seasonalTags?.includes(season.id)
+                                    ? 'bg-purple-100 border-purple-500 text-purple-800'
+                                    : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100'
+                                }`}
+                              >
+                                <span>{season.name}</span>
+                                {editingSong.seasonalTags?.includes(season.id) && (
+                                  <Check className="w-4 h-4 text-purple-600" />
+                                )}
+                              </button>
+                            ))}
+                          </div>
                         </div>
+
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                           <textarea 
@@ -564,19 +791,74 @@ const SongDatabase = () => {
                         <div className="mt-6 pt-4 border-t border-gray-200">
                           <h3 className="text-sm font-medium text-gray-700 mb-2">Recent Usage</h3>
                           <div className="text-sm text-gray-500">
-                            {songAnalytics.frequency
-                              .filter(item => item.title === selectedSong.title)
-                              .map(item => (
-                                <div key={`${item.title}-usage`} className="text-sm">
-                                  {item.count > 0 ? (
-                                    <span>Used {item.count} times in the last year</span>
-                                  ) : (
-                                    <span>No recent usage recorded</span>
-                                  )}
-                                </div>
-                              ))}
+                            {selectedSong.usageCount ? (
+                              <span>Used {selectedSong.usageCount} times</span>
+                            ) : (
+                              <span>No recent usage recorded</span>
+                            )}
                           </div>
                         </div>
+
+                        {/* Song Details View - Add after YouTube link section */}
+                        {selectedSong && !showSongEditor && (
+                          <div className="mt-4">
+                            <label className="block text-xs font-medium text-gray-500">Seasonal Appropriateness</label>
+                            {selectedSong.seasonalTags && selectedSong.seasonalTags.length > 0 ? (
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                {selectedSong.seasonalTags.map(tag => {
+                                  const season = liturgicalSeasons.find(s => s.id === tag);
+                                  return (
+                                    <div key={tag} className="flex items-center">
+                                      <span 
+                                        className="px-2 py-1 text-xs rounded-md bg-gray-100 text-gray-800"
+                                        style={{borderLeft: `3px solid ${season?.color || '#888'}`}}
+                                      >
+                                        {season?.name || tag}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <p className="text-gray-500 text-sm mt-1">No seasonal tags assigned</p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Song Details - Add rotation status display */}
+                        {selectedSong && !showSongEditor && (
+                          <div className="mt-4">
+                            <label className="block text-xs font-medium text-gray-500">Rotation Status</label>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {getRotationStatusDisplay(selectedSong)?.map((status, index) => (
+                                <div 
+                                  key={index}
+                                  className={`flex items-center px-2 py-1 rounded-md text-xs border ${status.color}`}
+                                  title={status.tooltip}
+                                >
+                                  {status.icon}
+                                  <span>{status.label}</span>
+                                </div>
+                              ))}
+                              {(!selectedSong.rotationStatus || getRotationStatusDisplay(selectedSong)?.length === 0) && (
+                                <p className="text-gray-500 text-sm">No rotation data available</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Add this after the Rotation Status section */}
+                        {selectedSong && !showSongEditor && (
+                          <div className="mt-6 pt-4 border-t border-gray-200">
+                            <Button
+                              onClick={handleOpenServiceModal}
+                              className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md flex items-center justify-center gap-1"
+                            >
+                              <Calendar className="w-4 h-4 mr-1" />
+                              <span>Add to Service</span>
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )
@@ -692,115 +974,264 @@ const SongDatabase = () => {
               </div>
             </div>
           )}
-        </TabsContent>
 
-        {/* Analytics Tab */}
-        <TabsContent value="analytics" className="space-y-6">
-          {isLoading ? (
-            <div className="flex justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-700"></div>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {/* Song Type Distribution */}
-              <div className="border rounded-lg p-4">
-                <h3 className="text-lg font-medium text-gray-800 mb-4">Song Type Distribution</h3>
-                <div className="flex items-center justify-center h-52">
-                  <div className="flex items-end h-40 gap-8">
-                    <div className="flex flex-col items-center">
-                      <div className="bg-blue-500 w-16" style={{ height: `${(songAnalytics.byType.hymn / songs.length) * 100}%` }}></div>
-                      <div className="mt-2 text-sm font-medium">Hymns</div>
-                      <div className="text-xs text-gray-500">{songAnalytics.byType.hymn} songs</div>
+          {/* Service Selection Modal */}
+          {showServiceModal && selectedSong && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between p-4 border-b">
+                  <h3 className="font-bold text-lg">Add to Service</h3>
+                  <button
+                    onClick={() => setShowServiceModal(false)}
+                    className="p-1 rounded-full hover:bg-gray-100"
+                  >
+                    <XIcon className="w-5 h-5" />
+                  </button>
+                </div>
+                
+                <div className="p-4">
+                  <div className="mb-4 p-3 bg-gray-50 rounded-md">
+                    <h3 className="font-medium text-black mb-1">{selectedSong.title}</h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded-full text-xs ${
+                        selectedSong.type === 'hymn' 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        {selectedSong.type === 'hymn' ? 'Hymn' : 'Contemporary'}
+                      </span>
+                      
+                      {selectedSong.type === 'hymn' && selectedSong.number && (
+                        <span className="text-xs text-gray-500">
+                          #{selectedSong.number} 
+                          {selectedSong.hymnal && ` (${selectedSong.hymnal})`}
+                        </span>
+                      )}
+                      
+                      {selectedSong.author && (
+                        <span className="text-xs text-gray-500">
+                          {selectedSong.author}
+                        </span>
+                      )}
                     </div>
-                    <div className="flex flex-col items-center">
-                      <div className="bg-green-500 w-16" style={{ height: `${(songAnalytics.byType.contemporary / songs.length) * 100}%` }}></div>
-                      <div className="mt-2 text-sm font-medium">Contemporary</div>
-                      <div className="text-xs text-gray-500">{songAnalytics.byType.contemporary} songs</div>
+                  </div>
+                  
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">
+                    Select Service and Position
+                  </h3>
+                  
+                  {loadingServices ? (
+                    <div className="text-center py-4 text-gray-500">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-700 mx-auto mb-1"></div>
+                      <p className="text-sm">Loading services...</p>
                     </div>
+                  ) : upcomingServices.length === 0 ? (
+                    <div className="text-center py-4 text-gray-500">
+                      <Calendar className="w-5 h-5 mx-auto mb-1" />
+                      <p className="text-sm">No upcoming services found</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {upcomingServices.map(service => {
+                        // Determine if this service is expanded
+                        const isExpanded = selectedService?.date === service.date;
+                        
+                        return (
+                          <div 
+                            key={service.date}
+                            className="border rounded-md overflow-hidden"
+                          >
+                            {/* Service header - Always visible */}
+                            <div 
+                              onClick={() => setSelectedService(isExpanded ? null : service)}
+                              className={`p-3 flex justify-between items-center cursor-pointer hover:bg-gray-50 ${
+                                isExpanded ? 'bg-purple-50 border-b border-purple-200' : ''
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                {service.liturgical && (
+                                  <div 
+                                    className="w-3 h-3 rounded-full flex-shrink-0" 
+                                    style={{ backgroundColor: service.liturgical.color || '#6B7280' }}
+                                    title={service.liturgical.seasonName}
+                                  ></div>
+                                )}
+                                <div>
+                                  <div className="font-medium">
+                                    {service.title || `${service.liturgical?.seasonName || 'Sunday'} Service`}
+                                  </div>
+                                  <div className="text-xs text-gray-600 flex items-center gap-1">
+                                    <span>{service.date}</span>
+                                    <span className="mx-1">•</span>
+                                    <span>{service.serviceTypeDisplay}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                                  {service.songPositions.length} positions
+                                </div>
+                                {isExpanded ? (
+                                  <ChevronUp className="w-4 h-4 text-gray-400" />
+                                ) : (
+                                  <ChevronDown className="w-4 h-4 text-gray-400" />
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* Expanded song positions */}
+                            {isExpanded && service.songPositions.length > 0 && (
+                              <div className="p-3 bg-gray-50">
+                                <div className="space-y-2">
+                                  {service.songPositions.map(position => (
+                                    <div 
+                                      key={position.id}
+                                      className={`border rounded-md ${
+                                        selectedPosition === position.id
+                                          ? 'border-purple-300 bg-purple-50'
+                                          : 'border-gray-200 bg-white'
+                                      }`}
+                                    >
+                                      <div className="flex items-center justify-between p-2">
+                                        <div className="flex items-center gap-2">
+                                          <div className={`w-2 h-2 rounded-full ${
+                                            position.hasSelection 
+                                              ? 'bg-amber-400' 
+                                              : 'bg-blue-400'
+                                          }`}></div>
+                                          <div className="font-medium text-sm text-gray-800">{position.label}</div>
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-2">
+                                          {position.hasSelection ? (
+                                            <div className="flex items-center gap-1 text-xs text-gray-500 mr-2">
+                                              <span>Current Song:</span>
+                                              <span className="font-medium truncate max-w-[120px]">{position.selectionDetails.title}</span>
+                                            </div>
+                                          ) : null}
+                                          
+                                          {position.hasSelection ? (
+                                            <button
+                                              onClick={() => {
+                                                if (confirm(`Replace "${position.selectionDetails.title}" with "${selectedSong.title}"?`)) {
+                                                  setSelectedPosition(position.id);
+                                                }
+                                              }}
+                                              className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${
+                                                selectedPosition === position.id
+                                                  ? 'bg-purple-600 text-white'
+                                                  : 'bg-amber-50 border border-amber-100 text-amber-700 hover:bg-amber-100'
+                                              }`}
+                                            >
+                                              {selectedPosition === position.id ? (
+                                                <span>Selected</span>
+                                              ) : (
+                                                <>
+                                                  <PlusCircle className="w-3 h-3" />
+                                                  <span>Replace</span>
+                                                </>
+                                              )}
+                                            </button>
+                                          ) : (
+                                            <button
+                                              onClick={() => setSelectedPosition(position.id)}
+                                              className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${
+                                                selectedPosition === position.id
+                                                  ? 'bg-purple-600 text-white'
+                                                  : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                                              }`}
+                                            >
+                                              {selectedPosition === position.id ? (
+                                                <span>Selected</span>
+                                              ) : (
+                                                <>
+                                                  <PlusCircle className="w-3 h-3" />
+                                                  <span>Add</span>
+                                                </>
+                                              )}
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
+                                      
+                                      {/* Warning shown only for selected positions with existing songs */}
+                                      {selectedPosition === position.id && position.hasSelection && (
+                                        <div className="px-2 py-1 bg-amber-50 border-t border-amber-100 text-xs text-amber-600 flex items-center gap-1">
+                                          <div>⚠️</div>
+                                          <div>This will replace the current song</div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-end gap-2 mt-6">
+                    <button
+                      className="px-4 py-2 border rounded hover:bg-gray-50"
+                      onClick={() => setShowServiceModal(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-purple-300 flex items-center"
+                      disabled={!selectedService || !selectedPosition || isAddingSong}
+                      onClick={addSongToService}
+                    >
+                      {isAddingSong ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Adding...
+                        </>
+                      ) : (
+                        'Add to Service'
+                      )}
+                    </button>
                   </div>
                 </div>
-              </div>
-              
-              {/* Most Frequently Used Songs */}
-              <div className="border rounded-lg p-4">
-                <h3 className="text-lg font-medium text-gray-800 mb-4">Most Frequently Used Songs</h3>
-                {songAnalytics.frequency.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full">
-                      <thead>
-                        <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          <th className="px-6 py-3">Song</th>
-                          <th className="px-6 py-3">Type</th>
-                          <th className="px-6 py-3">Uses (Last Year)</th>
-                          <th className="px-6 py-3">Last Used</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {songAnalytics.frequency
-                          .sort((a, b) => b.count - a.count)
-                          .slice(0, 10)
-                          .map(song => (
-                            <tr key={song.title} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{song.title}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                <span className={`px-2 py-0.5 rounded-full text-xs ${
-                                  song.type === 'hymn' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-                                }`}>
-                                  {song.type === 'hymn' ? 'Hymn' : 'Contemporary'}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{song.count}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {song.lastUsed ? new Date(song.lastUsed).toLocaleDateString() : 'N/A'}
-                              </td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <p>No usage data available yet</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Seasonal Patterns */}
-              <div className="border rounded-lg p-4">
-                <h3 className="text-lg font-medium text-gray-800 mb-4">Seasonal Song Usage</h3>
-                {songAnalytics.seasonal.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {['Advent', 'Christmas', 'Lent', 'Easter', 'Pentecost', 'Ordinary Time'].map(season => {
-                      const seasonData = songAnalytics.seasonal.find(s => s.season === season);
-                      return (
-                        <div key={season} className="border rounded p-3">
-                          <h4 className="font-medium text-gray-700 mb-2">{season}</h4>
-                          {seasonData?.songs?.length > 0 ? (
-                            <ul className="text-sm space-y-1">
-                              {seasonData.songs.slice(0, 5).map(song => (
-                                <li key={song.title} className="flex justify-between">
-                                  <span className="text-gray-800">{song.title}</span>
-                                  <span className="text-gray-500">{song.count}x</span>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="text-sm text-gray-500">No data available</p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <p>No seasonal data available yet</p>
-                  </div>
-                )}
               </div>
             </div>
           )}
         </TabsContent>
+
+        {/* Rediscovery Tab */}
+        <TabsContent value="rediscovery" className="space-y-4">
+          <SongRediscoveryPanel />
+        </TabsContent>
+
+        <TabsContent value="reference" className="space-y-4">
+          <ReferenceSongPanel />
+        </TabsContent>
+
+        {/* Planning Guide Tab */}
+        <TabsContent value="planning" className="space-y-4">
+          <SeasonalPlanningGuide />
+        </TabsContent>
       </Tabs>
+
+      {/* Seasonal Tagging Tool Modal */}
+      {showTaggingTool && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h2 className="text-xl font-bold">Seasonal Song Tagging</h2>
+              <button 
+                onClick={() => setShowTaggingTool(false)}
+                className="p-1 rounded-full hover:bg-gray-100"
+              >
+                <XIcon className="w-5 h-5" />
+              </button>
+            </div>
+            <SeasonalTaggingTool />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

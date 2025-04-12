@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronDown, ChevronUp, Music2, UserCircle, BookOpen } from 'lucide-react';
 import ServiceSongSelector from './ServiceSongSelector';
+import { getLiturgicalInfoForService } from '../../lib/LiturgicalCalendarService.js';
 
 const MobileWorshipServiceCard = ({
   date,
@@ -69,11 +70,40 @@ const MobileWorshipServiceCard = ({
 
   const readings = getReadingSections();
 
+  // Add helper function for the season class
+  const getSeasonClass = () => {
+    try {
+      const info = getLiturgicalInfoForService(date);
+      if (!info || !info.season) return "ordinary_time";
+      return info.season.toLowerCase();
+    } catch (error) {
+      console.error('Error determining season:', error);
+      return "ordinary_time";
+    }
+  };
+
+  // Add helper function for special services
+  const isSpecialService = (title) => {
+    const specialTitles = [
+      'ash wednesday', 'palm sunday', 'maundy thursday', 'good friday', 
+      'easter', 'pentecost', 'reformation', 'all saints', 'thanksgiving',
+      'christmas eve', 'christmas day', 'epiphany', 'transfiguration',
+      'confirmation', 'baptism'
+    ];
+    
+    const lowerTitle = title.toLowerCase();
+    return specialTitles.some(special => lowerTitle.includes(special));
+  };
+
+  // Get the season information
+  const seasonClass = getSeasonClass();
+  const seasonInfo = serviceDetails?.liturgical;
+
   return (
     <div className="mb-4 rounded-lg overflow-hidden shadow-md bg-white">
-      {/* Card Header - Always visible */}
+      {/* Card Header - Always visible with seasonal styling */}
       <div 
-        className="flex items-center p-4 cursor-pointer"
+        className={`flex items-center p-4 cursor-pointer ${seasonClass ? `season-header-${seasonClass}` : ''} ${isSpecialService(title) ? 'special-service-header' : ''}`}
         onClick={() => onToggleExpand(date)}
       >
         {/* Service Info Column */}
@@ -95,7 +125,10 @@ const MobileWorshipServiceCard = ({
               <span className="text-xs text-gray-500">
                 {day}
               </span>
-              <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+              <span className={`text-xs px-2 py-0.5 rounded flex-shrink-0 ${serviceDetails?.type ?
+                'text-gray-600 bg-gray-100' :
+                'text-amber-700 bg-amber-50 border border-amber-200'
+              }`}>
                 {serviceType}
               </span>
             </div>

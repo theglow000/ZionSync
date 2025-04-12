@@ -1,8 +1,48 @@
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+/**
+ * Merge Tailwind CSS classes conditionally
+ */
 export function cn(...inputs) {
   return twMerge(clsx(inputs));
+}
+
+/**
+ * Format date to locale string
+ */
+export function formatDate(input) {
+  const date = input instanceof Date ? input : new Date(input);
+  return date.toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+/**
+ * Format a number as a currency
+ */
+export function formatCurrency(amount) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(amount);
+}
+
+/**
+ * Truncate text to specified length
+ */
+export function truncateText(text, length = 100) {
+  if (!text) return "";
+  return text.length > length ? `${text.substring(0, length)}...` : text;
+}
+
+/**
+ * Check if an item exists in an array
+ */
+export function arrayIncludes(array, item) {
+  return array?.includes(item) ?? false;
 }
 
 export function titleCase(str) {

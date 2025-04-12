@@ -30,7 +30,7 @@ export default function SongManagementPage() {
           </div>
         </div>
         
-        <h1 className="text-3xl font-bold text-purple-700 mb-8">Song Database Management</h1>
+        <h1 className="text-3xl font-bold text-purple-700 mb-8">Worship Planning</h1>
         
         <Card className="bg-white p-5 shadow-lg">
           <SongDatabase />

@@ -1,0 +1,402 @@
+/**
+ * Liturgical Themes CSS - Updated for standard Lutheran seasons
+ * Contains utility classes for liturgical season styling
+ */
+
+/* Season border colors - for indicators and accents */
+.season-border-advent {
+  border-color: #5D3FD3 !important; /* Deep Purple */
+}
+.season-border-christmas {
+  border-color: #D4AF37 !important; /* Gold */
+}
+.season-border-epiphany {
+  border-color: #008080 !important; /* Teal */
+}
+.season-border-lent {
+  border-color: #800020 !important; /* Burgundy */
+}
+.season-border-holy_week {
+  border-color: #8B0000 !important; /* Deep Red */
+}
+.season-border-easter {
+  border-color: #FFF0AA !important; /* Soft Gold */
+}
+.season-border-pentecost_day {
+  border-color: #FF3131 !important; /* Red */
+}
+.season-border-trinity {
+  border-color: #FFFFFF !important; /* White */
+}
+.season-border-ordinary_time {
+  border-color: #556B2F !important; /* Green */
+}
+.season-border-reformation {
+  border-color: #FF0000 !important; /* Red */
+}
+.season-border-all_saints {
+  border-color: #FFFFFF !important; /* White */
+}
+.season-border-christ_king {
+  border-color: #FFFFFF !important; /* White */
+}
+
+/* Season background colors - subtle versions for cards and headers */
+.season-bg-advent {
+  background-color: rgba(93, 63, 211, 0.1) !important; /* Deep Purple */
+}
+.season-bg-christmas {
+  background-color: rgba(212, 175, 55, 0.1) !important; /* Gold */
+}
+.season-bg-epiphany {
+  background-color: rgba(0, 128, 128, 0.1) !important; /* Teal */
+}
+.season-bg-lent {
+  background-color: rgba(128, 0, 32, 0.1) !important; /* Burgundy */
+}
+.season-bg-holy_week {
+  background-color: rgba(139, 0, 0, 0.1) !important; /* Deep Red */
+}
+.season-bg-easter {
+  background-color: rgba(255, 240, 170, 0.15) !important; /* Soft Gold */
+}
+.season-bg-pentecost_day {
+  background-color: rgba(255, 49, 49, 0.1) !important; /* Red */
+}
+.season-bg-trinity {
+  background-color: rgba(255, 255, 255, 0.2) !important; /* White with overlay */
+}
+.season-bg-ordinary_time {
+  background-color: rgba(85, 107, 47, 0.1) !important; /* Green */
+}
+.season-bg-reformation {
+  background-color: rgba(255, 0, 0, 0.1) !important; /* Red */
+}
+.season-bg-all_saints {
+  background-color: rgba(255, 255, 255, 0.2) !important; /* White with overlay */
+}
+.season-bg-christ_king {
+  background-color: rgba(255, 255, 255, 0.2) !important; /* White with overlay */
+}
+
+/* Season text colors - for text that needs seasonal coloring */
+.season-text-advent {
+  color: #5D3FD3 !important; /* Deep Purple */
+}
+.season-text-christmas {
+  color: #D4AF37 !important; /* Gold */
+}
+.season-text-epiphany {
+  color: #008080 !important; /* Teal */
+}
+.season-text-lent {
+  color: #800020 !important; /* Burgundy */
+}
+.season-text-holy_week {
+  color: #8B0000 !important; /* Deep Red */
+}
+.season-text-easter {
+  color: #BBA52F !important; /* Darker Gold for readability */
+}
+.season-text-pentecost_day {
+  color: #FF3131 !important; /* Red */
+}
+.season-text-trinity {
+  color: #626262 !important; /* Dark gray for white season */
+}
+.season-text-ordinary_time {
+  color: #556B2F !important; /* Green */
+}
+.season-text-reformation {
+  color: #FF0000 !important; /* Red */
+}
+.season-text-all_saints {
+  color: #626262 !important; /* Dark gray for white season */
+}
+.season-text-christ_king {
+  color: #626262 !important; /* Dark gray for white season */
+}
+
+/* Season indicator dot style */
+.season-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+
+/* Season indicator colors */
+.season-indicator-advent {
+  background-color: #5D3FD3; /* Deep Purple */
+}
+.season-indicator-christmas {
+  background-color: #D4AF37; /* Gold */
+}
+.season-indicator-epiphany {
+  background-color: #008080; /* Teal */
+}
+.season-indicator-lent {
+  background-color: #800020; /* Burgundy */
+}
+.season-indicator-holy_week {
+  background-color: #8B0000; /* Deep Red */
+}
+.season-indicator-easter {
+  background-color: #FFF0AA; /* Soft Gold */
+  border: 1px solid #D4AF37; /* Add border for visibility */
+}
+.season-indicator-pentecost_day {
+  background-color: #FF3131; /* Red */
+}
+.season-indicator-trinity {
+  background-color: #FFFFFF; /* White */
+  border: 1px solid #626262; /* Border for white indicator */
+}
+.season-indicator-ordinary_time {
+  background-color: #556B2F; /* Green */
+}
+.season-indicator-reformation {
+  background-color: #FF0000; /* Red */
+}
+.season-indicator-all_saints {
+  background-color: #FFFFFF; /* White */
+  border: 1px solid #626262; /* Border for white indicator */
+}
+.season-indicator-christ_king {
+  background-color: #FFFFFF; /* White */
+  border: 1px solid #626262; /* Border for white indicator */
+}
+
+/* Service header seasonal styling */
+.service-header-seasonal {
+  position: relative;
+  overflow: hidden;
+}
+
+.service-header-seasonal::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  z-index: 1;
+}
+
+.service-header-advent::before { background-color: #5D3FD3; }
+.service-header-christmas::before { background-color: #D4AF37; }
+.service-header-epiphany::before { background-color: #008080; }
+.service-header-lent::before { background-color: #800020; }
+.service-header-holy_week::before { background-color: #8B0000; }
+.service-header-easter::before { background-color: #FFF0AA; }
+.service-header-pentecost_day::before { background-color: #FF3131; }
+.service-header-trinity::before { background-color: #FFFFFF; }
+.service-header-ordinary_time::before { background-color: #556B2F; }
+.service-header-reformation::before { background-color: #FF0000; }
+.service-header-all_saints::before { background-color: #FFFFFF; }
+.service-header-christ_king::before { background-color: #FFFFFF; }
+
+/* Season pill - shows season name in a nice pill */
+.season-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Media query for responsive adjustments */
+@media (max-width: 640px) {
+  .season-pill {
+    padding: 1px 6px;
+    font-size: 0.7rem;
+  }
+  
+  .season-indicator {
+    width: 10px;
+    height: 10px;
+    margin-right: 4px;
+  }
+}
+
+/* Season header styling - full background with gradient */
+.season-header-ADVENT {
+  background: linear-gradient(90deg, rgba(63,81,181,0.15) 0%, rgba(63,81,181,0.05) 100%) !important;
+  border-left: 4px solid #3F51B5 !important; /* Deeper blue for Advent */
+  border-radius: 0.375rem;
+}
+
+.season-header-CHRISTMAS {
+  background: linear-gradient(90deg, rgba(212,175,55,0.15) 0%, rgba(212,175,55,0.05) 100%) !important;
+  border-left: 4px solid #D4AF37 !important; /* Gold */
+}
+
+.season-header-EPIPHANY {
+  background: linear-gradient(90deg, rgba(0,128,100,0.15) 0%, rgba(0,128,100,0.05) 100%) !important;
+  border-left: 4px solid #008064 !important; /* Deeper green/teal */
+}
+
+.season-header-LENT {
+  background: linear-gradient(90deg, rgba(102,0,51,0.15) 0%, rgba(102,0,51,0.05) 100%) !important;
+  border-left: 4px solid #660033 !important; /* Deep purple/burgundy */
+}
+
+.season-header-HOLY_WEEK {
+  background: linear-gradient(90deg, rgba(153,0,0,0.15) 0%, rgba(153,0,0,0.05) 100%) !important;
+  border-left: 4px solid #990000 !important; /* Scarlet red */
+}
+
+.season-header-EASTER {
+  background: linear-gradient(90deg, rgba(255,223,0,0.15) 0%, rgba(255,223,0,0.05) 100%) !important;
+  border-left: 4px solid #FFDF00 !important; /* Bright gold */
+}
+
+.season-header-PENTECOST_DAY {
+  background: linear-gradient(90deg, rgba(255,0,0,0.15) 0%, rgba(255,0,0,0.05) 100%) !important;
+  border-left: 4px solid #FF0000 !important; /* Bright red */
+}
+
+.season-header-TRINITY {
+  background: linear-gradient(90deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.1) 100%) !important;
+  border-left: 4px solid #FFFFFF !important; /* White with border */
+  box-shadow: -1px 0 0 0 rgba(0,0,0,0.2) !important;
+}
+
+.season-header-ORDINARY_TIME {
+  background: linear-gradient(90deg, rgba(34,139,34,0.15) 0%, rgba(34,139,34,0.05) 100%) !important;
+  border-left: 4px solid #228B22 !important; /* Forest green */
+}
+
+.season-header-REFORMATION {
+  background: linear-gradient(90deg, rgba(255,0,0,0.15) 0%, rgba(255,0,0,0.05) 100%) !important;
+  border-left: 4px solid #FF0000 !important; /* Red */
+}
+
+.season-header-ALL_SAINTS {
+  background: linear-gradient(90deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.1) 100%) !important;
+  border-left: 4px solid #FFFFFF !important; /* White */
+  box-shadow: -1px 0 0 0 rgba(0,0,0,0.2) !important;
+}
+
+/* Default for unknown seasons */
+.season-header-UNKNOWN {
+  border-left: 4px solid #888888; /* Gray */
+  background: linear-gradient(90deg, rgba(136,136,136,0.08) 0%, rgba(136,136,136,0.02) 100%);
+}
+
+/* Enhanced special service styling - make them really stand out */
+.special-service-header {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important;
+  z-index: 1;
+}
+
+/* Add a subtle texture/sparkle effect */
+.special-service-header::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.15'%3E%3Cpath d='M10 0l1.5 5h5L12 8l1.5 5-4.5-3-4.5 3L6 8 1.5 5h5z'/%3E%3C/g%3E%3C/svg%3E");
+  z-index: -1;
+  opacity: 0.5;
+}
+
+/* Animated sparkle effect */
+.special-service-header::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(circle at 20% 20%, rgba(255,255,255,0.8) 0%, transparent 8%),
+    radial-gradient(circle at 80% 30%, rgba(255,255,255,0.7) 0%, transparent 6%),
+    radial-gradient(circle at 40% 70%, rgba(255,255,255,0.6) 0%, transparent 7%),
+    radial-gradient(circle at 70% 90%, rgba(255,255,255,0.7) 0%, transparent 5%);
+  z-index: -1;
+  animation: sparkle 6s infinite ease-in-out;
+  opacity: 0.7;
+}
+
+@keyframes sparkle {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.7; }
+}
+
+/* Major feast day specific styles with more intensity */
+.special-service-ash-wednesday {
+  background: linear-gradient(90deg, rgba(102,0,51,0.25) 0%, rgba(102,0,51,0.1) 100%) !important;
+  border-left: 4px solid #660033 !important;
+}
+
+.special-service-holy-week {
+  background: linear-gradient(90deg, rgba(153,0,0,0.25) 0%, rgba(153,0,0,0.1) 100%) !important;
+  border-left: 4px solid #990000 !important;
+}
+
+.special-service-easter {
+  background: linear-gradient(90deg, rgba(255,223,0,0.25) 0%, rgba(255,223,0,0.1) 100%) !important;
+  border-left: 4px solid #FFDF00 !important;
+}
+
+.special-service-pentecost {
+  background: linear-gradient(90deg, rgba(255,0,0,0.25) 0%, rgba(255,0,0,0.1) 100%) !important;
+  border-left: 4px solid #FF0000 !important;
+}
+
+.special-service-christmas {
+  background: linear-gradient(90deg, rgba(212,175,55,0.25) 0%, rgba(212,175,55,0.1) 100%) !important;
+  border-left: 4px solid #D4AF37 !important;
+}
+
+.special-service-reformation {
+  background: linear-gradient(90deg, rgba(255,0,0,0.25) 0%, rgba(255,0,0,0.1) 100%) !important;
+  border-left: 4px solid #FF0000 !important;
+}
+
+.special-service-all-saints {
+  background: linear-gradient(90deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.15) 100%) !important;
+  border-left: 4px solid #FFFFFF !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15), -1px 0 0 0 rgba(0,0,0,0.2) !important;
+}
+
+/* Default for unknown seasons */
+.season-header-unknown {
+  border-left: 4px solid #888888; /* Gray */
+  background: linear-gradient(90deg, rgba(136,136,136,0.08) 0%, rgba(136,136,136,0.02) 100%);
+}
+
+/* For special services - use a subtle pulsar animation */
+@keyframes subtle-pulse {
+  0% { opacity: 0.08; }
+  50% { opacity: 0.15; }
+  100% { opacity: 0.08; }
+}
+
+.special-service-header {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(107, 114, 128, 0.15);
+}
+
+.special-service-header::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background-color: currentColor;
+  opacity: 0.08;
+  animation: subtle-pulse 3s infinite;
+  z-index: -1;
+}

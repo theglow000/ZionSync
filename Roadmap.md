@@ -29,9 +29,23 @@ Rule 4: When providing code solutions, always format them as properly structured
 ## Priority 3: Team Communication
 1. **Messaging and Alerts**
    - In-app messaging
-   - Team notifications
+     - Team-specific message channels (Worship, AV, Presentation)
+     - Service-specific discussion threads
+     - Direct messaging between team members
+     - Message history and search functionality
+   - Smart notification system
+     - Tiered notification hierarchy (high/medium/low priority)
+     - User-configurable notification preferences
+     - Context-aware alerts (assigned services, mentions)
+     - Notification delivery options (in-app, email)
    - Service change alerts
+     - Real-time updates for service modifications
+     - Visual indicators for services with new messages
+     - Change history and tracking
    - Task assignments
+     - Assignable action items with deadlines
+     - Task status tracking and completion notifications
+     - Integration with service scheduling
 
 2. **Resource Management**
    - File attachment support

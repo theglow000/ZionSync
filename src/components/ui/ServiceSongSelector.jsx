@@ -3,6 +3,8 @@ import { ChevronDown, ChevronUp, Music, Youtube, Link, BookOpen, AlertCircle, Ed
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import SongSection from './SongSection';
 import Logger from '@/utils/logger'
+import { getSeasonForDate } from '../../lib/LiturgicalCalendarService';
+import { LITURGICAL_SEASONS, MAJOR_FEAST_DAYS } from '../../lib/LiturgicalSeasons.js';
 
 // Constants
 const hymnalVersions = [
@@ -94,13 +96,13 @@ const recordSongUsage = async (songs, date, serviceType, currentUser) => {
         // First check if this song+date combination already exists
         const checkResponse = await fetch(`/api/song-usage/check?title=${encodeURIComponent(song.title)}&date=${encodeURIComponent(date)}`);
         const checkResult = await checkResponse.json();
-        
+
         // If this song is already recorded for this date, skip it
         if (checkResult.exists) {
           console.log(`Song "${song.title}" already recorded for ${date}, skipping`);
           continue;
         }
-        
+
         // Add new usage record
         await fetch('/api/song-usage', {
           method: 'POST',
@@ -120,7 +122,7 @@ const recordSongUsage = async (songs, date, serviceType, currentUser) => {
             notes: song.notes
           })
         });
-        
+
         console.log(`Successfully recorded usage for "${song.title}" on ${date}`);
       } catch (songError) {
         console.error(`Error recording song "${song.title}":`, songError);
@@ -137,7 +139,7 @@ const useDebouncedSongSearch = (type, availableSongs, onSongFound) => {
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (searchTerm && searchTerm.length >= 2) { // Only search after 2 characters
+      if (searchTerm && searchTerm.length >= 2) { // Only search after  characters
         const songs = type === 'hymn' ? availableSongs?.hymn : availableSongs?.contemporary;
         // Improve matching to include partial matches
         const matches = songs?.filter(song =>
@@ -180,12 +182,12 @@ const cleanSongSelections = (selections) => {
 // Add near other helper functions
 const isValidSongData = (song) => {
   if (!song) return false;
-  
+
   // For hymns, require at least title and number
   if (song.type === 'hymn') {
     return Boolean(song.title && song.number);
   }
-  
+
   // For contemporary songs, require at least title
   return Boolean(song.title);
 };
@@ -196,22 +198,22 @@ const checkForMissingLinks = (songSelections) => {
     .filter(song => song?.title) // Only check songs with titles
     .map(song => {
       const missingLinks = [];
-      
+
       if (song.type === 'hymn') {
         if (!song.sheetMusic) missingLinks.push('Hymnary.org');
       } else { // Contemporary
         if (!song.sheetMusic) missingLinks.push('SongSelect');
       }
-      
+
       if (!song.youtube) missingLinks.push('YouTube');
-      
+
       return {
         title: song.title,
         missingLinks
       };
     })
     .filter(result => result.missingLinks.length > 0);
-  
+
   return songsWithMissingLinks;
 };
 
@@ -468,23 +470,23 @@ const ServiceSongSelector = ({
   };
 
   // Update the formatSongDisplay function
-const formatSongDisplay = (song) => {
-  if (!song?.title) return null;
-  
-  // Preserve the original label from the element content
-  const prefix = song.content?.split(':')[0] || 'Song';
-  
-  // Format based on song type
-  let songDetails;
-  if (song.type === 'hymn') {
-    songDetails = `${song.title} #${song.number} (${formatHymnalName(song.hymnal)})`;
-  } else {
-    // Contemporary song
-    songDetails = song.author ? `${song.title} - ${song.author}` : song.title;
-  }
-  
-  return `${prefix}: ${songDetails}`;
-};
+  const formatSongDisplay = (song) => {
+    if (!song?.title) return null;
+
+    // Preserve the original label from the element content
+    const prefix = song.content?.split(':')[0] || 'Song';
+
+    // Format based on song type
+    let songDetails;
+    if (song.type === 'hymn') {
+      songDetails = `${song.title} #${song.number} (${formatHymnalName(song.hymnal)})`;
+    } else {
+      // Contemporary song
+      songDetails = song.author ? `${song.title} - ${song.author}` : song.title;
+    }
+
+    return `${prefix}: ${songDetails}`;
+  };
 
   // Handle form submission
   // Update the handleSubmit function to include duplicate song checking
@@ -509,7 +511,7 @@ const formatSongDisplay = (song) => {
           return; // Exit without saving if user cancels
         }
       }
-      
+
       // Add missing links check
       const songsWithMissingLinks = checkForMissingLinks(songSelections);
       if (songsWithMissingLinks.length > 0) {
@@ -528,7 +530,7 @@ const formatSongDisplay = (song) => {
       // Add this section to save songs to the songs collection
       await Promise.all(songSelections.map(async (song) => {
         if (!isValidSongData(song)) return;
-        
+
         try {
           await fetch('/api/songs', {
             method: 'POST',
@@ -572,7 +574,7 @@ const formatSongDisplay = (song) => {
       // FIXED: Update how we access service details
       // First check if serviceDetails is an object with date keys or if it's already the data for this date
       const serviceDetailsForDate = serviceDetails[date] || serviceDetails;
-      
+
       // Now check if we have elements
       if (!serviceDetailsForDate?.elements) {
         console.error('Service details structure:', serviceDetails);
@@ -592,7 +594,7 @@ const formatSongDisplay = (song) => {
             // Format song details based on type
             const songDetails = matchingSong.type === 'hymn'
               ? `${matchingSong.title} #${matchingSong.number} (${formatHymnalName(matchingSong.hymnal)})`
-              : matchingSong.author 
+              : matchingSong.author
                 ? `${matchingSong.title} - ${matchingSong.author}`
                 : matchingSong.title;
 
@@ -611,7 +613,7 @@ const formatSongDisplay = (song) => {
               content: `${prefix}: ${songDetails}`
             };
           }
-          
+
           return {
             ...element,
             selection: null,
@@ -676,6 +678,58 @@ const formatSongDisplay = (song) => {
   // Add this before the return statement - define readings variable
   const readings = getReadingSections(serviceDetails);
 
+  // Add this helper function to the component (before the return statement)
+  const getSeasonInfo = (dateString) => {
+    // First check if we already have season info from serviceDetails
+    if (serviceDetails?.liturgical) {
+      return {
+        seasonName: serviceDetails.liturgical.seasonName || "Ordinary Time",
+        seasonColor: serviceDetails.liturgical.color || "#556B2F",
+        specialDay: serviceDetails.liturgical.specialDay
+      };
+    }
+    
+    // If header is provided, extract season from header class
+    if (header) {
+      const seasonClass = header?.props?.className?.match(/season-header-(\w+)/)?.[1];
+      
+      if (seasonClass) {
+        // Convert CSS class to proper season format (e.g., "advent" to "ADVENT")
+        const seasonId = seasonClass.toUpperCase();
+        const season = LITURGICAL_SEASONS[seasonId];
+        
+        if (season) {
+          return {
+            seasonName: season.name,
+            seasonColor: season.color,
+            specialDay: null
+          };
+        }
+      }
+    }
+    
+    // If we couldn't get season info from other sources, get it from the date
+    try {
+      const info = getLiturgicalInfoForService(dateString);
+      if (info) {
+        return {
+          seasonName: info.seasonName,
+          seasonColor: info.seasonColor,
+          specialDay: info.specialDay
+        };
+      }
+    } catch (error) {
+      console.error("Error getting liturgical info:", error);
+    }
+    
+    // Default fallback
+    return {
+      seasonName: "Ordinary Time",
+      seasonColor: "#556B2F",
+      specialDay: null
+    };
+  };
+
   return (
     <div className="border rounded-lg shadow-sm bg-white flex flex-col relative"> {/* Add relative */}
       {showAlert && (
@@ -699,76 +753,92 @@ const formatSongDisplay = (song) => {
 
       {/* Only show this header if not in mobile mode or if no header is provided */}
       {!isMobile && (
-        <div className={getWeekClasses(date)}>
+        header ? (
+          // Use the header directly with all its styling classes intact
+          header
+        ) : (
+          // Default header if none provided
           <div className="flex items-center justify-between w-full">
-            {header ? (
-              <div className="w-full">{header}</div>
-            ) : (
-              // Properly structure this section that had closing tag issues
-              <div className="flex items-center justify-between w-full">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-medium text-black truncate">
-                      {dates?.find(d => d.date === date)?.title || 'Service Title'}
-                    </h3>
-                    {serviceDetails?.type ? (
-                      <span className="text-xs px-2 py-0.5 rounded flex-shrink-0 text-gray-600 bg-gray-100">
-                        {serviceDetails.type === 'communion' ? 'Communion' :
-                          serviceDetails.type === 'communion_potluck' ? 'Communion & Potluck' :
-                            serviceDetails.type === 'no_communion' ? 'No Communion' :
-                              (serviceDetails.type.startsWith('service_') && customServices?.find(s => s.id === serviceDetails.type)?.name) ||
-                              serviceDetails.name ||
-                              'Custom Service'}
-                      </span>
-                    ) : (
-                      <span className="text-xs px-2 py-0.5 rounded flex-shrink-0 text-amber-600 bg-amber-50 flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" />
-                        Awaiting Pastor Input
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-gray-600">{date}</div>
-                </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="font-medium text-black truncate">
+                  {dates?.find(d => d.date === date)?.title || 'Service Title'}
+                </h3>
+                {serviceDetails?.type ? (
+                  <span className="text-xs px-2 py-0.5 rounded flex-shrink-0 text-gray-600 bg-gray-100">
+                    {serviceDetails.type === 'communion' ? 'Communion' :
+                      serviceDetails.type === 'communion_potluck' ? 'Communion & Potluck' :
+                        serviceDetails.type === 'no_communion' ? 'No Communion' :
+                          (serviceDetails.type.startsWith('service_') && customServices?.find(s => s.id === serviceDetails.type)?.name) ||
+                          serviceDetails.name ||
+                          'Custom Service'}
+                  </span>
+                ) : (
+                  <span className="text-xs px-2 py-0.5 rounded flex-shrink-0 text-amber-600 bg-amber-50 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    Awaiting Pastor Input
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-gray-600">{date}</div>
+            </div>
 
-                <div className="flex items-center gap-4 flex-shrink-0 ml-4">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="flex items-center gap-1 bg-purple-100 rounded px-2 py-0.5 cursor-pointer hover:bg-purple-200"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (onEditTeam) {
-                          onEditTeam(date); // Pass the date when calling onEditTeam
-                        }
-                      }}
-                    >
-                      <span className="text-xs text-purple-700">
-                        {team || 'No team assigned'}
-                      </span>
-                      <Edit2 className="w-3 h-3 flex-shrink-0 text-purple-700" />
-                    </div>
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleExpand(date);
-                    }}
-                    className="ml-2"
-                  >
-                    {expanded ?
-                      <ChevronUp className="w-5 h-5 text-purple-700" /> :
-                      <ChevronDown className="w-5 h-5 text-purple-700" />
+            <div className="flex items-center gap-4 flex-shrink-0 ml-4">
+              <div className="flex items-center gap-2">
+                <div
+                  className="flex items-center gap-1 bg-purple-100 rounded px-2 py-0.5 cursor-pointer hover:bg-purple-200"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onEditTeam) {
+                      onEditTeam(date); // Pass the date when calling onEditTeam
                     }
-                  </button>
+                  }}
+                >
+                  <span className="text-xs text-purple-700">
+                    {team || 'No team assigned'}
+                  </span>
+                  <Edit2 className="w-3 h-3 flex-shrink-0 text-purple-700" />
                 </div>
               </div>
-            )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleExpand(date);
+                }}
+                className="ml-2"
+              >
+                {expanded ?
+                  <ChevronUp className="w-5 h-5 text-purple-700" /> :
+                  <ChevronDown className="w-5 h-5 text-purple-700" />
+                }
+              </button>
+            </div>
           </div>
-        </div>
+        )
       )}
 
       {expanded && (
         <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-3'} gap-4 p-3 overflow-y-auto`}>
-          {/* Readings Section - For mobile, make it collapsible */}
+          {/* Season indicator */}
+          <div className="col-span-full mb-2">
+            {(() => {
+              const seasonInfo = getSeasonInfo(date);
+              return (
+                <div className="flex items-center gap-2 text-sm">
+                  <div 
+                    className="w-3 h-3 rounded-full" 
+                    style={{backgroundColor: seasonInfo.seasonColor}}
+                  ></div>
+                  <span className="font-medium">{seasonInfo.seasonName}</span>
+                  {seasonInfo.specialDay && (
+                    <span className="text-gray-600 ml-1">• {MAJOR_FEAST_DAYS[seasonInfo.specialDay]?.name}</span>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Rest of existing content */}
           {(!isMobile || (isMobile && readings.length > 0)) && (
             <div className={`${isMobile ? 'col-span-1' : 'col-span-1'} flex flex-col h-full`}>
               {isMobile ? (
@@ -877,7 +947,7 @@ const formatSongDisplay = (song) => {
               )}
             </div>
           )}
-          
+
           {/* Song selection area - full width on mobile */}
           <div className={`${isMobile ? 'col-span-1' : 'col-span-2'}`}>
             <form ref={formRef} onSubmit={handleSubmit} className="space-y-2">

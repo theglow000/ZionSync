@@ -2,11 +2,32 @@ import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const recent = searchParams.get('recent') === 'true';
+    const months = parseInt(searchParams.get('months') || '3'); // Default to 3 months for recent
+    
     const client = await clientPromise;
     const db = client.db("church");
-    const songs = await db.collection("songs").find({}).toArray();
+    
+    let query = {};
+    
+    // If requesting recent songs, filter by creation date
+    if (recent) {
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - months);
+      
+      query = {
+        created: { $gte: startDate }
+      };
+    }
+    
+    const songs = await db.collection("songs")
+      .find(query)
+      .sort({ created: -1 })
+      .toArray();
+      
     return NextResponse.json(songs);
   } catch (e) {
     console.error('Error in GET /api/songs:', e);
@@ -26,6 +47,10 @@ export async function POST(request) {
       type: body.type, // 'hymn' or 'contemporary'
       notes: body.notes || '',
       youtubeLink: body.youtubeLink || '',
+      // Add seasonal tags array
+      seasonalTags: body.seasonalTags || [],
+      // Add confidence score for auto-tagging
+      seasonalTagsConfidence: body.seasonalTagsConfidence || {},
 
       // Hymn-specific fields
       ...(body.type === 'hymn' ? {

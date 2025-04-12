@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
+import { getLiturgicalInfo } from '@/lib/LiturgicalCalendarService';
 
 export async function GET(request) {
   try {
@@ -22,15 +23,45 @@ export async function GET(request) {
           { $set: { elements: details.elements } }
         );
       }
+      
+      // Add liturgical information if not already present
+      if (details && !details.liturgical) {
+        // Parse date string to Date object (assuming format M/D/YY)
+        // For example: 1/5/25 -> January 5, 2025
+        const [month, day, yearShort] = date.split('/').map(num => parseInt(num, 10));
+        // Convert 2-digit year to 4-digit (assuming 20xx for years less than 50)
+        const fullYear = yearShort < 50 ? 2000 + yearShort : 1900 + yearShort;
+        const serviceDate = new Date(fullYear, month - 1, day); // month is 0-indexed in JS Date
+        
+        // Get liturgical information using our service
+        const liturgicalInfo = getLiturgicalInfo(serviceDate);
+        
+        // Add liturgical information to the details
+        details.liturgical = {
+          season: liturgicalInfo.seasonId,
+          seasonName: liturgicalInfo.season.name,
+          color: liturgicalInfo.color,
+          specialDay: liturgicalInfo.specialDayId,
+          specialDayName: liturgicalInfo.specialDay?.name || null
+        };
+        
+        // Save liturgical info back to database
+        await db.collection("serviceDetails").updateOne(
+          { date },
+          { $set: { liturgical: details.liturgical } }
+        );
+      }
+      
       console.log('Single service details:', {
         date,
         content: details?.content?.substring(0, 50) + '...',
-        elementCount: details?.elements?.length
+        elementCount: details?.elements?.length,
+        liturgical: details?.liturgical
       });
       return NextResponse.json(details || null);
     } else {
       details = await db.collection("serviceDetails").find({}).toArray();
-      // Parse any documents that have content but no elements
+      // Process each document
       for (let detail of details) {
         if (detail.content && !detail.elements) {
           detail.elements = parseServiceContent(detail.content);
@@ -40,11 +71,40 @@ export async function GET(request) {
             { $set: { elements: detail.elements } }
           );
         }
+        
+        // Add liturgical information if not already present
+        if (!detail.liturgical) {
+          // Parse date string to Date object (assuming format M/D/YY)
+          const [month, day, yearShort] = detail.date.split('/').map(num => parseInt(num, 10));
+          // Convert 2-digit year to 4-digit
+          const fullYear = yearShort < 50 ? 2000 + yearShort : 1900 + yearShort;
+          const serviceDate = new Date(fullYear, month - 1, day);
+          
+          // Get liturgical information using our service
+          const liturgicalInfo = getLiturgicalInfo(serviceDate);
+          
+          // Add liturgical information to the details
+          detail.liturgical = {
+            season: liturgicalInfo.seasonId,
+            seasonName: liturgicalInfo.season.name,
+            color: liturgicalInfo.color,
+            specialDay: liturgicalInfo.specialDayId,
+            specialDayName: liturgicalInfo.specialDay?.name || null
+          };
+          
+          // Save liturgical info back to database
+          await db.collection("serviceDetails").updateOne(
+            { date: detail.date },
+            { $set: { liturgical: detail.liturgical } }
+          );
+        }
       }
+      
       console.log('All service details:', details.map(d => ({
         date: d.date,
         hasContent: !!d.content,
-        elementCount: d.elements?.length
+        elementCount: d.elements?.length,
+        liturgical: !!d.liturgical
       })));
       return NextResponse.json(details);
     }
@@ -54,12 +114,12 @@ export async function GET(request) {
   }
 }
 
-// Update the parseServiceContent function to match
+// Existing parseServiceContent function
 const parseServiceContent = (content) => {
   return content.split('\n').map(line => {
     let type = 'liturgy';
     const lowerLine = line.toLowerCase().trim();
-    
+
     // Reading detection
     if (lowerLine.includes('reading:') ||
         lowerLine.includes('lesson:') ||
@@ -116,6 +176,27 @@ export async function POST(request) {
 
     const client = await clientPromise;
     const db = client.db("church");
+    
+    // Add liturgical information to the POST data
+    if (!body.liturgical) {
+      // Parse date string to Date object (assuming format M/D/YY)
+      const [month, day, yearShort] = body.date.split('/').map(num => parseInt(num, 10));
+      // Convert 2-digit year to 4-digit
+      const fullYear = yearShort < 50 ? 2000 + yearShort : 1900 + yearShort;
+      const serviceDate = new Date(fullYear, month - 1, day);
+      
+      // Get liturgical information using our service
+      const liturgicalInfo = getLiturgicalInfo(serviceDate);
+      
+      // Add liturgical information to the body
+      body.liturgical = {
+        season: liturgicalInfo.seasonId,
+        seasonName: liturgicalInfo.season.name,
+        color: liturgicalInfo.color,
+        specialDay: liturgicalInfo.specialDayId,
+        specialDayName: liturgicalInfo.specialDay?.name || null
+      };
+    }
 
     const updateDoc = {
       date: body.date,
@@ -123,6 +204,7 @@ export async function POST(request) {
       type: body.type,
       setting: body.setting,
       elements: body.elements,
+      liturgical: body.liturgical,
       lastUpdated: new Date().toISOString()
     };
 
@@ -147,6 +229,7 @@ export async function POST(request) {
 }
 
 export async function DELETE(request) {
+  // Existing DELETE method remains unchanged
   try {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date');
