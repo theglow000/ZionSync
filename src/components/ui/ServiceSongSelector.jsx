@@ -494,9 +494,10 @@ const ServiceSongSelector = ({
     e.preventDefault();
     setIsSaving(true);
 
-    try {
-      // Check for duplicate songs before saving
-      const songSelections = Object.values(serviceSongStates);
+    try {      // Check for duplicate songs before saving
+      // FIXED: Create ordered array that preserves song slot positions
+      const requiredSongSections = getRequiredSongSections(serviceDetails[date] || serviceDetails);
+      const songSelections = requiredSongSections.map(section => serviceSongStates[section.id]).filter(song => song);
       const duplicates = await checkForDuplicateSongs(songSelections, date);
 
       if (duplicates.length > 0) {
