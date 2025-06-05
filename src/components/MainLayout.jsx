@@ -89,19 +89,62 @@ const TabInitializer = ({ setActiveTab, setShowSplash }) => {
 
 const MainLayout = () => {
   const [showSplash, setShowSplash] = useState(true);
-  const [activeTab, setActiveTab] = useState('presentation');
-  const [serviceDetails, setServiceDetails] = useState({});
+  const [activeTab, setActiveTab] = useState('presentation');  const [serviceDetails, setServiceDetails] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const { isMobile } = useResponsive();
-
   // Add this useEffect to fetch service details
   useEffect(() => {
+    // Track if the component is mounted
+    let isMounted = true;
+    // Track active timeouts to clear them if needed
+    let retryTimeoutId = null;
+    let fetchTimeoutId = null;
+    
     const fetchServiceDetails = async () => {
+      // Clear any existing retry timeout
+      if (retryTimeoutId) {
+        clearTimeout(retryTimeoutId);
+        retryTimeoutId = null;
+      }
+      
+      // Only proceed if component is still mounted
+      if (!isMounted) return;
+      
+      const controller = new AbortController();
+      
       try {
-        const response = await fetch('/api/service-details');
-        if (!response.ok) throw new Error('Failed to fetch service details');    
+        // Set a timeout that's slightly longer than the fetch timeout
+        fetchTimeoutId = setTimeout(() => {
+          if (isMounted) {
+            controller.abort();
+          }
+        }, 8000); // 8 second timeout
+        
+        const response = await fetch('/api/service-details', { 
+          signal: controller.signal,
+          // Add cache control to prevent stale data
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
+        
+        // Clear the fetch timeout as the request completed
+        clearTimeout(fetchTimeoutId);
+        fetchTimeoutId = null;
+        
+        // Only proceed if component is still mounted
+        if (!isMounted) return;
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch service details: ${response.status} ${response.statusText}`);
+        }
+        
         const data = await response.json();
 
+        // Only proceed if component is still mounted
+        if (!isMounted) return;
+        
         // Convert array to object with date keys
         const detailsObj = {};
         data.forEach(detail => {
@@ -111,19 +154,46 @@ const MainLayout = () => {
         });
 
         setServiceDetails(detailsObj);
-      } catch (error) {
-        console.error('Error fetching service details:', error);
-      } finally {
         setIsLoading(false);
+      } catch (error) {
+        // Only handle errors if component is still mounted
+        if (!isMounted) return;
+        
+        console.error('Error fetching service details:', error);
+        
+        if (error.name === 'AbortError') {
+          console.log('Request timed out, retrying in 5 seconds...');
+          retryTimeoutId = setTimeout(() => {
+            if (isMounted) {
+              fetchServiceDetails();
+            }
+          }, 5000);
+        } else {
+          // For non-abort errors, set loading to false
+          setIsLoading(false);
+        }
       }
     };
 
+    // Initial fetch
     fetchServiceDetails();
 
-    // Optional: Set up polling to keep data fresh
-    const intervalId = setInterval(fetchServiceDetails, 30000); // Poll every 30 seconds
-
-    return () => clearInterval(intervalId);
+    // Set up polling to keep data fresh, but with a longer interval
+    const pollingIntervalId = setInterval(() => {
+      if (isMounted) {
+        fetchServiceDetails();
+      }
+    }, 60000); // Poll every 60 seconds instead of 30 to reduce server load
+    
+    // Cleanup function to handle component unmounting
+    return () => {
+      isMounted = false;
+      
+      // Clear all timeouts and intervals
+      if (fetchTimeoutId) clearTimeout(fetchTimeoutId);
+      if (retryTimeoutId) clearTimeout(retryTimeoutId);
+      clearInterval(pollingIntervalId);
+    };
   }, []);
 
   const tabs = [

@@ -296,18 +296,18 @@ const ServiceSongSelector = ({
       serviceDetails,
       elements: serviceDetails?.elements,
     });
-  }, [date, serviceDetails]);
-
-  const handleSongStateUpdate = useCallback((slot, newState) => {
+  }, [date, serviceDetails]);  const handleSongStateUpdate = useCallback((slot, newState) => {
     setServiceSongStates(prev => {
-      // Create a clean state object with only valid slots
+      // Create a clean state object preserving all existing valid song slots
       const cleanState = {};
-      for (let i = 0; i < 3; i++) {
-        const validSlot = `song_${i}`;
-        if (prev[validSlot]) {
-          cleanState[validSlot] = prev[validSlot];
+      const songSlotRegex = /^song_\d+$/;
+      
+      // Keep all existing slots that follow the song pattern
+      Object.keys(prev).forEach(key => {
+        if (songSlotRegex.test(key) && prev[key]) {
+          cleanState[key] = prev[key];
         }
-      }
+      });
 
       // Add new state
       return {

@@ -181,60 +181,117 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
         if (!response.ok) throw new Error('Failed to fetch service details');
         const data = await response.json();
 
-        if (isSubscribed) {
-          setServiceDetails(prev => {
+        if (isSubscribed) {          setServiceDetails(prev => {
             const merged = { ...prev };
             Object.keys(data).forEach(date => {
               const existingElements = prev[date]?.elements || [];
               const newElements = data[date]?.elements || [];
 
-              // Improved merging logic for elements
-              const mergedElements = newElements.map(newElement => {
-                // Find matching existing element with more robust matching
-                const existingElement = existingElements.find(existing => {
-                  // Match by ID if available
-                  if (existing.id && newElement.id && existing.id === newElement.id) {
-                    return true;
-                  }
-                  
-                  // For readings and messages, match by type and content prefix
-                  if ((existing.type === 'reading' || existing.type === 'message') && 
-                      existing.type === newElement.type) {
-                    const existingPrefix = existing.content.split(':')[0];
-                    const newPrefix = newElement.content.split(':')[0];
-                    return existingPrefix === newPrefix;
-                  }
-                  
-                  // For songs, match by type and position
-                  if ((existing.type === 'song_hymn' || existing.type === 'song_contemporary' ||
-                       existing.type === 'liturgical_song') && existing.type === newElement.type) {
-                    // Try to match by position in the service
-                    const existingIndex = existingElements.indexOf(existing);
-                    const newIndex = newElements.indexOf(newElement);
-                    return existingIndex === newIndex;
-                  }
-                  
-                  return false;
-                });
+              // Create a map of existing elements by ID and type-content key for quick lookup
+              const existingElementMap = new Map();
+              existingElements.forEach(element => {
+                // Store by ID if available
+                if (element.id) {
+                  existingElementMap.set(element.id, element);
+                }
                 
-                // If we found a matching element
+                // Also store by type and content prefix
+                const contentPrefix = element.content?.split(':')[0]?.trim();
+                if (contentPrefix) {
+                  const key = `${element.type}-${contentPrefix}`;
+                  existingElementMap.set(key, element);
+                }
+                
+                // For song elements, also store by position index
+                if (element.type === 'song_hymn' || element.type === 'song_contemporary') {
+                  const songIndex = existingElements.filter(
+                    e => e.type === element.type || 
+                         (e.type === 'song_hymn' && element.type === 'song_contemporary') || 
+                         (e.type === 'song_contemporary' && element.type === 'song_hymn')
+                  ).indexOf(element);
+                  
+                  if (songIndex >= 0) {
+                    existingElementMap.set(`song-${songIndex}`, element);
+                  }
+                }
+              });
+              
+              // Process each new element, preserving song selections and formatting
+              const mergedElements = newElements.map((newElement, index) => {
+                // Try to find matching element in several ways
+                let existingElement = null;
+                
+                // 1. Try matching by ID
+                if (newElement.id && existingElementMap.has(newElement.id)) {
+                  existingElement = existingElementMap.get(newElement.id);
+                } 
+                // 2. Try matching by content prefix
+                else {
+                  const contentPrefix = newElement.content?.split(':')[0]?.trim();
+                  if (contentPrefix) {
+                    const key = `${newElement.type}-${contentPrefix}`;
+                    if (existingElementMap.has(key)) {
+                      existingElement = existingElementMap.get(key);
+                    }
+                  }
+                }
+                
+                // 3. For songs, try matching by position if still not found
+                if (!existingElement && 
+                    (newElement.type === 'song_hymn' || newElement.type === 'song_contemporary')) {
+                  const songIndex = newElements.filter(
+                    e => e.type === 'song_hymn' || e.type === 'song_contemporary'
+                  ).indexOf(newElement);
+                  
+                  if (songIndex >= 0 && existingElementMap.has(`song-${songIndex}`)) {
+                    existingElement = existingElementMap.get(`song-${songIndex}`);
+                  }
+                }
+                
+                // If matching element found, merge properly based on type
                 if (existingElement) {
-                  // For songs, preserve selections while updating content
+                  // For song elements, preserve the selection data
                   if (newElement.type === 'song_hymn' || newElement.type === 'song_contemporary' ||
                       newElement.type === 'liturgical_song') {
+                    
+                    // Generate display content based on existing selection if available
+                    let content = newElement.content;
+                    
+                    if (existingElement.selection?.title) {
+                      // Extract the prefix from the new element content
+                      const prefix = newElement.content.split(':')[0].trim();
+                      
+                      // Format the song details based on type
+                      let songDetails;
+                      if (existingElement.selection.type === 'hymn') {
+                        songDetails = `${existingElement.selection.title} #${existingElement.selection.number || ''} (${
+                          existingElement.selection.hymnal ? 
+                            existingElement.selection.hymnal.charAt(0).toUpperCase() + 
+                            existingElement.selection.hymnal.slice(1) : 
+                            'Hymnal'
+                        })`;
+                      } else {
+                        songDetails = existingElement.selection.author ? 
+                          `${existingElement.selection.title} - ${existingElement.selection.author}` : 
+                          existingElement.selection.title;
+                      }
+                      
+                      content = `${prefix}: ${songDetails}`;
+                    }
+                    
                     return {
                       ...newElement,
-                      selection: existingElement.selection || newElement.selection,
-                      reference: existingElement.reference || newElement.reference
+                      selection: existingElement.selection,
+                      reference: existingElement.reference,
+                      content: content
                     };
                   }
                   
-                  // For readings and messages, preserve formatting while updating content
+                  // For readings and messages, update content but preserve formatting
                   if (newElement.type === 'reading' || newElement.type === 'message') {
                     return {
                       ...existingElement,
-                      ...newElement,
-                      content: newElement.content || existingElement.content
+                      ...newElement
                     };
                   }
                 }
@@ -1202,50 +1259,97 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
           onClose={() => {
             setShowPastorInput(false);
             setEditingDate(null);
-          }}
-          onSave={async (serviceData) => {
+          }}          onSave={async (serviceData) => {
             try {
               // Keep existing elements that have selections/references with improved matching
               const existingElements = serviceDetails[editingDate]?.elements || [];
+              
+              // Create a map to track which existing elements have been used
+              const usedExistingElements = new Map();
+              
+              // Helper function to extract song number from content
+              const extractSongNumber = (text) => {
+                if (!text) return '';
+                const numberMatch = text.match(/#(\d+)/);
+                return numberMatch ? numberMatch[1] : '';
+              };
+              
               const updatedElements = serviceData.elements.map(newElement => {
-                // Find matching existing element with more robust matching
-                const existingElement = existingElements.find(existing => {
-                  // Match by ID if available
-                  if (existing.id && newElement.id && existing.id === newElement.id) {
-                    return true;
+                // If this element already has selections/references, keep them as-is
+                if (newElement.selection?.title || newElement.reference) {
+                  return newElement;
+                }
+                
+                // Find best matching existing element using multiple strategies
+                let bestMatch = null;
+                let bestScore = -1;
+                
+                existingElements.forEach(existing => {
+                  // Skip if already used or not the same type
+                  if (usedExistingElements.has(existing.id) || existing.type !== newElement.type) {
+                    return;
                   }
                   
-                  // For readings and messages, match by type and content prefix
-                  if ((existing.type === 'reading' || existing.type === 'message') && 
-                      existing.type === newElement.type) {
-                    const existingPrefix = existing.content.split(':')[0];
-                    const newPrefix = newElement.content.split(':')[0];
-                    return existingPrefix === newPrefix;
+                  // Skip if no selection or reference to preserve
+                  if (!existing.selection?.title && !existing.reference) {
+                    return;
                   }
                   
-                  // For songs, try to match by type and position or content
-                  if ((existing.type === 'song_hymn' || existing.type === 'song_contemporary' ||
-                       existing.type === 'liturgical_song') && existing.type === newElement.type) {
-                    // If content has a match, consider it the same element
-                    if (existing.content && newElement.content) {
-                      return existing.content.split(':')[0] === newElement.content.split(':')[0];
-                    }
+                  // Calculate match score between elements
+                  let score = 0;
+                  
+                  // STRATEGY 1: Exact content match (50 points)
+                  if (existing.content === newElement.content) {
+                    score += 50;
+                  }
+                  
+                  // STRATEGY 2: Prefix match (30 points)
+                  const existingPrefix = existing.content.split(':')[0].trim().toLowerCase();
+                  const newPrefix = newElement.content.split(':')[0].trim().toLowerCase();
+                  
+                  if (existingPrefix === newPrefix) {
+                    score += 30;
+                  } else if (existingPrefix.includes(newPrefix) || newPrefix.includes(existingPrefix)) {
+                    score += 20;
+                  }
+                  
+                  // STRATEGY 3: Position similarity (20 points max)
+                  const existingIndex = existingElements.findIndex(el => el.type === existing.type);
+                  const newIndex = serviceData.elements.findIndex(el => el.type === newElement.type);
+                  const positionDiff = Math.abs(existingIndex - newIndex);
+                  
+                  if (positionDiff === 0) score += 20;
+                  else if (positionDiff === 1) score += 15;
+                  else if (positionDiff <= 2) score += 10;
+                  
+                  // STRATEGY 4: Song number match for hymns (40 points)
+                  if (existing.type === 'song_hymn' || existing.type === 'liturgical_song') {
+                    const existingSongNumber = extractSongNumber(existing.content);
+                    const newSongNumber = extractSongNumber(newElement.content);
                     
-                    // Try to match by position in the service
-                    const existingIndex = existingElements.indexOf(existing);
-                    const newIndex = serviceData.elements.indexOf(newElement);
-                    return existingIndex === newIndex;
+                    if (existingSongNumber && newSongNumber && existingSongNumber === newSongNumber) {
+                      score += 40;
+                    }
                   }
                   
-                  return false;
+                  // Update best match if this is better
+                  if (score > bestScore) {
+                    bestScore = score;
+                    bestMatch = existing;
+                  }
                 });
                 
-                // If we found a match, preserve selections and references
-                if (existingElement?.selection || existingElement?.reference) {
+                // If we found a good match, preserve selections and references
+                if (bestMatch && bestScore >= 15) {
+                  // Mark this existing element as used
+                  usedExistingElements.set(bestMatch.id, true);
+                  
                   return {
                     ...newElement,
-                    selection: existingElement.selection,
-                    reference: existingElement.reference
+                    selection: bestMatch.selection,
+                    reference: bestMatch.reference,
+                    // Preserve ID for better continuation
+                    id: bestMatch.id
                   };
                 }
                 
