@@ -1,16 +1,25 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { getLiturgicalInfo } from '@/lib/LiturgicalCalendarService';
+import { liturgicalRequestSchema, createValidationResponse } from '@/lib/liturgical-validation';
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit')) || 8; // Default to 8 upcoming services
     
+    // Validate limit parameter
+    if (isNaN(limit) || limit < 1 || limit > 100) {
+      return NextResponse.json(
+        createValidationResponse([{ message: 'Limit must be between 1 and 100' }]), 
+        { status: 400 }
+      );
+    }
+    
     const client = await clientPromise;
     const db = client.db("church");
     
-    // Get current date
+    // Get current date with validation
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Start of day
     
@@ -33,6 +42,15 @@ export async function GET(request) {
       .filter(service => {
         // Ensure we have a date
         if (!service.date) return false;
+        
+        // Validate date format using Zod before processing
+        try {
+          const validatedDate = liturgicalRequestSchema.shape.date.parse(service.date);
+          // If validation passes, continue with comparison logic
+        } catch (error) {
+          console.warn(`Invalid date format for service: ${service.date} - ${error.message}`);
+          return false; // Skip services with invalid dates
+        }
         
         // Parse date strings and convert to comparable format
         try {

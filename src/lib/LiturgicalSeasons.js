@@ -134,3 +134,37 @@ export function getFeastDayByName(name) {
     feast.name.toLowerCase() === name.toLowerCase()
   );
 }
+
+/**
+ * Validates if a season ID is valid
+ * @param {string} seasonId - The season ID to validate
+ * @returns {boolean} True if the season ID is valid
+ */
+export function isValidSeasonId(seasonId) {
+  return seasonId && typeof seasonId === 'string' && LITURGICAL_SEASONS[seasonId] !== undefined;
+}
+
+/**
+ * Validates if a feast day ID is valid
+ * @param {string} feastDayId - The feast day ID to validate
+ * @returns {boolean} True if the feast day ID is valid
+ */
+export function isValidFeastDayId(feastDayId) {
+  return feastDayId && typeof feastDayId === 'string' && MAJOR_FEAST_DAYS[feastDayId] !== undefined;
+}
+
+/**
+ * Gets all valid season IDs
+ * @returns {string[]} Array of valid season IDs
+ */
+export function getValidSeasonIds() {
+  return Object.keys(LITURGICAL_SEASONS);
+}
+
+/**
+ * Gets all valid feast day IDs
+ * @returns {string[]} Array of valid feast day IDs
+ */
+export function getValidFeastDayIds() {
+  return Object.keys(MAJOR_FEAST_DAYS);
+}

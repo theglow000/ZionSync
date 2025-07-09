@@ -2,7 +2,10 @@
  * Migration script to add liturgical season info to all existing services
  * 
  * Usage: 
- * node src/scripts/add-season-to-services.js
+ * node src/scripts/add-season-to-services.js [--dry-run]
+ * 
+ * Options:
+ * --dry-run    Preview changes without modifying database
  */
 
 import { MongoClient } from 'mongodb';
@@ -11,10 +14,25 @@ import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { getLiturgicalInfo } from '../lib/LiturgicalCalendarService.js';
+import { validateDate, serviceLiturgicalSchema } from '../lib/liturgical-validation.js';
+
+// Parse command line arguments
+const DRY_RUN = process.argv.includes('--dry-run');
 
 // Get the directory name in ES modules
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, '..', '..');
+
+console.log(`🔄 Liturgical Season Migration ${DRY_RUN ? '(DRY RUN MODE)' : '(LIVE MODE)'}`);
+console.log('='.repeat(60));
+if (DRY_RUN) {
+  console.log('⚠️  DRY RUN: No changes will be made to the database');
+  console.log('📋 This will preview what changes would be made');
+} else {
+  console.log('⚠️  LIVE MODE: Changes will be made to the database');
+  console.log('💾 Make sure you have a database backup before proceeding');
+}
+console.log('');
 
 // Load environment variables first from .env and then from .env.local if it exists
 dotenv.config();
@@ -24,9 +42,9 @@ try {
   for (const k in envConfig) {
     process.env[k] = envConfig[k];
   }
-  console.log('Loaded environment variables from .env.local');
+  console.log('✅ Loaded environment variables from .env.local');
 } catch (err) {
-  console.log('No .env.local file found, using only .env variables');
+  console.log('ℹ️  No .env.local file found, using only .env variables');
 }
 
 // MongoDB connection URI from environment variables
@@ -69,6 +87,14 @@ async function main() {
         // Get liturgical information using our service
         const liturgicalInfo = getLiturgicalInfo(serviceDate);
         
+        // Validate date before processing
+        try {
+          validateDate(service.date);
+        } catch (error) {
+          console.error(`⚠️  Skipping service with invalid date: ${service.date} - ${error.message}`);
+          continue;
+        }
+        
         // Create liturgical info object
         const liturgical = {
           season: liturgicalInfo.seasonId,
@@ -78,17 +104,28 @@ async function main() {
           specialDayName: liturgicalInfo.specialDay?.name || null
         };
         
-        // Update the service with liturgical info
-        await db.collection('serviceDetails').updateOne(
-          { date: service.date },
-          { $set: { liturgical } }
-        );
+        // Validate liturgical data before saving
+        try {
+          serviceLiturgicalSchema.parse(liturgical);
+        } catch (error) {
+          console.error(`⚠️  Invalid liturgical data for ${service.date}:`, error.message);
+          continue;
+        }
         
-        console.log(`Updated service ${service.date}: ${liturgical.seasonName} (${liturgical.color})`);
+        // Update the service with liturgical info (or preview in dry-run mode)
+        if (DRY_RUN) {
+          console.log(`[DRY RUN] Would update service ${service.date}: ${liturgical.seasonName} (${liturgical.color})`);
+        } else {
+          await db.collection('serviceDetails').updateOne(
+            { date: service.date },
+            { $set: { liturgical } }
+          );
+          console.log(`✅ Updated service ${service.date}: ${liturgical.seasonName} (${liturgical.color})`);
+        }
         
         updatedDetailsCount++;
         if (updatedDetailsCount % 5 === 0) {
-          console.log(`Updated ${updatedDetailsCount}/${serviceDetails.length} service details...`);
+          console.log(`${DRY_RUN ? 'Processed' : 'Updated'} ${updatedDetailsCount}/${serviceDetails.length} service details...`);
         }
       } catch (error) {
         console.error(`Error updating service ${service.date}:`, error);

@@ -1,6 +1,8 @@
 // /src/app/api/song-usage/route.js
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
+import { createValidationResponse } from '@/lib/validation';
+import { z } from 'zod';
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -108,12 +110,22 @@ export async function POST(request) {
   try {
     const body = await request.json();
     
-    if (!body.title?.trim()) {
-      return NextResponse.json({ message: 'No song title provided' });
+    // Validate input data
+    const validation = z.object({
+      title: z.string().min(1, "Title is required").max(200, "Title must be less than 200 characters"),
+      date: z.string().regex(/^\d{1,2}\/\d{1,2}\/\d{2}$/, "Date must be in MM/DD/YY format"),
+      service: z.string().max(100, "Service name must be less than 100 characters").optional().default(''),
+      addedBy: z.string().max(100, "Added by must be less than 100 characters").optional().default('')
+    }).safeParse(body);
+    
+    if (!validation.success) {
+      return createValidationResponse(validation.error.errors?.map(err => `${err.path.join('.')}: ${err.message}`) || ['Validation failed']);
     }
+    
+    const validatedData = validation.data;
 
     // Standardize the date format when saving
-    const [month, day, year] = body.date.split('/').map(Number);
+    const [month, day, year] = validatedData.date.split('/').map(Number);
     const standardizedDate = new Date(2000 + year, month - 1, day);
     standardizedDate.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
 
@@ -127,7 +139,7 @@ export async function POST(request) {
           $gte: new Date(standardizedDate.setHours(0, 0, 0, 0)),
           $lt: new Date(standardizedDate.setHours(23, 59, 59, 999))
         },
-        "uses.service": body.service 
+        "uses.service": validatedData.service 
       },
       { 
         $pull: { 
@@ -136,7 +148,7 @@ export async function POST(request) {
               $gte: new Date(standardizedDate.setHours(0, 0, 0, 0)),
               $lt: new Date(standardizedDate.setHours(23, 59, 59, 999))
             },
-            service: body.service 
+            service: validatedData.service 
           } 
         } 
       }
@@ -144,10 +156,10 @@ export async function POST(request) {
 
     // Add new usage with standardized date
     const result = await db.collection("song_usage").updateOne(
-      { title: body.title },
+      { title: validatedData.title },
       {
         $setOnInsert: {
-          title: body.title,
+          title: validatedData.title,
           type: body.type,
           songData: {
             number: body.number,
@@ -161,8 +173,8 @@ export async function POST(request) {
         $push: {
           uses: {
             dateUsed: standardizedDate,
-            service: body.service,
-            addedBy: body.addedBy
+            service: validatedData.service,
+            addedBy: validatedData.addedBy
           }
         }
       },
@@ -170,7 +182,13 @@ export async function POST(request) {
     );
 
     // Update the song rotation status after adding the usage
-    await updateSongRotationStatus(body.title, db);
+    await updateSongRotationStatus(validatedData.title, db);
+    
+    // Update the usage count in the songs collection for analytics efficiency
+    await db.collection("songs").updateOne(
+      { title: validatedData.title },
+      { $inc: { usageCount: 1 } }
+    );
 
     return NextResponse.json(result);
   } catch (e) {

@@ -1,6 +1,9 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { LITURGICAL_THEMES, getSeasonThemes, getMusicalGuidance, getPracticalTips } from '../../data/liturgical-themes.js';
 import { getCurrentSeason, getNextLiturgicalSeason, getSeasonDateRange, getSeasonProgressPercentage } from '../../lib/LiturgicalCalendarService.js';
+import { validateDate } from '../../lib/liturgical-validation.js';
 import { ChevronDown, Music, Calendar, Tag, AlertTriangle } from 'lucide-react';
 import { Button } from '../ui/button';
 import { format } from 'date-fns';
@@ -124,10 +127,21 @@ const SeasonalPlanningGuide = () => {
   });
 
   useEffect(() => {
-    const today = new Date();
-    const season = getCurrentSeason(today);
-    setCurrentSeasonId(season);
-    setSelectedSeasonId(season); // Still set it to match current season on init
+    try {
+      const today = new Date();
+      
+      // Validate date before calling liturgical service
+      validateDate(today);
+      
+      const season = getCurrentSeason(today);
+      setCurrentSeasonId(season);
+      setSelectedSeasonId(season); // Still set it to match current season on init
+    } catch (error) {
+      console.error('Error initializing seasonal planning guide:', error.message);
+      // Fallback to ordinary time if validation fails
+      setCurrentSeasonId('ORDINARY_TIME');
+      setSelectedSeasonId('ORDINARY_TIME');
+    }
   }, []);
 
   const activeSeasonId = selectedSeasonId || currentSeasonId;

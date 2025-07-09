@@ -6,6 +6,7 @@
  */
 
 import { LITURGICAL_SEASONS, MAJOR_FEAST_DAYS } from './LiturgicalSeasons.js';
+import { validateDate, validateYear, validateSeason } from './liturgical-validation.js';
 
 // Cache for expensive calculations
 const calculationCache = {
@@ -13,6 +14,27 @@ const calculationCache = {
     seasons: {}, // Cache for season calculations by date
     specialDays: {} // Cache for special days by date
 };
+
+/**
+ * Validates and normalizes input date
+ * @param {Date|string} inputDate - Date to validate
+ * @returns {Date} Validated Date object
+ * @throws {Error} If date is invalid
+ */
+function validateAndNormalizeDate(inputDate) {
+    try {
+        const validatedDate = validateDate(inputDate);
+        
+        // Additional business logic validation
+        if (validatedDate.getFullYear() < 1970 || validatedDate.getFullYear() > 2100) {
+            throw new Error('Year must be between 1970 and 2100');
+        }
+        
+        return validatedDate;
+    } catch (error) {
+        throw new Error(`Invalid date input: ${error.message}`);
+    }
+}
 
 // Add this helper function at the top of the file, before the other functions
 function isSameDate(date1, date2) {
@@ -28,24 +50,33 @@ function isSameDate(date1, date2) {
  * @returns {Date} Easter date for the specified year
  */
 export function calculateEaster(year) {
+    // Validate year input
+    try {
+        const validatedYear = validateYear(year);
+        year = validatedYear;
+    } catch (error) {
+        throw new Error(`Invalid year for Easter calculation: ${error.message}`);
+    }
+    
     // Check cache first - but use a string representation instead of Date object
     if (calculationCache.easter[year]) {
         const [y, m, d] = calculationCache.easter[year].split('-').map(Number);
         return new Date(y, m - 1, d);
     }
 
-    // Meeus/Jones/Butcher algorithm
-    const a = year % 19;
-    const b = Math.floor(year / 100);
-    const c = year % 100;
-    const d = Math.floor(b / 4);
-    const e = b % 4;
-    const f = Math.floor((b + 8) / 25);
-    const g = Math.floor((b - f + 1) / 3);
-    const h = (19 * a + b - d - g + 15) % 30;
-    const i = Math.floor(c / 4);
-    const k = c % 4;
-    const l = (32 + 2 * e + 2 * i - h - k) % 7;
+    try {
+        // Meeus/Jones/Butcher algorithm
+        const a = year % 19;
+        const b = Math.floor(year / 100);
+        const c = year % 100;
+        const d = Math.floor(b / 4);
+        const e = b % 4;
+        const f = Math.floor((b + 8) / 25);
+        const g = Math.floor((b - f + 1) / 3);
+        const h = (19 * a + b - d - g + 15) % 30;
+        const i = Math.floor(c / 4);
+        const k = c % 4;
+        const l = (32 + 2 * e + 2 * i - h - k) % 7;
     const m = Math.floor((a + 11 * h + 22 * l) / 451);
 
     // Calculate month and day
@@ -78,6 +109,9 @@ export function calculateEaster(year) {
     calculationCache.easter[year] = `${year}-${month_string}-${day_string}`;
 
     return easter;
+    } catch (error) {
+        throw new Error(`Easter calculation failed for year ${year}: ${error.message}`);
+    }
 }
 
 /**
@@ -333,8 +367,13 @@ export function getSpecialDay(date) {
  * @returns {string} The ID of the liturgical season
  */
 export function getCurrentSeason(inputDate) {
-    // Normalize to Date object
-    const date = inputDate instanceof Date ? inputDate : new Date(inputDate);
+    // Validate and normalize input date
+    let date;
+    try {
+        date = validateAndNormalizeDate(inputDate);
+    } catch (error) {
+        throw new Error(`Invalid date for season detection: ${error.message}`);
+    }
 
     // For cache and debug purposes
     const dateStr = date.toISOString().split('T')[0];

@@ -1,17 +1,26 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import songSuggestionEngine from '@/lib/SongSuggestionEngine.js';
+import { validateQueryParams, suggestionQuerySchema, createValidationResponse } from '@/lib/validation';
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     
-    // Parse query parameters
-    const limit = parseInt(searchParams.get('limit') || '10');
-    const unusedMonths = parseInt(searchParams.get('unusedMonths') || '6');
-    const type = searchParams.get('type') || 'all';
-    const seasonId = searchParams.get('season') || null;
-    const forceRefresh = searchParams.get('refresh') === 'true';
+    // Validate query parameters
+    const queryValidation = validateQueryParams(suggestionQuerySchema, {
+      limit: searchParams.get('limit'),
+      unusedMonths: searchParams.get('unusedMonths'),
+      type: searchParams.get('type'),
+      season: searchParams.get('season'),
+      refresh: searchParams.get('refresh')
+    });
+    
+    if (!queryValidation.success) {
+      return createValidationResponse(queryValidation.errors);
+    }
+    
+    const { limit, unusedMonths, type, season: seasonId, refresh: forceRefresh } = queryValidation.data;
     
     // Connect to database
     const client = await clientPromise;

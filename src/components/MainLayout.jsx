@@ -120,7 +120,9 @@ const MainLayout = () => {
           }
         }, 8000); // 8 second timeout
         
-        const response = await fetch('/api/service-details', { 
+        // Add timestamp for cache-busting to ensure fresh data
+        const timestamp = Date.now();
+        const response = await fetch(`/api/service-details?_t=${timestamp}`, { 
           signal: controller.signal,
           // Add cache control to prevent stale data
           headers: {
@@ -183,7 +185,17 @@ const MainLayout = () => {
       if (isMounted) {
         fetchServiceDetails();
       }
-    }, 60000); // Poll every 60 seconds instead of 30 to reduce server load
+    }, 30000); // Reduced from 60s to 30s for better multi-user sync balance
+    
+    // Add event listener for cross-team refresh events
+    const handleRefreshEvent = () => {
+      console.log('🔄 MainLayout: Received refresh event, updating global state');
+      if (isMounted) {
+        fetchServiceDetails();
+      }
+    };
+    
+    window.addEventListener('refreshServiceDetails', handleRefreshEvent);
     
     // Cleanup function to handle component unmounting
     return () => {
@@ -193,6 +205,48 @@ const MainLayout = () => {
       if (fetchTimeoutId) clearTimeout(fetchTimeoutId);
       if (retryTimeoutId) clearTimeout(retryTimeoutId);
       clearInterval(pollingIntervalId);
+      
+      // Remove event listener
+      window.removeEventListener('refreshServiceDetails', handleRefreshEvent);
+    };
+  }, []);
+
+  // Listen for refresh events from ServiceSongSelector to update serviceDetails
+  // even when SignupSheet is unmounted (e.g., user on worship team tab)
+  useEffect(() => {
+    const handleRefreshEvent = async () => {
+      console.log('🎯 MainLayout: Received refresh event, updating serviceDetails...');
+      try {
+        const timestamp = Date.now();
+        const response = await fetch(`/api/service-details?_t=${timestamp}`, {
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
+        
+        if (!response.ok) throw new Error('Failed to fetch service details');
+        const data = await response.json();
+
+        // Convert array to object with date keys
+        const detailsObj = {};
+        data.forEach(detail => {
+          if (detail.date) {
+            detailsObj[detail.date] = detail;
+          }
+        });
+
+        setServiceDetails(detailsObj);
+        console.log('✅ MainLayout: ServiceDetails updated from refresh event');
+      } catch (error) {
+        console.error('❌ MainLayout: Error handling refresh event:', error);
+      }
+    };
+
+    window.addEventListener('refreshServiceDetails', handleRefreshEvent);
+    
+    return () => {
+      window.removeEventListener('refreshServiceDetails', handleRefreshEvent);
     };
   }, []);
 

@@ -1,12 +1,30 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { validateSongData, validateQueryParams, songQuerySchema, createValidationResponse } from '@/lib/validation';
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const recent = searchParams.get('recent') === 'true';
-    const months = parseInt(searchParams.get('months') || '3'); // Default to 3 months for recent
+    
+    // Only validate query parameters if they are provided
+    const hasQueryParams = searchParams.has('recent') || searchParams.has('months');
+    let recent = false;
+    let months = 3;
+    
+    if (hasQueryParams) {
+      // Validate query parameters
+      const queryValidation = validateQueryParams(songQuerySchema, {
+        recent: searchParams.get('recent'),
+        months: searchParams.get('months')
+      });
+      
+      if (!queryValidation.success) {
+        return createValidationResponse(queryValidation.errors);
+      }
+      
+      ({ recent, months } = queryValidation.data);
+    }
     
     const client = await clientPromise;
     const db = client.db("church");
@@ -38,44 +56,53 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
+    
+    // Validate input data
+    const validation = validateSongData(body);
+    if (!validation.success) {
+      return createValidationResponse(validation.errors);
+    }
+    
+    const validatedData = validation.data;
     const client = await clientPromise;
     const db = client.db("church");
 
-    // Structured song data
+    // Structured song data with songOrder field for Proclaim presentation planning
     const songData = {
-      title: body.title,
-      type: body.type, // 'hymn' or 'contemporary'
-      notes: body.notes || '',
-      youtubeLink: body.youtubeLink || '',
-      // Add seasonal tags array
-      seasonalTags: body.seasonalTags || [],
-      // Add confidence score for auto-tagging
-      seasonalTagsConfidence: body.seasonalTagsConfidence || {},
+      title: validatedData.title,
+      type: validatedData.type,
+      notes: validatedData.notes,
+      youtubeLink: validatedData.youtubeLink,
+      songOrder: validatedData.songOrder, // For Proclaim component order (Chorus, Verse 1, etc.)
+      seasonalTags: validatedData.seasonalTags,
+      seasonalTagsConfidence: validatedData.seasonalTagsConfidence,
+      usageCount: 0, // Initialize usage count for analytics
 
-      // Hymn-specific fields
-      ...(body.type === 'hymn' ? {
-        number: body.number || '',
-        hymnal: body.hymnal || '',
-        hymnaryLink: body.hymnaryLink || ''
+      // Type-specific fields
+      ...(validatedData.type === 'hymn' ? {
+        number: validatedData.number,
+        hymnal: validatedData.hymnal,
+        hymnaryLink: validatedData.hymnaryLink
       } : {
-        // Contemporary-specific fields
-        author: body.author || '',
-        songSelectLink: body.songSelectLink || ''
+        author: validatedData.author,
+        songSelectLink: validatedData.songSelectLink
       })
     };
 
     // Check if song already exists
-    const existingSong = body._id 
-      ? await db.collection("songs").findOne({ _id: new ObjectId(body._id) })
-      : await db.collection("songs").findOne({ title: body.title });
+    const existingSong = validatedData._id 
+      ? await db.collection("songs").findOne({ _id: new ObjectId(validatedData._id) })
+      : await db.collection("songs").findOne({ title: validatedData.title });
       
     if (existingSong) {
       const result = await db.collection("songs").updateOne(
-        body._id ? { _id: new ObjectId(body._id) } : { title: body.title },
+        validatedData._id ? { _id: new ObjectId(validatedData._id) } : { title: validatedData.title },
         {
           $set: {
             ...songData,
-            lastUpdated: new Date()
+            lastUpdated: new Date(),
+            // Preserve existing usage count when updating
+            usageCount: existingSong.usageCount || 0
           }
         }
       );

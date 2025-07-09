@@ -441,12 +441,8 @@ const SongRediscoveryPanel = () => {
         type: 'success'
       });
       
-      // Update song usage data (optional)
-      const analyticsResponse = await fetch('/api/song-usage/analytics');
-      if (analyticsResponse.ok) {
-        const analyticsData = await analyticsResponse.json();
-        setUsageAnalytics(analyticsData || { frequency: [] });
-      }
+      // Note: Usage analytics are automatically updated when songs are added
+      // The current architecture uses specialized endpoints rather than generic analytics
       
     } catch (error) {
       console.error('Error adding song to service:', error);

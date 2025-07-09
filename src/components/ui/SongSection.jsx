@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Link, Youtube, ChevronDown, ChevronUp } from 'lucide-react';
+import { Link, Youtube, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { titleCase, spellCheckAndCorrect } from '@/lib/utils'; // Import our new utility functions
 
 const isValidUrl = (url) => {
@@ -17,6 +17,7 @@ const SongSection = ({
   label,
   songState,
   onSongStateUpdate,
+  onSongClear, // Add this new prop for clearing songs
   availableSongs,
   currentUser,
   hymnalVersions,
@@ -135,7 +136,8 @@ const SongSection = ({
     }
 
     const songs = isHymn ? availableSongs?.hymn : availableSongs?.contemporary;
-    if (!songs) { // Add this check
+    
+    if (!songs) {
       setSuggestions([]);
       return;
     }
@@ -236,6 +238,17 @@ const SongSection = ({
               </div>
             )}
           </div>
+          {/* Small red X button - only show when song has content */}
+          {songState.title && onSongClear && (
+            <button
+              type="button"
+              onClick={() => onSongClear(slot)}
+              className="flex-shrink-0 w-6 h-6 flex items-center justify-center text-red-600 hover:bg-red-100 rounded transition-colors"
+              title="Clear this song"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         {/* For mobile: Primary fields always visible */}

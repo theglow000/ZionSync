@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { getLiturgicalInfo } from '@/lib/LiturgicalCalendarService';
+import { validateDate, serviceLiturgicalSchema, createValidationResponse } from '@/lib/liturgical-validation';
 
 export async function GET(request) {
   try {
@@ -11,32 +12,52 @@ export async function GET(request) {
     const db = client.db("church");
 
     if (date) {
+      // Validate date parameter
+      try {
+        validateDate(date);
+      } catch (error) {
+        return NextResponse.json(
+          createValidationResponse([{ message: `Invalid date parameter: ${error.message}` }]),
+          { status: 400 }
+        );
+      }
+      
       const selections = await db.collection("service_songs").findOne({ date });
       
       // If we have selections but no liturgical info, add it
       if (selections && !selections.liturgical) {
-        // Parse date string to Date object (assuming format M/D/YY)
-        const [month, day, yearShort] = date.split('/').map(num => parseInt(num, 10));
-        // Convert 2-digit year to 4-digit
-        const fullYear = yearShort < 50 ? 2000 + yearShort : 1900 + yearShort;
-        const serviceDate = new Date(fullYear, month - 1, day);
-        
-        // Get liturgical information using our service
-        const liturgicalInfo = getLiturgicalInfo(serviceDate);
-        
-        // Add liturgical information to the selections
-        selections.liturgical = {
-          season: liturgicalInfo.seasonId,
-          seasonName: liturgicalInfo.season.name,
-          color: liturgicalInfo.color,
-          specialDay: liturgicalInfo.specialDayId
-        };
-        
-        // Save liturgical info back to database
-        await db.collection("service_songs").updateOne(
-          { date },
-          { $set: { liturgical: selections.liturgical } }
-        );
+        try {
+          // Parse date string to Date object (assuming format M/D/YY)
+          const [month, day, yearShort] = date.split('/').map(num => parseInt(num, 10));
+          // Convert 2-digit year to 4-digit
+          const fullYear = yearShort < 50 ? 2000 + yearShort : 1900 + yearShort;
+          const serviceDate = new Date(fullYear, month - 1, day);
+          
+          // Get liturgical information using our service
+          const liturgicalInfo = getLiturgicalInfo(serviceDate);
+          
+          // Validate liturgical data before storing
+          const liturgicalData = {
+            season: liturgicalInfo.seasonId,
+            seasonName: liturgicalInfo.season.name,
+            color: liturgicalInfo.color,
+            specialDay: liturgicalInfo.specialDayId
+          };
+          
+          const validatedLiturgical = serviceLiturgicalSchema.parse(liturgicalData);
+          
+          // Add liturgical information to the selections
+          selections.liturgical = validatedLiturgical;
+          
+          // Save liturgical info back to database
+          await db.collection("service_songs").updateOne(
+            { date },
+            { $set: { liturgical: selections.liturgical } }
+          );
+        } catch (error) {
+          console.error('Error adding liturgical info:', error);
+          // Continue without liturgical info rather than failing
+        }
       }
       
       return NextResponse.json(selections || {});
@@ -47,7 +68,8 @@ export async function GET(request) {
     // Add liturgical information to all selections
     for (let selection of selections) {
       if (!selection.liturgical) {
-        // Parse date string to Date object (assuming format M/D/YY)
+        try {
+          // Parse date string to Date object (assuming format M/D/YY)
         const [month, day, yearShort] = selection.date.split('/').map(num => parseInt(num, 10));
         // Convert 2-digit year to 4-digit
         const fullYear = yearShort < 50 ? 2000 + yearShort : 1900 + yearShort;
@@ -69,6 +91,10 @@ export async function GET(request) {
           { date: selection.date },
           { $set: { liturgical: selection.liturgical } }
         );
+        } catch (error) {
+          console.error('Error adding liturgical info to selection:', error);
+          // Continue without liturgical info rather than failing
+        }
       }
     }
     
@@ -120,56 +146,121 @@ export async function POST(request) {
       { upsert: true }
     );
 
-    // Then update serviceDetails with the selections
+    // Then update serviceDetails with the selections - SURGICALLY UPDATE ONLY SONG ELEMENTS
     const serviceDetails = await db.collection("serviceDetails").findOne({ date: body.date });
     if (serviceDetails?.elements) {
-      let currentSongIndex = 0;
+      const songUpdates = [];
 
-      const updatedElements = serviceDetails.elements.map(element => {
-        if (element.type === 'song_hymn') {
-          const matchingSong = Object.values(body.selections)[currentSongIndex];
-          currentSongIndex++;
+      // NEW APPROACH: Process all selections and map them to their correct positions
+      // This allows for empty/cleared songs to be handled properly
+      const allSelections = Object.entries(body.selections)
+        .sort(([keyA], [keyB]) => {
+          // Extract numeric part from keys like "song_0", "song_1", etc.
+          const numA = parseInt(keyA.split('_')[1] || '0');
+          const numB = parseInt(keyB.split('_')[1] || '0');
+          return numA - numB;
+        });
 
-          if (matchingSong) {
-            // Extract only the prefix part, removing any existing song details
+      console.log(`🔧 SERVICE-SONGS: Processing ${allSelections.length} song slots (including empty ones)`);
+      
+      let currentSongSlot = 0;
+
+      // Build array of specific song element updates
+      serviceDetails.elements.forEach((element, elementIndex) => {
+        if (element.type === 'song_hymn' || element.type === 'song_contemporary') {
+          // Get the selection for this song slot (could be empty)
+          const [slotKey, songData] = allSelections[currentSongSlot] || [null, null];
+          
+          if (songData && songData.title && songData.title.trim()) {
+            // This slot has a valid song - update it
             const prefix = element.content.split(':')[0].split(' - ')[0].trim();
 
-            // Format the song details without duplicating the title
             let songDetails;
-            if (matchingSong.type === 'hymn') {
-              songDetails = `${matchingSong.title} #${matchingSong.number} (${formatHymnalName(matchingSong.hymnal)})`;
+            if (songData.type === 'hymn') {
+              songDetails = `${songData.title} #${songData.number} (${formatHymnalName(songData.hymnal)})`;
             } else {
-              songDetails = matchingSong.author ?
-                `${matchingSong.title} - ${matchingSong.author}` :
-                matchingSong.title;
+              songDetails = songData.author ?
+                `${songData.title} - ${songData.author}` :
+                songData.title;
             }
 
-            // Combine prefix with formatted song details
             const formattedContent = `${prefix}: ${songDetails}`;
 
-            return {
-              ...element,
+            console.log(`🎵 SERVICE-SONGS: Slot ${currentSongSlot} -> "${songData.title}" to element ${elementIndex} (${prefix})`);
+
+            songUpdates.push({
+              index: elementIndex,
               content: formattedContent,
               selection: {
-                ...matchingSong,
+                ...songData,
                 originalPrefix: prefix
               }
-            };
+            });
+          } else {
+            // This slot is empty/cleared - remove selection but keep the element structure
+            const prefix = element.content.split(':')[0].split(' - ')[0].trim();
+            console.log(`📝 SERVICE-SONGS: Slot ${currentSongSlot} -> CLEARED (${prefix}) at element ${elementIndex}`);
+            
+            songUpdates.push({
+              index: elementIndex,
+              content: `${prefix}:`, // Just the prefix, no song details
+              selection: null // Remove the selection
+            });
           }
+          
+          currentSongSlot++;
         }
-        return element;
       });
 
-      // Update the database with the new elements and liturgical info
-      await db.collection("serviceDetails").updateOne(
-        { date: body.date },
-        { 
-          $set: { 
-            elements: updatedElements,
-            liturgical: body.liturgical // Sync liturgical info with service details
-          } 
+      // SURGICAL UPDATE: Only update specific song elements, preserve all other elements
+      if (songUpdates.length > 0) {
+        const setOperations = {};
+        const unsetOperations = {};
+        
+        // Build MongoDB update operations for each song element position
+        songUpdates.forEach(update => {
+          setOperations[`elements.${update.index}.content`] = update.content;
+          
+          if (update.selection) {
+            // Set the selection if it exists
+            setOperations[`elements.${update.index}.selection`] = update.selection;
+          } else {
+            // Unset (remove) the selection field if it's null
+            unsetOperations[`elements.${update.index}.selection`] = "";
+          }
+        });
+
+        // Add liturgical info update
+        setOperations.liturgical = body.liturgical;
+
+        console.log('Surgical update operations:');
+        console.log('  $set:', setOperations);
+        if (Object.keys(unsetOperations).length > 0) {
+          console.log('  $unset:', unsetOperations);
         }
-      );
+
+        // Execute surgical update with both $set and $unset operations
+        const updateQuery = { $set: setOperations };
+        if (Object.keys(unsetOperations).length > 0) {
+          updateQuery.$unset = unsetOperations;
+        }
+
+        await db.collection("serviceDetails").updateOne(
+          { date: body.date },
+          updateQuery
+        );
+
+        const clearedCount = Object.keys(unsetOperations).filter(key => key.includes('.selection')).length;
+        const updatedCount = songUpdates.length - clearedCount;
+        console.log(`Successfully updated ${updatedCount} song elements and cleared ${clearedCount} selections while preserving all other content`);
+      } else {
+        // If no song updates, just sync liturgical info
+        await db.collection("serviceDetails").updateOne(
+          { date: body.date },
+          { $set: { liturgical: body.liturgical } }
+        );
+        console.log('No song updates needed, only synced liturgical info');
+      }
     }
 
     return NextResponse.json({ success: true });

@@ -1,7 +1,7 @@
 'use client'
 
 // Add UserSelectionModal to the imports at the top
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { UserCircle, Calendar, Check, ChevronDown, ChevronUp, Mail, X, Music2, BookOpen, Pencil, Trash2, Cross, MessageSquare, Music } from 'lucide-react';
@@ -34,9 +34,13 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
   const [showPastorInput, setShowPastorInput] = useState(false);
   const [editingDate, setEditingDate] = useState(null);
   const [alertPosition, setAlertPosition] = useState({ x: 0, y: 0 });
-  const POLLING_INTERVAL = 30000;
+  // Removed redundant polling - MainLayout now handles all service details polling
+  // This eliminates duplicate API calls and potential state conflicts
   const [customServices, setCustomServices] = useState([]);
   const [showUserSelectModal, setShowUserSelectModal] = useState(null); // { date, currentAssignment }
+
+  // State for refresh button loading
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const checkForOrderOfWorship = (date) => {
     const elements = serviceDetails[date]?.elements;
@@ -177,11 +181,15 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
 
     const fetchServiceDetails = async () => {
       try {
-        const response = await fetch('/api/service-details');
+        console.log('🕐 TIMER REFRESH: Fetching service details...');
+        // Add cache-busting parameter to ensure fresh data
+        const timestamp = Date.now();
+        const response = await fetch(`/api/service-details?_t=${timestamp}`);
         if (!response.ok) throw new Error('Failed to fetch service details');
         const data = await response.json();
 
-        if (isSubscribed) {          setServiceDetails(prev => {
+        if (isSubscribed) {
+          setServiceDetails(prev => {
             const merged = { ...prev };
             Object.keys(data).forEach(date => {
               const existingElements = prev[date]?.elements || [];
@@ -251,8 +259,7 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                 // If matching element found, merge properly based on type
                 if (existingElement) {
                   // For song elements, preserve the selection data
-                  if (newElement.type === 'song_hymn' || newElement.type === 'song_contemporary' ||
-                      newElement.type === 'liturgical_song') {
+                  if (newElement.type === 'song_hymn' || newElement.type === 'song_contemporary') {
                     
                     // Generate display content based on existing selection if available
                     let content = newElement.content;
@@ -287,13 +294,17 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                     };
                   }
                   
-                  // For readings and messages, update content but preserve formatting
+                  // For readings and messages, use new data (allow updates)
                   if (newElement.type === 'reading' || newElement.type === 'message') {
-                    return {
-                      ...existingElement,
-                      ...newElement
-                    };
+                    return newElement;
                   }
+                  
+                  // For liturgical songs, use new data (they are not editable by worship team)
+                  if (newElement.type === 'liturgical_song') {
+                    return newElement;
+                  }
+                } else {
+                  // For elements without a match, use the new data
                 }
                 
                 // For elements without a match or other element types, use the new data
@@ -306,16 +317,21 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                 elements: mergedElements
               };
             });
+            console.log('✅ TIMER REFRESH: Complete');
             return merged;
           });
         }
       } catch (error) {
-        console.error('Error fetching service details:', error);
+        console.error('❌ TIMER REFRESH: Error fetching service details:', error);
       }
     };
 
     fetchServiceDetails();
-    const intervalId = setInterval(fetchServiceDetails, 30000); // 30 second polling
+    console.log('🕐 TIMER: Starting 10-second refresh interval');
+    const intervalId = setInterval(() => {
+      console.log('🕐 TIMER: 10-second interval triggered');
+      fetchServiceDetails();
+    }, 10000); // Reduced from 30s to 10s for better responsiveness
 
     return () => {
       isSubscribed = false;
@@ -486,7 +502,8 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
             body: JSON.stringify({
               date,
               ...currentDetails,
-              [field]: value
+              [field]: value,
+              lastUpdated: currentDetails.lastUpdated // Include version for concurrency control
             })
           });
 
@@ -633,11 +650,6 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
     const elements = serviceDetails[date]?.elements;
     const songElements = elements?.filter(element => element.type === 'song_hymn');
 
-    console.log('Checking songs for date:', date, {
-      elements: songElements,
-      hasSongs: songElements?.some(element => element.selection?.title)
-    });
-
     // Check if any songs have a reference (which indicates they were selected)
     // OR if they have a selection.title
     return songElements?.some(element =>
@@ -718,6 +730,238 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
     
     return true; // Default to fully loaded if we can't determine
   };
+
+  // Manual refresh function for immediate updates
+  const manualRefresh = async () => {
+    if (isRefreshing) return; // Prevent multiple simultaneous refreshes
+    
+    setIsRefreshing(true);
+    try {
+      console.log('🔄 MANUAL REFRESH: Button clicked, fetching fresh data...');
+      // Add cache-busting parameter to ensure fresh data
+      const timestamp = Date.now();
+      const response = await fetch(`/api/service-details?_t=${timestamp}`);
+      if (!response.ok) throw new Error('Failed to fetch service details');
+      const data = await response.json();
+
+      setServiceDetails(prev => {
+        const merged = { ...prev };
+        Object.keys(data).forEach(date => {
+          const existingElements = prev[date]?.elements || [];
+          const newElements = data[date]?.elements || [];
+
+          // Use the same sophisticated merging logic as the main fetch
+          const existingElementMap = new Map();
+          existingElements.forEach(element => {
+            if (element.id) {
+              existingElementMap.set(element.id, element);
+            }
+            const contentPrefix = element.content?.split(':')[0]?.trim();
+            if (contentPrefix) {
+              existingElementMap.set(`${element.type}-${contentPrefix}`, element);
+            }
+            if (element.type === 'song_hymn' || element.type === 'song_contemporary') {
+              const songIndex = existingElements.filter(
+                e => e.type === 'song_hymn' || e.type === 'song_contemporary'
+              ).indexOf(element);
+              if (songIndex >= 0) {
+                existingElementMap.set(`song-${songIndex}`, element);
+              }
+            }
+          });
+
+          const mergedElements = newElements.map(newElement => {
+            let existingElement = newElement.id ? existingElementMap.get(newElement.id) : null;
+            
+            if (!existingElement) {
+              const contentPrefix = newElement.content?.split(':')[0]?.trim();
+              if (contentPrefix) {
+                existingElement = existingElementMap.get(`${newElement.type}-${contentPrefix}`);
+              }
+            }
+            
+            if (!existingElement && (newElement.type === 'song_hymn' || newElement.type === 'song_contemporary')) {
+              const songIndex = newElements.filter(
+                e => e.type === 'song_hymn' || e.type === 'song_contemporary'
+              ).indexOf(newElement);
+              if (songIndex >= 0 && existingElementMap.has(`song-${songIndex}`)) {
+                existingElement = existingElementMap.get(`song-${songIndex}`);
+              }
+            }
+
+            if (existingElement) {
+              return {
+                ...newElement,
+                selection: existingElement.selection,
+                reference: existingElement.reference,
+                notes: existingElement.notes
+              };
+            }
+            return newElement;
+          });
+
+          merged[date] = {
+            ...prev[date],
+            ...data[date],
+            elements: mergedElements
+          };
+        });
+        console.log('✅ MANUAL REFRESH: Complete');
+        return merged;
+      });
+    } catch (error) {
+      console.error('❌ MANUAL REFRESH: Error:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // Event-based refresh function for immediate updates after song changes
+  const eventBasedRefresh = async () => {
+    console.log('🎯 EVENT REFRESH: Received refresh event from ServiceSongSelector, fetching fresh data...');
+    try {
+      // Add cache-busting parameter to ensure fresh data
+      const timestamp = Date.now();
+      const response = await fetch(`/api/service-details?_t=${timestamp}`);
+      if (!response.ok) throw new Error('Failed to fetch service details');
+      const data = await response.json();
+      
+      // Log what came back from API
+      Object.keys(data).forEach(date => {
+        const readings = data[date]?.elements?.filter(e => e.type === 'reading') || [];
+        console.log(`📖 EVENT REFRESH: API returned readings for ${date}:`, readings.map(r => ({ content: r.content, reference: r.reference })));
+      });
+
+      setServiceDetails(prev => {
+        const merged = { ...prev };
+        Object.keys(data).forEach(date => {
+          const existingElements = prev[date]?.elements || [];
+          const newElements = data[date]?.elements || [];
+
+          // Use the same sophisticated merging logic as the main fetch
+          const existingElementMap = new Map();
+          existingElements.forEach(element => {
+            if (element.id) {
+              existingElementMap.set(element.id, element);
+            }
+            const contentPrefix = element.content?.split(':')[0]?.trim();
+            if (contentPrefix) {
+              existingElementMap.set(`${element.type}-${contentPrefix}`, element);
+            }
+            if (element.type === 'song_hymn' || element.type === 'song_contemporary') {
+              const songIndex = existingElements.filter(
+                e => e.type === 'song_hymn' || e.type === 'song_contemporary'
+              ).indexOf(element);
+              if (songIndex >= 0) {
+                existingElementMap.set(`song-${songIndex}`, element);
+              }
+            }
+          });
+
+          const mergedElements = newElements.map(newElement => {
+            let existingElement = newElement.id ? existingElementMap.get(newElement.id) : null;
+            
+            if (!existingElement) {
+              const contentPrefix = newElement.content?.split(':')[0]?.trim();
+              if (contentPrefix) {
+                existingElement = existingElementMap.get(`${newElement.type}-${contentPrefix}`);
+              }
+            }
+
+            if (!existingElement && (newElement.type === 'song_hymn' || newElement.type === 'song_contemporary')) {
+              const songIndex = newElements.filter(
+                e => e.type === 'song_hymn' || e.type === 'song_contemporary'
+              ).indexOf(newElement);
+              if (songIndex >= 0) {
+                existingElement = existingElementMap.get(`song-${songIndex}`);
+              }
+            }
+
+            if (existingElement) {
+              if (newElement.type === 'song_hymn' || newElement.type === 'song_contemporary') {
+                const prefix = newElement.content?.split(':')[0]?.trim();
+                let content = newElement.content;
+                
+                if (existingElement.selection && prefix) {
+                  let songDetails;
+                  if (existingElement.selection.hymnal) {
+                    songDetails = `${existingElement.selection.title} (#${
+                      existingElement.selection.hymnal.startsWith('#') ? 
+                        existingElement.selection.hymnal.slice(1) : 
+                        'Hymnal'
+                    })`;
+                  } else {
+                    songDetails = existingElement.selection.author ? 
+                      `${existingElement.selection.title} - ${existingElement.selection.author}` : 
+                      existingElement.selection.title;
+                  }
+                  
+                  content = `${prefix}: ${songDetails}`;
+                }
+                
+                return {
+                  ...newElement,
+                  selection: existingElement.selection,
+                  reference: existingElement.reference,
+                  content: content
+                };
+              }
+              
+              // For readings and messages, use NEW content but preserve existing reference if not provided
+              if (newElement.type === 'reading' || newElement.type === 'message') {
+                const finalElement = {
+                  ...newElement,  // Use new content (pastor's changes)
+                  reference: newElement.reference || existingElement.reference || '',  // Preserve reference if not provided
+                  id: existingElement.id  // Keep existing ID
+                };
+                
+                console.log(`📖 EVENT REFRESH: Merging ${newElement.type} - "${newElement.content}" | New ref: "${newElement.reference}" | Existing ref: "${existingElement.reference}" | Final ref: "${finalElement.reference}"`);
+                
+                return finalElement;
+              }
+            }
+
+            return newElement;
+          });
+
+          merged[date] = {
+            ...data[date],
+            elements: mergedElements
+          };
+        });
+
+        console.log('✅ EVENT REFRESH: Complete - final merged readings:',
+          Object.entries(merged).map(([date, details]) => ({
+            date,
+            readings: details?.elements?.filter(e => e.type === 'reading')?.map(r => ({ content: r.content, reference: r.reference })) || []
+          }))
+        );
+        return merged;
+      });
+    } catch (error) {
+      console.error('❌ EVENT REFRESH: Error:', error);
+    }
+  };
+
+  // Listen for refresh events from other components
+  useEffect(() => {
+    const handleRefreshEvent = () => {
+      // Immediate refresh + backup with small delay to handle timing issues
+      eventBasedRefresh();
+      
+      // Backup refresh in case the first one missed the database update
+      setTimeout(() => {
+        console.log('🔄 EVENT REFRESH: Backup refresh triggered');
+        eventBasedRefresh();
+      }, 2000);
+    };
+
+    window.addEventListener('refreshServiceDetails', handleRefreshEvent);
+    
+    return () => {
+      window.removeEventListener('refreshServiceDetails', handleRefreshEvent);
+    };
+  }, []);
 
   return (
  <Card className="w-full h-full mx-auto relative bg-white shadow-lg">
@@ -985,6 +1229,20 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                                       <div className="flex gap-2">
                                         <button
                                           onClick={() => {
+                                            manualRefresh();
+                                          }}
+                                          disabled={isRefreshing}
+                                          className={`px-2 py-0.5 text-sm border rounded ${
+                                            isRefreshing 
+                                              ? 'text-gray-400 border-gray-300 cursor-not-allowed' 
+                                              : 'text-blue-600 border-blue-600 hover:bg-blue-50'
+                                          }`}
+                                          title={isRefreshing ? "Refreshing..." : "Refresh order of worship"}
+                                        >
+                                          {isRefreshing ? '⟳ Refreshing...' : '↻ Refresh'}
+                                        </button>
+                                        <button
+                                          onClick={() => {
                                             setEditingDate(item.date);
                                             setShowPastorInput(true);
                                           }}
@@ -1026,7 +1284,13 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                                       </div>
                                     </div>
                                     {/* Map through ordered service elements */}
-                                    {serviceDetails[item.date]?.elements?.map((element, index) => (
+                                    {serviceDetails[item.date]?.elements?.map((element, index) => {
+                                      // Debug log for readings
+                                      if (element.type === 'reading') {
+                                        console.log(`🎯 DISPLAY: Rendering reading "${element.content}" with reference "${element.reference}"`);
+                                      }
+                                      
+                                      return (
                                       <div key={index} className="flex items-center gap-1 text-sm leading-tight">
                                         <div className={`p-0.5 rounded ${element.type === 'song_hymn' ? 'bg-blue-50 text-blue-600' :
                                           element.type === 'reading' ? 'bg-green-50 text-green-600' :
@@ -1058,9 +1322,23 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                                                 <>
                                                   <span className="font-bold">{element.content.split(':')[0]}</span>:
                                                   <span>{element.content.split(':').slice(1).join(':')}</span>
+                                                  {/* Show reference content for readings and messages */}
+                                                  {(element.type === 'reading' || element.type === 'message') && element.reference && (
+                                                    <span className="ml-1 text-blue-600 font-medium">
+                                                      {element.reference}
+                                                    </span>
+                                                  )}
                                                 </>
                                               ) : (
-                                                element.content
+                                                <>
+                                                  {element.content}
+                                                  {/* Show reference content for readings and messages without colons */}
+                                                  {(element.type === 'reading' || element.type === 'message') && element.reference && (
+                                                    <span className="ml-1 text-blue-600 font-medium">
+                                                      {element.reference}
+                                                    </span>
+                                                  )}
+                                                </>
                                               )}
                                               {element.selection && (element.type === 'song_hymn' || element.type === 'song_contemporary') && (
                                                 <span className="text-blue-600 font-semibold ml-1">
@@ -1080,7 +1358,8 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                                           )}
                                         </div>
                                       </div>
-                                    ))}
+                                    );
+                                    })}
                                     {/* Fallback message if no elements */}
                                     {(!serviceDetails[item.date]?.elements || serviceDetails[item.date]?.elements.length === 0) && (
                                       <div className="text-gray-500 italic">
@@ -1255,117 +1534,164 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
       {showPastorInput && (
         <PastorServiceInput
           date={editingDate}
-          serviceDetails={serviceDetails}  // Add this line
+          serviceDetails={serviceDetails[editingDate]}  // Pass the specific date's service details
           onClose={() => {
             setShowPastorInput(false);
             setEditingDate(null);
           }}          onSave={async (serviceData) => {
             try {
+              console.log('💾 PASTOR SAVE: Starting save process', {
+                newElementCount: serviceData.elements.length,
+                existingElementCount: serviceDetails[editingDate]?.elements?.length
+              });
+              
               // Keep existing elements that have selections/references with improved matching
               const existingElements = serviceDetails[editingDate]?.elements || [];
               
-              // Create a map to track which existing elements have been used
-              const usedExistingElements = new Map();
+              // Separate existing elements by type for better matching
+              const existingSongs = existingElements.filter(e => e.type === 'song_hymn' || e.type === 'song_contemporary').filter(e => e.selection?.title);
+              const existingReadings = existingElements.filter(e => e.type === 'reading').filter(e => e.reference);
+              const existingMessages = existingElements.filter(e => e.type === 'message').filter(e => e.reference);
               
-              // Helper function to extract song number from content
-              const extractSongNumber = (text) => {
-                if (!text) return '';
-                const numberMatch = text.match(/#(\d+)/);
-                return numberMatch ? numberMatch[1] : '';
-              };
+              console.log('💾 PASTOR SAVE: Existing data to preserve:', {
+                songsWithSelections: existingSongs.length,
+                readingsWithReferences: existingReadings.length,
+                messagesWithReferences: existingMessages.length
+              });
               
-              const updatedElements = serviceData.elements.map(newElement => {
-                // If this element already has selections/references, keep them as-is
-                if (newElement.selection?.title || newElement.reference) {
-                  return newElement;
-                }
-                
-                // Find best matching existing element using multiple strategies
-                let bestMatch = null;
-                let bestScore = -1;
-                
-                existingElements.forEach(existing => {
-                  // Skip if already used or not the same type
-                  if (usedExistingElements.has(existing.id) || existing.type !== newElement.type) {
-                    return;
-                  }
+              const updatedElements = serviceData.elements.map((newElement, index) => {
+                // Handle songs with intelligent matching
+                if (newElement.type === 'song_hymn' || newElement.type === 'song_contemporary') {
+                  const newElementPrefix = newElement.content?.split(':')[0]?.trim().toLowerCase();
                   
-                  // Skip if no selection or reference to preserve
-                  if (!existing.selection?.title && !existing.reference) {
-                    return;
-                  }
+                  // First try exact prefix match
+                  let matchingSong = existingSongs.find(existing => {
+                    const existingPrefix = existing.content?.split(':')[0]?.trim().toLowerCase();
+                    return existingPrefix === newElementPrefix;
+                  });
                   
-                  // Calculate match score between elements
-                  let score = 0;
-                  
-                  // STRATEGY 1: Exact content match (50 points)
-                  if (existing.content === newElement.content) {
-                    score += 50;
-                  }
-                  
-                  // STRATEGY 2: Prefix match (30 points)
-                  const existingPrefix = existing.content.split(':')[0].trim().toLowerCase();
-                  const newPrefix = newElement.content.split(':')[0].trim().toLowerCase();
-                  
-                  if (existingPrefix === newPrefix) {
-                    score += 30;
-                  } else if (existingPrefix.includes(newPrefix) || newPrefix.includes(existingPrefix)) {
-                    score += 20;
-                  }
-                  
-                  // STRATEGY 3: Position similarity (20 points max)
-                  const existingIndex = existingElements.findIndex(el => el.type === existing.type);
-                  const newIndex = serviceData.elements.findIndex(el => el.type === newElement.type);
-                  const positionDiff = Math.abs(existingIndex - newIndex);
-                  
-                  if (positionDiff === 0) score += 20;
-                  else if (positionDiff === 1) score += 15;
-                  else if (positionDiff <= 2) score += 10;
-                  
-                  // STRATEGY 4: Song number match for hymns (40 points)
-                  if (existing.type === 'song_hymn' || existing.type === 'liturgical_song') {
-                    const existingSongNumber = extractSongNumber(existing.content);
-                    const newSongNumber = extractSongNumber(newElement.content);
+                  // If no exact match, try positional matching (nth song gets nth existing song)
+                  if (!matchingSong) {
+                    const newSongElements = serviceData.elements.filter(e => e.type === 'song_hymn' || e.type === 'song_contemporary');
+                    const songPosition = newSongElements.indexOf(newElement);
                     
-                    if (existingSongNumber && newSongNumber && existingSongNumber === newSongNumber) {
-                      score += 40;
+                    if (songPosition >= 0 && songPosition < existingSongs.length) {
+                      matchingSong = existingSongs[songPosition];
+                      console.log(`💾 PASTOR SAVE: Using positional matching for song ${songPosition + 1}`);
                     }
                   }
                   
-                  // Update best match if this is better
-                  if (score > bestScore) {
-                    bestScore = score;
-                    bestMatch = existing;
+                  if (matchingSong) {
+                    // Reconstruct content with preserved song selection
+                    const prefix = newElement.content?.split(':')[0]?.trim();
+                    let songDetails;
+                    
+                    if (matchingSong.selection.type === 'hymn') {
+                      songDetails = `${matchingSong.selection.title} #${matchingSong.selection.number} (${matchingSong.selection.hymnal})`;
+                    } else {
+                      songDetails = matchingSong.selection.author ? 
+                        `${matchingSong.selection.title} - ${matchingSong.selection.author}` : 
+                        matchingSong.selection.title;
+                    }
+                    
+                    console.log(`💾 PASTOR SAVE: Preserving song selection: ${prefix} -> ${songDetails}`);
+                    
+                    return {
+                      ...newElement,
+                      content: `${prefix}: ${songDetails}`,
+                      selection: matchingSong.selection,
+                      id: matchingSong.id
+                    };
                   }
-                });
-                
-                // If we found a good match, preserve selections and references
-                if (bestMatch && bestScore >= 15) {
-                  // Mark this existing element as used
-                  usedExistingElements.set(bestMatch.id, true);
-                  
-                  return {
-                    ...newElement,
-                    selection: bestMatch.selection,
-                    reference: bestMatch.reference,
-                    // Preserve ID for better continuation
-                    id: bestMatch.id
-                  };
                 }
                 
+                // Handle readings with exact prefix matching
+                if (newElement.type === 'reading') {
+                  const newElementPrefix = newElement.content?.split(':')[0]?.trim().toLowerCase();
+                  const matchingReading = existingReadings.find(existing => {
+                    const existingPrefix = existing.content?.split(':')[0]?.trim().toLowerCase();
+                    return existingPrefix === newElementPrefix;
+                  });
+                  
+                  // Only preserve existing reference if the new element doesn't have one
+                  if (matchingReading && !newElement.reference && matchingReading.reference) {
+                    console.log(`💾 PASTOR SAVE: Preserving existing reading reference: ${newElementPrefix} -> "${matchingReading.reference}"`);
+                    return {
+                      ...newElement,
+                      reference: matchingReading.reference,
+                      id: matchingReading.id
+                    };
+                  } else if (newElement.reference) {
+                    console.log(`💾 PASTOR SAVE: Using NEW reading reference: ${newElementPrefix} -> "${newElement.reference}"`);
+                    // Use the pastor's new reference, but keep existing ID if available
+                    return {
+                      ...newElement,
+                      id: matchingReading?.id || newElement.id
+                    };
+                  }
+                }
+                
+                // Handle messages with exact prefix matching
+                if (newElement.type === 'message') {
+                  const newElementPrefix = newElement.content?.split(':')[0]?.trim().toLowerCase();
+                  const matchingMessage = existingMessages.find(existing => {
+                    const existingPrefix = existing.content?.split(':')[0]?.trim().toLowerCase();
+                    return existingPrefix === newElementPrefix;
+                  });
+                  
+                  // Only preserve existing reference if the new element doesn't have one
+                  if (matchingMessage && !newElement.reference && matchingMessage.reference) {
+                    console.log(`💾 PASTOR SAVE: Preserving existing message reference: ${newElementPrefix} -> "${matchingMessage.reference}"`);
+                    return {
+                      ...newElement,
+                      reference: matchingMessage.reference,
+                      id: matchingMessage.id
+                    };
+                  } else if (newElement.reference) {
+                    console.log(`💾 PASTOR SAVE: Using NEW message reference: ${newElementPrefix} -> "${newElement.reference}"`);
+                    // Use the pastor's new reference, but keep existing ID if available
+                    return {
+                      ...newElement,
+                      id: matchingMessage?.id || newElement.id
+                    };
+                  }
+                }
+                
+                // For unmatched elements, return as-is
                 return newElement;
               });
+
+              console.log('💾 PASTOR SAVE: Final elements prepared for save:', {
+                totalElements: updatedElements.length,
+                songsWithSelections: updatedElements.filter(e => (e.type === 'song_hymn' || e.type === 'song_contemporary') && e.selection).length,
+                readingsAndMessages: updatedElements.filter(e => e.type === 'reading' || e.type === 'message').map(e => ({
+                  type: e.type,
+                  content: e.content,
+                  reference: e.reference
+                }))
+              });
+
+              console.log('💾 PASTOR SAVE: About to send to API:', {
+                date: editingDate,
+                content: serviceData.content,
+                type: serviceData.type,
+                elements: updatedElements.map(e => ({ type: e.type, content: e.content, reference: e.reference }))
+              });
+
+              const requestBody = {
+                date: editingDate,
+                content: serviceData.content,
+                type: serviceData.type,
+                elements: updatedElements,  // Use merged elements
+                lastUpdated: serviceDetails[editingDate]?.lastUpdated // Include version for concurrency control
+              };
+              
+              console.log('🌐 PASTOR SAVE: Full POST request body:', JSON.stringify(requestBody, null, 2));
 
               const response = await fetch('/api/service-details', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  date: editingDate,
-                  content: serviceData.content,
-                  type: serviceData.type,
-                  setting: serviceData.setting,
-                  elements: updatedElements  // Use merged elements
-                })
+                body: JSON.stringify(requestBody)
               });
               
               if (!response.ok) throw new Error('Failed to save service details');
@@ -1386,6 +1712,18 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
               setAlertMessage('Service details saved successfully');
               setShowAlert(true);
               setTimeout(() => setShowAlert(false), 3000);
+              
+              // Trigger refresh event to update other tabs/components
+              setTimeout(() => {
+                console.log('🔄 SignupSheet: Dispatching refresh event after pastor save');
+                console.log('🔄 SignupSheet: Current local state readings before refresh:', 
+                  Object.entries(serviceDetails).map(([date, details]) => ({
+                    date,
+                    readings: details?.elements?.filter(e => e.type === 'reading')?.map(r => ({ content: r.content, reference: r.reference })) || []
+                  }))
+                );
+                window.dispatchEvent(new CustomEvent('refreshServiceDetails'));
+              }, 1000);
             } catch (error) {
               console.error('Error saving service details:', error);
               setAlertMessage('Error saving service details. Please try again.');

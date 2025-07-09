@@ -228,7 +228,7 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
   const [users, setUsers] = useState([]);
   const dates = useMemo(() => DATES, []);
   const [customServices, setCustomServices] = useState([]);
-  const POLLING_INTERVAL = 30000;
+  // Removed POLLING_INTERVAL constant - no longer needed since MainLayout handles polling
 
   // Add this hook for responsive detection
   const { isMobile } = useResponsive();
@@ -254,15 +254,22 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
     const fetchSongs = async () => {
       try {
         const response = await fetch('/api/songs');
+        
         if (response.ok) {
           const songs = await response.json();
+          
+          const hymns = songs.filter(song => song.type === 'hymn');
+          const contemporary = songs.filter(song => song.type === 'contemporary');
+          
           setAvailableSongs({
-            hymn: songs.filter(song => song.type === 'hymn'),
-            contemporary: songs.filter(song => song.type === 'contemporary')
+            hymn: hymns,
+            contemporary: contemporary
           });
+        } else {
+          console.error('Failed to fetch songs:', response.status, await response.text());
         }
       } catch (error) {
-        console.error('Error loading songs:', error);
+        console.error('❌ WorshipTeam: Error loading songs:', error);
       }
     };
 
@@ -327,72 +334,8 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
     return () => controller.abort();
   }, []); // Empty dependency array
 
-  useEffect(() => {
-    let isSubscribed = true;
-
-    const fetchServiceDetails = async () => {
-      try {
-        const response = await fetch('/api/service-details');
-        if (!response.ok) throw new Error('Failed to fetch service details');
-        const data = await response.json();
-
-        if (isSubscribed) {
-          setServiceDetails(prev => {
-            const merged = { ...prev };
-            Object.keys(data).forEach(date => {
-              // Keep existing elements if they exist
-              const existingElements = prev[date]?.elements || [];
-              const newElements = data[date]?.elements || [];
-
-              // Create a map for more efficient lookups
-              const existingElementMap = new Map(
-                existingElements.map(element => [
-                  `${element.type}-${element.content?.split(':')[0]}`,
-                  element
-                ])
-              );
-
-              // Merge elements, preserving existing data
-              const mergedElements = newElements.map(newElement => {
-                const key = `${newElement.type}-${newElement.content?.split(':')[0]}`;
-                const existingElement = existingElementMap.get(key);
-                // Keep existing element data if it exists, otherwise use new element
-                return existingElement ? { ...existingElement, ...newElement } : newElement;
-              });
-
-              // Keep any existing elements that weren't in the new data
-              const preservedElements = existingElements.filter(existing => {
-                const key = `${existing.type}-${existing.content?.split(':')[0]}`;
-                return !newElements.some(newElem =>
-                  `${newElem.type}-${newElem.content?.split(':')[0]}` === key
-                );
-              });
-
-              merged[date] = {
-                ...prev[date],          // Keep existing service data
-                ...data[date],          // Add new data
-                elements: [
-                  ...mergedElements,    // Add merged elements
-                  ...preservedElements  // Add preserved elements that weren't in new data
-                ].filter(Boolean)       // Remove any null/undefined elements
-              };
-            });
-            return merged;
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching service details:', error);
-      }
-    };
-
-    fetchServiceDetails();
-    const intervalId = setInterval(fetchServiceDetails, POLLING_INTERVAL);
-
-    return () => {
-      isSubscribed = false;
-      clearInterval(intervalId);
-    };
-  }, []);
+  // Removed redundant polling - serviceDetails is now managed by MainLayout.jsx
+  // This eliminates race conditions and ensures fresh data through props
 
   // Add this effect to initialize assignments
   useEffect(() => {
@@ -463,7 +406,8 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
           date,
           elements: updatedElements,
           content: serviceDetails[date]?.content,
-          type: serviceDetails[date]?.type
+          type: serviceDetails[date]?.type,
+          lastUpdated: serviceDetails[date]?.lastUpdated // Include version for concurrency control
         })
       });
 
@@ -475,6 +419,10 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
           elements: updatedElements
         }
       }));
+
+      // Dispatch refresh event to update other teams
+      console.log('🔄 WorshipTeam: Dispatching refresh event after song selection');
+      window.dispatchEvent(new CustomEvent('refreshServiceDetails'));
 
     } catch (error) {
       console.error('Error saving song selection:', error);

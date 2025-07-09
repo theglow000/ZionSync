@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { ChevronDown, ChevronUp, Music2, UserCircle, BookOpen } from 'lucide-react';
 import ServiceSongSelector from './ServiceSongSelector';
