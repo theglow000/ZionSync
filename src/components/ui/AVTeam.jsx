@@ -1,54 +1,171 @@
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Mail, UserCircle, X, Trash2, Edit2 } from 'lucide-react';
 import MobileAVTeamCard from './MobileAVTeamCard';
 import useResponsive from '../../hooks/useResponsive';
+import { useDebounce } from '../../hooks/useDebounce';
+import { useAlertManager } from '../../hooks';
+import { useConfirm } from '../../hooks/useConfirm';
+import { LoadingSpinner, YearSelector } from '../shared';
+import { ERROR_MESSAGES, SUCCESS_MESSAGES, createErrorHandler, createSuccessHandler } from '../../utils/errorHandler';
+import { POLLING_INTERVAL, AV_ROTATION_MEMBERS, COLOR_THEMES, API_ENDPOINTS } from '../../lib/constants';
+import { fetchWithTimeout, fetchWithRetry, parseJSON, apiPost, apiGet, apiDelete, apiPut } from '../../lib/api-utils';
 import UserSelectionModal from './UserSelectionModal';
+import AddUserModal from './AddUserModal';
 
-const AVTeam = () => {
+const AVTeam = ({ selectedYear, setSelectedYear, availableYears }) => {
     const [assignments, setAssignments] = useState({});
-    const [showAlert, setShowAlert] = useState(false);
-    const [alertMessage, setAlertMessage] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [availableUsers, setAvailableUsers] = useState([]);
     const [showUserManagement, setShowUserManagement] = useState(false);
     const [usersToDelete, setUsersToDelete] = useState([]);
-    const [alertPosition, setAlertPosition] = useState({ x: 0, y: 0 });
     // Track which position is being edited
     const [editingPosition, setEditingPosition] = useState(null); // { date, position, currentMember }
+    const [showAddUserModal, setShowAddUserModal] = useState(false);
+    const [pendingActions, setPendingActions] = useState({}); // Track pending debounced actions
 
-    // Add useResponsive hook
+    // Refs for auto-scrolling to current date (consolidated for both views)
+    const dateRefs = React.useRef({});
+    const componentRootRef = React.useRef(null);
+
+    // Add useResponsive and useAlertManager hooks
     const { isMobile } = useResponsive();
-
-    // Update rotation members list: replace Laila with Justin
-    const rotationMembers = ['Doug', 'Jaimes', 'Justin', 'Brett'];
+    const { 
+        showAlert, 
+        alertMessage, 
+        alertPosition, 
+        setAlertPosition, 
+        showAlertWithTimeout 
+    } = useAlertManager();
     
-    // In AVTeam.jsx, update the initializeUsers function
-    useEffect(() => {
-        const initializeUsers = async () => {
-            try {
-                // First fetch existing users
-                const response = await fetch('/api/av-users');
-                if (!response.ok) {
-                    throw new Error('Failed to fetch AV users');
-                }
+    // Use confirm dialog hook
+    const { confirm, ConfirmDialog } = useConfirm();
 
-                const existingUsers = await response.json();
+    // Centralized error and success handlers
+    const handleError = useMemo(
+        () => createErrorHandler('A/V Team', (message) => showAlertWithTimeout(message)),
+        [showAlertWithTimeout]
+    );
+    
+    const handleSuccess = useMemo(
+        () => createSuccessHandler((message) => showAlertWithTimeout(message)),
+        [showAlertWithTimeout]
+    );
+
+    // Use rotation members from constants
+    const rotationMembers = useMemo(() => AV_ROTATION_MEMBERS, []);
+
+    // Sprint 4.2: Dynamic dates from API
+    const [dates, setDates] = useState([]);
+    const [datesLoading, setDatesLoading] = useState(false);
+
+    // Memoize rotation member calculation
+    const getRotationMember = useCallback((index) => {
+        return rotationMembers[index % rotationMembers.length];
+    }, [rotationMembers]);
+
+    // Sprint 4.2: Fetch dates dynamically based on selected year
+    useEffect(() => {
+        if (!selectedYear) return;
+        
+        const fetchDates = async () => {
+            setDatesLoading(true);
+            try {
+                const response = await fetchWithTimeout(`/api/service-dates?year=${selectedYear}&upcomingOnly=false`);
+                
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        handleError(
+                            new Error(`Services for ${selectedYear} have not been generated yet.`),
+                            `Please generate services for ${selectedYear} in Settings > Calendar Manager.`
+                        );
+                        setDates([]);
+                    } else {
+                        throw new Error('Failed to fetch service dates');
+                    }
+                    return;
+                }
+                
+                const fetchedDates = await response.json();
+                setDates(fetchedDates);
+                
+            } catch (error) {
+                console.error('Error fetching dates for year:', selectedYear, error);
+                handleError(error, 'Error loading service dates');
+                setDates([]);
+            } finally {
+                setDatesLoading(false);
+            }
+        };
+        
+        fetchDates();
+    }, [selectedYear, handleError]);
+
+    // Auto-scroll to current date when dates are loaded
+    useEffect(() => {
+        if (!dates.length || isLoading || datesLoading) return;
+
+        // Small delay to ensure DOM is fully rendered
+        const timer = setTimeout(() => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // Find the first date that is today or in the future
+            const currentDateIndex = dates.findIndex(item => {
+                const [month, day, year] = item.date.split('/').map(num => parseInt(num, 10));
+                // Use 2000 + year to match existing codebase pattern
+                const itemDate = new Date(2000 + year, month - 1, day);
+                itemDate.setHours(0, 0, 0, 0);
+                return itemDate >= today;
+            });
+
+            if (currentDateIndex !== -1) {
+                const currentDate = dates[currentDateIndex].date;
+                const targetElement = dateRefs.current[currentDate];
+                
+                if (targetElement) {
+                    if (isMobile) {
+                        // Mobile: Use scrollIntoView (works with scroll-margin-top CSS)
+                        targetElement.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    } else {
+                        // Desktop: Use scrollIntoView - browser handles optimal positioning
+                        targetElement.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                }
+            }
+        }, 1000); // Increased delay to 1000ms for mobile DOM rendering
+
+        return () => clearTimeout(timer);
+    }, [dates, isLoading, datesLoading, isMobile]);
+
+    // Consolidated data fetching - matches pattern from SignupSheet and WorshipTeam
+    useEffect(() => {
+        const fetchData = async () => {
+            setIsLoading(true);
+            try {
+                // Fetch users first
+                const usersResponse = await fetchWithTimeout(API_ENDPOINTS.AV_USERS);
+                if (!usersResponse.ok) throw new Error('Failed to fetch AV users');
+                const existingUsers = await usersResponse.json();
                 const currentUsers = Array.isArray(existingUsers) ? existingUsers : [];
 
-                // List of required team members - update to include Justin, keep Laila
+                // Initialize required team members if they don't exist
                 const initialMembers = ['Ben', 'Doug', 'Jaimes', 'Laila', 'Brett', 'Justin'];
-
-                // Add any missing members
+                
                 for (const member of initialMembers) {
                     if (!currentUsers.some(user => user.name === member)) {
-                        const addResponse = await fetch('/api/av-users', {
+                        const addResponse = await fetchWithTimeout(API_ENDPOINTS.AV_USERS, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ name: member })
                         });
-
                         if (!addResponse.ok) {
                             console.error(`Failed to add user ${member}`);
                         }
@@ -56,103 +173,17 @@ const AVTeam = () => {
                 }
 
                 // Fetch final user list
-                const finalResponse = await fetch('/api/av-users');
-                if (!finalResponse.ok) {
-                    throw new Error('Failed to fetch final AV users list');
-                }
-
-                const finalUsers = await finalResponse.json();
+                const finalUsersResponse = await fetchWithTimeout(API_ENDPOINTS.AV_USERS);
+                if (!finalUsersResponse.ok) throw new Error('Failed to fetch final user list');
+                const finalUsers = await finalUsersResponse.json();
                 setAvailableUsers(Array.isArray(finalUsers) ? finalUsers : []);
-                setIsLoading(false);
 
-            } catch (error) {
-                console.error('Error initializing users:', error);
-                setIsLoading(false);
-                setAlertMessage('Error loading users. Please try again.');
-                setShowAlert(true);
-            }
-        };
-
-        initializeUsers();
-    }, []);
-
-    const dates = [
-        { date: '1/5/25', day: 'Sunday', title: 'Epiphany' },
-        { date: '1/12/25', day: 'Sunday', title: 'Baptism of our Lord' },
-        { date: '1/19/25', day: 'Sunday', title: 'Epiphany Week 2' },
-        { date: '1/26/25', day: 'Sunday', title: 'Epiphany Week 3' },
-        { date: '2/2/25', day: 'Sunday', title: 'Presentation of Our Lord' },
-        { date: '2/9/25', day: 'Sunday', title: 'Epiphany Week 5' },
-        { date: '2/16/25', day: 'Sunday', title: 'Epiphany Week 6' },
-        { date: '2/23/25', day: 'Sunday', title: 'Epiphany Week 7' },
-        { date: '3/2/25', day: 'Sunday', title: 'The Transfiguration of Our Lord' },
-        { date: '3/5/25', day: 'Wednesday', title: 'Ash Wednesday' },
-        { date: '3/9/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '3/12/25', day: 'Wednesday', title: 'Lent Worship' },
-        { date: '3/16/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '3/19/25', day: 'Wednesday', title: 'Lent Worship' },
-        { date: '3/23/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '3/26/25', day: 'Wednesday', title: 'Lent Worship' },
-        { date: '3/30/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '4/2/25', day: 'Wednesday', title: 'Lent Worship' },
-        { date: '4/6/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '4/9/25', day: 'Wednesday', title: 'Lent Worship' },
-        { date: '4/13/25', day: 'Sunday', title: 'Palm Sunday' },
-        { date: '4/17/25', day: 'Thursday', title: 'Maundy Thursday' },
-        { date: '4/18/25', day: 'Friday', title: 'Good Friday' },
-        { date: '4/20/25', day: 'Sunday', title: 'Easter Sunday' },
-        { date: '4/27/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '5/4/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '5/11/25', day: 'Sunday', title: 'Mother\'s Day' },
-        { date: '5/18/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '5/25/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '6/1/25', day: 'Sunday', title: 'VBS Week' },
-        { date: '6/8/25', day: 'Sunday', title: 'Confirmation Sunday' },
-        { date: '6/15/25', day: 'Sunday', title: 'Father\'s Day' },
-        { date: '6/22/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '6/29/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '7/6/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '7/13/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '7/20/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '7/27/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '8/3/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '8/10/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '8/17/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '8/24/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '8/31/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '9/7/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '9/14/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '9/21/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '9/28/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '10/5/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '10/12/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '10/19/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '10/26/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '11/2/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '11/9/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '11/16/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '11/23/25', day: 'Sunday', title: 'Sunday Worship' },
-        { date: '11/26/25', day: 'Wednesday', title: 'Thanksgiving Eve' },
-        { date: '11/30/25', day: 'Sunday', title: 'Advent 1' },
-        { date: '12/7/25', day: 'Sunday', title: 'Advent 2' },
-        { date: '12/14/25', day: 'Sunday', title: 'Advent 3' },
-        { date: '12/21/25', day: 'Sunday', title: 'Advent 4 (Kid\'s Christmas Program)' },
-        { date: '12/24/25', day: 'Wednesday', title: 'Christmas Eve Services (3pm & 7pm)' },
-        { date: '12/28/25', day: 'Sunday', title: 'Christmas Week 1' }
-    ];
-
-    const getRotationMember = (index) => {
-        return rotationMembers[index % rotationMembers.length];
-    };
-
-    // Fetch initial data
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
                 // Fetch assignments
-                const assignmentsResponse = await fetch('/api/av-team');
+                const assignmentsResponse = await fetchWithTimeout(API_ENDPOINTS.AV_TEAM);
+                if (!assignmentsResponse.ok) throw new Error('Failed to fetch assignments');
                 const assignmentsData = await assignmentsResponse.json();
-                if (assignmentsResponse.ok) {
+                
+                if (assignmentsData.assignments) {
                     setAssignments(assignmentsData.assignments.reduce((acc, curr) => {
                         acc[curr.date] = {
                             team_member_1: curr.team_member_1,
@@ -163,22 +194,9 @@ const AVTeam = () => {
                     }, {}));
                 }
 
-                // Fetch users
-                const usersResponse = await fetch('/api/av-users');
-                if (usersResponse.ok) {
-                    const usersData = await usersResponse.json();
-                    // Add initial team members if they don't exist
-                    const initialMembers = ['Ben', 'Doug', 'Jaimes', 'Laila', 'Brett', 'Justin'];
-                    const newUsers = [...usersData];
-                    initialMembers.forEach(member => {
-                        if (!newUsers.find(user => user.name === member)) {
-                            newUsers.push({ name: member });
-                        }
-                    });
-                    setAvailableUsers(newUsers);
-                }
             } catch (error) {
                 console.error('Error fetching data:', error);
+                handleError(error, 'Error loading data');
             } finally {
                 setIsLoading(false);
             }
@@ -187,10 +205,10 @@ const AVTeam = () => {
         fetchData();
     }, []);
 
-    // Handle user signup
-    const handleSignup = async (date, position = 3, userName) => {
+    // Handle user signup with useCallback optimization
+    const handleSignup = useCallback(async (date, position = 3, userName) => {
         try {
-            const response = await fetch('/api/av-team', {
+            const response = await fetchWithTimeout(API_ENDPOINTS.AV_TEAM, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -213,21 +231,17 @@ const AVTeam = () => {
                 }
             }));
 
-            setAlertMessage('Successfully signed up!');
-            setShowAlert(true);
-            setTimeout(() => setShowAlert(false), 3000);
+            handleSuccess('Successfully signed up!');
         } catch (error) {
             console.error('Error signing up:', error);
-            setAlertMessage('Error saving signup. Please try again.');
-            setShowAlert(true);
-            setTimeout(() => setShowAlert(false), 3000);
+            handleError(error, 'Error saving signup');
         }
-    };
+    }, []);
 
-    // Handle removing assignment
-    const handleRemoveAssignment = async (date) => {
+    // Handle removing assignment with useCallback optimization
+    const handleRemoveAssignment = useCallback(async (date) => {
         try {
-            const response = await fetch('/api/av-team', {
+            const response = await fetchWithTimeout(API_ENDPOINTS.AV_TEAM, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -250,46 +264,47 @@ const AVTeam = () => {
                 return newAssignments;
             });
 
-            setAlertMessage('Assignment removed successfully');
-            setShowAlert(true);
-            setTimeout(() => setShowAlert(false), 3000);
+            handleSuccess('Assignment removed successfully');
         } catch (error) {
             console.error('Error removing assignment:', error);
-            setAlertMessage('Error removing assignment. Please try again.');
-            setShowAlert(true);
-            setTimeout(() => setShowAlert(false), 3000);
+            handleError(error, 'Error removing assignment');
         }
-    };
+    }, []);
 
     // User management handlers
-    const handleAddUser = async () => {
-        const name = prompt('Enter new user name:');
-        if (name) {
-            try {
-                await fetch('/api/av-users', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ name })
-                });
+    const handleAddUser = () => {
+        setShowAddUserModal(true);
+    };
 
-                setAvailableUsers(prev => [...prev, { name }]);
-                setAlertMessage('User added successfully');
-                setShowAlert(true);
-                setTimeout(() => setShowAlert(false), 3000);
-            } catch (error) {
-                console.error('Error adding user:', error);
-                setAlertMessage('Error adding user');
-                setShowAlert(true);
-                setTimeout(() => setShowAlert(false), 3000);
-            }
+    const handleAddUserSubmit = async (name) => {
+        try {
+            await apiPost(API_ENDPOINTS.AV_USERS, { name });
+
+            setAvailableUsers(prev => [...prev, { name }]);
+            setShowAddUserModal(false);
+            handleSuccess(SUCCESS_MESSAGES.USER_ADDED);
+        } catch (error) {
+            handleError(error, { operation: 'addUser', name }, ERROR_MESSAGES.USER_ADD_ERROR);
+            throw error; // Re-throw to let modal handle error display
         }
     };
 
-    const handleAssignment = async (date, position, name) => {
+    // Handle assignment updates with useCallback optimization
+    const handleAssignment = useCallback(async (date, position, name) => {
+        // Store previous state for rollback
+        const previousAssignment = assignments[date]?.[`team_member_${position}`];
+        
+        // OPTIMISTIC UPDATE: Update UI immediately
+        setAssignments(prev => ({
+            ...prev,
+            [date]: {
+                ...prev[date],
+                [`team_member_${position}`]: name
+            }
+        }));
+        
         try {
-            const response = await fetch('/api/av-team', {
+            const response = await fetchWithTimeout(API_ENDPOINTS.AV_TEAM, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -304,35 +319,45 @@ const AVTeam = () => {
 
             if (!response.ok) throw new Error('Failed to update assignment');
 
+            handleSuccess(SUCCESS_MESSAGES.ASSIGNMENT_SAVED);
+        } catch (error) {
+            // ROLLBACK: Restore previous state on error
             setAssignments(prev => ({
                 ...prev,
                 [date]: {
                     ...prev[date],
-                    [`team_member_${position}`]: name
+                    [`team_member_${position}`]: previousAssignment
                 }
             }));
-
-            setAlertMessage('Assignment updated successfully');
-            setShowAlert(true);
-            setTimeout(() => setShowAlert(false), 3000);
-        } catch (error) {
-            console.error('Error updating assignment:', error);
-            setAlertMessage('Error updating assignment. Please try again.');
-            setShowAlert(true);
-            setTimeout(() => setShowAlert(false), 3000);
+            
+            handleError(error, { operation: 'updateAssignment', date, position }, ERROR_MESSAGES.ASSIGNMENT_ERROR);
+        } finally {
+            // Clear pending state
+            setPendingActions(prev => {
+                const newState = { ...prev };
+                delete newState[`assignment-${date}-${position}`];
+                return newState;
+            });
         }
-    };
+    }, [assignments, handleSuccess, handleError]); // Add error handlers
 
-    const isPastDate = (dateStr) => {
+    // Debounced version of handleAssignment
+    const [debouncedAssignment] = useDebounce((date, position, name) => {
+        setPendingActions(prev => ({ ...prev, [`assignment-${date}-${position}`]: true }));
+        handleAssignment(date, position, name);
+    }, 300);
+
+    // Check if date is in the past with useCallback optimization
+    const isPastDate = useCallback((dateStr) => {
         const [month, day, year] = dateStr.split('/').map(Number);
         const dateToCheck = new Date(2000 + year, month - 1, day);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         return dateToCheck < today;
-    };
+    }, []);
 
-    // Handle user selection from modal
-    const handleUserSelect = (userName) => {
+    // Handle user selection from modal with useCallback optimization
+    const handleUserSelect = useCallback((userName) => {
         if (!editingPosition) return;
         
         const { date, position } = editingPosition;
@@ -340,15 +365,15 @@ const AVTeam = () => {
         if (position === 3) {
             handleSignup(date, position, userName);
         } else {
-            handleAssignment(date, position, userName);
+            debouncedAssignment(date, position, userName);
         }
         
         // Close the modal
         setEditingPosition(null);
-    };
+    }, [editingPosition, handleSignup, debouncedAssignment]);
 
-    // Update this function to only handle position 3
-    const handleDeleteFromModal = () => {
+    // Handle deletion from modal with useCallback optimization
+    const handleDeleteFromModal = useCallback(() => {
         if (!editingPosition || editingPosition.position !== 3) return;
         
         const { date } = editingPosition;
@@ -356,10 +381,10 @@ const AVTeam = () => {
         
         // Close the modal
         setEditingPosition(null);
-    };
+    }, [editingPosition, handleRemoveAssignment]);
 
     return (
-        <Card className="w-full h-full mx-auto relative bg-white shadow-lg">
+        <Card ref={componentRootRef} className="w-full h-full mx-auto relative bg-white shadow-lg">
             {showAlert && (
                 <Alert
                     className="fixed z-[60] w-80 bg-white border-red-700 shadow-lg rounded-lg"
@@ -391,7 +416,15 @@ const AVTeam = () => {
                             />
                             <div>
                                 <h1 className="text-3xl font-bold text-center text-red-700">Audio/Video Team</h1>
-                                <p className="text-2xl font-bold text-center text-gray-600">2025 Service Schedule</p>
+                                <div className="flex items-center justify-center mt-2">
+                                    <YearSelector 
+                                        selectedYear={selectedYear}
+                                        setSelectedYear={setSelectedYear}
+                                        availableYears={availableYears}
+                                        teamColor="#DC2626"
+                                        textSize="text-2xl"
+                                    />
+                                </div>
                             </div>
                             <img
                                 src="/ZionSyncLogo.png"
@@ -410,7 +443,15 @@ const AVTeam = () => {
                             </div>
                             <div className="text-center">
                                 <h1 className="text-xl font-bold text-red-700">Audio/Video Team</h1>
-                                <p className="text-lg font-bold text-gray-600">2025 Service Schedule</p>
+                                <div className="flex items-center justify-center mt-2">
+                                    <YearSelector 
+                                        selectedYear={selectedYear}
+                                        setSelectedYear={setSelectedYear}
+                                        availableYears={availableYears}
+                                        teamColor="#DC2626"
+                                        textSize="text-lg"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </CardHeader>
@@ -429,8 +470,20 @@ const AVTeam = () => {
                 {/* Scrollable Content Section */}
                 <div className="flex-1 overflow-hidden">
                     <CardContent className="h-full p-0">
-                        <div className="h-full">
-                            {/* Desktop Table View */}
+                        {(isLoading || datesLoading) ? (
+                            <LoadingSpinner 
+                                message={datesLoading ? `Loading ${selectedYear} services...` : "Loading A/V Team schedule..."} 
+                                color="red-700" 
+                            />
+                        ) : dates.length === 0 ? (
+                            <div className="flex items-center justify-center h-64">
+                                <div className="text-center">
+                                    <p className="text-gray-600 text-lg mb-2">No services found for {selectedYear}</p>
+                                    <p className="text-gray-500 text-sm">Services may not be generated yet.</p>
+                                </div>
+                            </div>
+                        ) : (
+                        <div className="h-full">{/* Desktop Table View */}
                             <div className="hidden md:block h-full">
                                 <div className="relative h-full">
                                     <div className="overflow-y-auto h-full">
@@ -447,7 +500,12 @@ const AVTeam = () => {
                                             </thead>
                                             <tbody>
                                                 {dates.map((item, index) => (
-                                                    <tr key={item.date} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
+                                                    <tr 
+                                                        key={item.date} 
+                                                        ref={el => dateRefs.current[item.date] = el}
+                                                        style={{ scrollMarginTop: '60px' }}
+                                                        className={index % 2 === 0 ? 'bg-gray-50' : ''}
+                                                    >
                                                         <td style={{ width: '110px' }} className="p-2 border-r border-gray-300 text-center">{item.date}</td>
                                                         <td style={{ width: '120px' }} className="p-2 border-r border-gray-300 text-center">{item.day}</td>
                                                         <td style={{ width: '35%' }} className="p-2 border-r border-gray-300">{item.title}</td>
@@ -539,9 +597,9 @@ const AVTeam = () => {
                             {isMobile && (
                                 <div className="p-4 overflow-y-auto h-full">
                                     {dates.map((item, index) => (
-                                        <MobileAVTeamCard
-                                            key={item.date}
-                                            item={item}
+                                        <div key={item.date} ref={el => dateRefs.current[item.date] = el} style={{ scrollMarginTop: '20px' }}>
+                                            <MobileAVTeamCard
+                                                item={item}
                                             index={index}
                                             assignments={assignments}
                                             rotationMembers={rotationMembers}
@@ -560,14 +618,15 @@ const AVTeam = () => {
                                                     currentMember
                                                 });
                                             }}
-                                            setAlertMessage={setAlertMessage}
-                                            setShowAlert={setShowAlert}
+                                            showAlertWithTimeout={showAlertWithTimeout}
                                             setAlertPosition={setAlertPosition}
                                         />
+                                        </div>
                                     ))}
                                 </div>
                             )}
                         </div>
+                        )}
                     </CardContent>
                 </div>
             </div>
@@ -600,11 +659,30 @@ const AVTeam = () => {
                                     <div key={user.name} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
                                         <span className="text-gray-900">{user.name}</span>
                                         <button
-                                            onClick={() => {
-                                                if (user.name === currentUser?.name) {
-                                                    setCurrentUser(null);
+                                            onClick={async () => {
+                                                const confirmed = await confirm({
+                                                    title: 'Remove User',
+                                                    message: `Remove ${user.name} from the A/V team?`,
+                                                    details: ['This will permanently delete them from the users list'],
+                                                    variant: 'danger',
+                                                    confirmText: 'Remove',
+                                                    cancelText: 'Cancel'
+                                                });
+                                                
+                                                if (confirmed) {
+                                                    try {
+                                                        await apiDelete(API_ENDPOINTS.AV_USERS, {
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({ name: user.name })
+                                                        });
+                                                        
+                                                        setAvailableUsers(prev => prev.filter(u => u.name !== user.name));
+                                                        handleSuccess('User removed successfully');
+                                                    } catch (error) {
+                                                        console.error('Error removing user:', error);
+                                                        handleError(error, 'Error removing user');
+                                                    }
                                                 }
-                                                setAvailableUsers(prev => prev.filter(u => u.name !== user.name));
                                             }}
                                             className="text-red-500 hover:text-red-700"
                                         >
@@ -634,6 +712,17 @@ const AVTeam = () => {
                 currentAssignments={editingPosition?.date ? assignments[editingPosition.date] || {} : {}}
                 currentPosition={editingPosition?.position}
             />
+            
+            <AddUserModal
+                isOpen={showAddUserModal}
+                onClose={() => setShowAddUserModal(false)}
+                onSubmit={handleAddUserSubmit}
+                teamColor="#DC2626"
+                teamName="A/V"
+            />
+            
+            {/* Confirmation Dialog */}
+            <ConfirmDialog />
         </Card>
     );
 };

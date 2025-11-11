@@ -32,8 +32,6 @@ export async function POST(request) {
     let songId = null;
     let wasExisting = false;
     
-    console.log('Looking for existing song:', referenceSong.title);
-    
     // IMPROVED LOOKUP: Try multiple strategies to find a matching song
     
     // First try a case-insensitive exact match on title and type
@@ -55,7 +53,6 @@ export async function POST(request) {
       // Use the existing song
       songId = existingSong._id;
       wasExisting = true;
-      console.log(`Using existing song: ${existingSong.title} (ID: ${songId})`);
     } else {
       // Add the reference song to the song library
       const newSong = {
@@ -79,7 +76,6 @@ export async function POST(request) {
       const result = await db.collection("songs").insertOne(newSong);
       songId = result.insertedId;
       existingSong = newSong; // Use this song data for insertion
-      console.log(`Added new song to library: ${referenceSong.title} (ID: ${songId})`);
     }
     
     // 3. Get the service to update
@@ -118,9 +114,6 @@ export async function POST(request) {
         }
       }
     }
-    
-    console.log('Position mappings:', JSON.stringify(songPositionMappings, null, 2));
-    console.log('Found element index for position', position, ':', elementIndex);
     
     if (elementIndex === -1) {
       return NextResponse.json(

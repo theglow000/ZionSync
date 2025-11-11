@@ -21,9 +21,6 @@ export async function GET(request) {
     const cutoffDate = new Date(currentDate);
     cutoffDate.setMonth(currentDate.getMonth() - monthsBack);
 
-    console.log('API: Searching for song:', songTitle || songId);
-    console.log('Date range:', cutoffDate, 'to', currentDate);
-
     if (includeRotation) {
       // Get the song data first to include rotation information
       const song = songId ? 
@@ -97,7 +94,6 @@ export async function GET(request) {
           addedBy: use.addedBy
         }));
 
-      console.log('API: Returning formatted usage:', formattedUsage);
       return NextResponse.json(formattedUsage);
     }
   } catch (e) {

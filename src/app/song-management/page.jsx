@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import SongDatabase from '@/components/ui/SongDatabase';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 export default function SongManagementPage() {
   return (
@@ -32,9 +33,11 @@ export default function SongManagementPage() {
         
         <h1 className="text-3xl font-bold text-purple-700 mb-8">Worship Planning</h1>
         
-        <Card className="bg-white p-5 shadow-lg">
-          <SongDatabase />
-        </Card>
+        <ErrorBoundary>
+          <Card className="bg-white p-5 shadow-lg">
+            <SongDatabase />
+          </Card>
+        </ErrorBoundary>
       </div>
     </div>
   );

@@ -12,8 +12,7 @@ const MobileAVTeamCard = ({
   onSignup, 
   onRemoveAssignment, 
   onEditMember,
-  setAlertMessage,
-  setShowAlert,
+  showAlertWithTimeout,
   setAlertPosition
 }) => {
   const { date, day, title } = item;

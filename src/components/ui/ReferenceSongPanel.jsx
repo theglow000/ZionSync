@@ -7,6 +7,8 @@ import {
 import { getCurrentSeason } from '../../lib/LiturgicalCalendarService.js';
 import ReferenceSongManageModal from './ReferenceSongManageModal.jsx';
 import QuickAddModal from './QuickAddModal.jsx';  // Import the QuickAddModal component
+import { LoadingSpinner } from '../shared';
+import { fetchWithTimeout } from '../../lib/api-utils';
 
 // Liturgical seasons (in chronological order)
 const liturgicalSeasons = [
@@ -117,7 +119,7 @@ const ReferenceSongPanel = () => {
         url += `?${params.toString()}`;
       }
       
-      const response = await fetch(url);
+      const response = await fetchWithTimeout(url);
       
       if (!response.ok) {
         throw new Error('Failed to fetch reference songs');
@@ -311,7 +313,7 @@ const ReferenceSongPanel = () => {
       <div className="flex-grow overflow-y-auto p-2">
         {isLoading ? (
           <div className="flex justify-center items-center h-40">
-            <RefreshCw className="w-8 h-8 text-gray-400 animate-spin" />
+            <LoadingSpinner size="lg" />
           </div>
         ) : error ? (
           <div className="text-center text-red-600 p-4">

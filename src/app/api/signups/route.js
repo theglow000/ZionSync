@@ -6,7 +6,6 @@ export async function GET() {
     const client = await clientPromise;
     const db = client.db("church");
     const signups = await db.collection("signups").find({}).toArray();
-    console.log('Fetched signups:', signups); // Add this line
     return NextResponse.json(signups);
   } catch (e) {
     console.error('GET error:', e); // Add this line
@@ -17,7 +16,6 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    console.log('Attempting to save signup:', body); // Add this line
     const client = await clientPromise;
     const db = client.db("church");
     
@@ -27,7 +25,6 @@ export async function POST(request) {
       timestamp: new Date()
     });
     
-    console.log('Save result:', result); // Add this line
     return NextResponse.json(result);
   } catch (e) {
     console.error('POST error:', e); // Add this line

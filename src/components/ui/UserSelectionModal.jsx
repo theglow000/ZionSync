@@ -3,6 +3,7 @@
 import React from 'react';
 import { X, Trash2, UserCircle } from 'lucide-react';
 import useResponsive from '../../hooks/useResponsive';
+import { useConfirm } from '../../hooks/useConfirm';
 
 const UserSelectionModal = ({ 
   showModal,
@@ -17,6 +18,7 @@ const UserSelectionModal = ({
   currentPosition = null   // Add this prop to know which position we're editing
 }) => {
   const { isMobile } = useResponsive();
+  const { confirm, ConfirmDialog } = useConfirm();
   
   if (!showModal) return null;
   
@@ -90,8 +92,16 @@ const UserSelectionModal = ({
           {/* Only show delete button if showDeleteButton is true AND we have initialUserName and onDelete */}
           {showDeleteButton && initialUserName && onDelete && (
             <button
-              onClick={() => {
-                if (confirm(`Remove assignment for ${initialUserName}?`)) {
+              onClick={async () => {
+                const confirmed = await confirm({
+                  title: 'Remove Assignment',
+                  message: `Remove assignment for ${initialUserName}?`,
+                  variant: 'warning',
+                  confirmText: 'Remove',
+                  cancelText: 'Cancel'
+                });
+                
+                if (confirmed) {
                   onDelete();
                   onClose();
                 }
@@ -110,6 +120,9 @@ const UserSelectionModal = ({
           </button>
         </div>
       </div>
+      
+      {/* Confirmation Dialog */}
+      <ConfirmDialog />
     </div>
   );
 };

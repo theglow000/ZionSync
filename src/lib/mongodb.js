@@ -6,7 +6,6 @@ if (!process.env.MONGODB_URI) {
 }
 
 const uri = process.env.MONGODB_URI;
-console.log('MongoDB URI exists:', !!process.env.MONGODB_URI);
 
 const options = {
   maxPoolSize: 10,
@@ -40,10 +39,6 @@ try {
 
 // Monitor the connection
 if (client) {
-  client.on('connectionReady', () => {
-    console.log('MongoDB connection established');
-  });
-
   client.on('error', (error) => {
     console.error('MongoDB connection error:', error);
   });

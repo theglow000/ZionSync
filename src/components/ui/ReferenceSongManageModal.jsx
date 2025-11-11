@@ -6,8 +6,11 @@ import {
   Trash2,
   ChevronDown, 
   ChevronUp,
-  RefreshCw
+  RefreshCw,
+  Search
 } from 'lucide-react';
+import { LoadingSpinner, EmptyState } from '../shared';
+import { fetchWithTimeout } from '../../lib/api-utils';
 
 const ReferenceSongManageModal = ({ 
   isOpen, 
@@ -91,7 +94,7 @@ const ReferenceSongManageModal = ({
         url += `?${params.toString()}`;
       }
       
-      const response = await fetch(url);
+      const response = await fetchWithTimeout(url);
       
       if (!response.ok) {
         throw new Error('Failed to load reference songs');
@@ -161,7 +164,7 @@ const ReferenceSongManageModal = ({
       
       const method = isUpdate ? 'PUT' : 'POST';
       
-      const response = await fetch(endpoint, {
+      const response = await fetchWithTimeout(endpoint, {
         method,
         headers: {
           'Content-Type': 'application/json'
@@ -216,7 +219,7 @@ const ReferenceSongManageModal = ({
     setMessage(null);
     
     try {
-      const response = await fetch(`/api/reference-songs/${formData._id}`, {
+      const response = await fetchWithTimeout(`/api/reference-songs/${formData._id}`, {
         method: 'DELETE'
       });
       
@@ -364,16 +367,19 @@ const ReferenceSongManageModal = ({
             <div className="flex-grow overflow-y-auto">
               {loading ? (
                 <div className="flex justify-center items-center h-full">
-                  <RefreshCw className="w-8 h-8 text-purple-600 animate-spin" />
+                  <LoadingSpinner size="lg" className="border-purple-600" />
                 </div>
               ) : error ? (
                 <div className="p-4 text-center text-red-500">
                   {error}
                 </div>
               ) : songList.length === 0 ? (
-                <div className="p-4 text-center text-gray-500">
-                  No songs found for the selected filters
-                </div>
+                <EmptyState
+                  icon={Search}
+                  title="No Songs Found"
+                  message="No songs match the selected filters. Try adjusting your criteria."
+                  size="sm"
+                />
               ) : (
                 <div className="divide-y">
                   {songList.map(song => (

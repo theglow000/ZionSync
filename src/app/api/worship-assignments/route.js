@@ -35,7 +35,6 @@ export async function GET(request) {
     const endDate = searchParams.get('endDate');
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit'), 10) : null;
 
-    console.log('Connecting to MongoDB...');
     const client = await clientPromise;
     const db = client.db("church");
 
@@ -44,7 +43,6 @@ export async function GET(request) {
       const formattedDate = formatDate(date);
       const assignment = await db.collection("worship_assignments")
         .findOne({ date: formattedDate });
-      console.log('Found specific assignment:', assignment);
       return NextResponse.json(assignment || null);
     }
 
@@ -69,7 +67,6 @@ export async function GET(request) {
         }])).values()
       );
 
-      console.log(`Found ${uniqueAssignments.length} unique assignments in date range`);
       return NextResponse.json(uniqueAssignments);
     }
 
@@ -78,8 +75,6 @@ export async function GET(request) {
       .find({})
       .sort({ date: 1 })
       .toArray();
-
-    console.log('Raw assignments from DB:', assignments);
 
     // Deduplicate assignments by date while preserving all fields
     const uniqueAssignments = Array.from(
@@ -93,11 +88,9 @@ export async function GET(request) {
     // Apply limit if provided
     const finalAssignments = limit ? uniqueAssignments.slice(0, limit) : uniqueAssignments;
 
-    console.log('Processed assignments:', finalAssignments);
-    console.log('Date format in assignments:', finalAssignments.map(a => a.date));
     return NextResponse.json(finalAssignments);
   } catch (e) {
-    console.error('Detailed error in GET /api/worship-assignments:', e);
+    console.error('Error in GET /api/worship-assignments:', e);
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
