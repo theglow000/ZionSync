@@ -4,7 +4,6 @@ import { getLiturgicalInfo } from '@/lib/LiturgicalCalendarService';
 
 export async function GET(request) {
   try {
-    console.log('Fetching service details...');
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date');
 
@@ -52,17 +51,14 @@ export async function GET(request) {
         );
       }
       
-      console.log('Single service details:', {
-        date,
-        content: details?.content?.substring(0, 50) + '...',
-        elementCount: details?.elements?.length,
-        liturgical: details?.liturgical
-      });
       return NextResponse.json(details || null);
     } else {
       details = await db.collection("serviceDetails").find({}).toArray();
       // Process each document
       for (let detail of details) {
+        // Skip documents without a date field
+        if (!detail.date) continue;
+        
         if (detail.content && !detail.elements) {
           detail.elements = parseServiceContent(detail.content);
           // Save the parsed elements back to the database
@@ -100,17 +96,11 @@ export async function GET(request) {
         }
       }
       
-      console.log('All service details:', details.map(d => ({
-        date: d.date,
-        hasContent: !!d.content,
-        elementCount: d.elements?.length,
-        liturgical: !!d.liturgical
-      })));
       return NextResponse.json(details);
     }
   } catch (e) {
     console.error('GET Error:', e);
-    return NextResponse.json(null);
+    return NextResponse.json([]);
   }
 }
 
@@ -163,12 +153,6 @@ const parseServiceContent = (content) => {
 export async function POST(request) {
   try {
     const body = await request.json();
-    console.log('POST received:', {
-      date: body.date,
-      hasContent: !!body.content,
-      hasElements: !!body.elements,
-      elementCount: body.elements?.length
-    });
 
     if (!body.date) {
       throw new Error('Date is required');
@@ -208,19 +192,14 @@ export async function POST(request) {
       lastUpdated: new Date().toISOString()
     };
 
-    console.log('Saving document:', updateDoc);
-
     const result = await db.collection("serviceDetails").updateOne(
       { date: body.date },
       { $set: updateDoc },
       { upsert: true }
     );
 
-    console.log('MongoDB update result:', result);
-
     // Return the updated document
     const updated = await db.collection("serviceDetails").findOne({ date: body.date });
-    console.log('Updated document:', updated);
     return NextResponse.json(updated);
   } catch (e) {
     console.error('POST Error:', e);

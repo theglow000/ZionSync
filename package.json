@@ -30,6 +30,7 @@
     "ics": "^3.8.1",
     "lucide-react": "^0.471.1",
     "mongodb": "^6.13.0",
+    "mongoose": "^8.19.3",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",

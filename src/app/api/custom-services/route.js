@@ -8,9 +8,6 @@ export async function PUT(request) {
     const client = await clientPromise;
     const db = client.db("church");
 
-    // Log the update attempt
-    console.log('Updating custom service:', body);
-
     // Ensure we have an ID
     if (!body.id) {
       throw new Error('Service ID is required');
@@ -62,7 +59,6 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    console.log('Creating new custom service:', body);
 
     const serviceDoc = {
       id: body.id,
@@ -94,9 +90,6 @@ export async function DELETE(request) {
     const body = await request.json();
     const client = await clientPromise;
     const db = client.db("church");
-
-    // Add logging to see what we're trying to delete
-    console.log('Attempting to delete service with ID:', body.id);
 
     const result = await db.collection("custom_services").deleteOne({
       id: body.id // Use the string ID we created in POST

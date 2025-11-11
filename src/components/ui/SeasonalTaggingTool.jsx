@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Check, Filter, Tag, RefreshCw, Search, X as XIcon } from 'lucide-react';
+import { LoadingSpinner, EmptyState } from '../shared';
+import { fetchWithTimeout } from '../../lib/api-utils';
 
 // Use the same liturgical seasons from SongDatabase.jsx
 const liturgicalSeasons = [
@@ -34,7 +36,7 @@ const SeasonalTaggingTool = () => {
     const fetchSongs = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch('/api/songs');
+        const response = await fetchWithTimeout('/api/songs');
         
         if (!response.ok) {
           throw new Error('Failed to fetch songs');
@@ -142,7 +144,7 @@ const SeasonalTaggingTool = () => {
         const newTags = [...new Set([...existingTags, ...selectedSeasons])];
         
         // Update song with new tags
-        return fetch('/api/songs', {
+        return fetchWithTimeout('/api/songs', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -155,7 +157,7 @@ const SeasonalTaggingTool = () => {
       await Promise.all(updatePromises);
       
       // Refresh song list
-      const response = await fetch('/api/songs');
+      const response = await fetchWithTimeout('/api/songs');
       const updatedSongs = await response.json();
       setSongs(updatedSongs);
       
@@ -197,7 +199,7 @@ const SeasonalTaggingTool = () => {
         const newTags = existingTags.filter(tag => !selectedSeasons.includes(tag));
         
         // Update song with new tags
-        return fetch('/api/songs', {
+        return fetchWithTimeout('/api/songs', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -210,7 +212,7 @@ const SeasonalTaggingTool = () => {
       await Promise.all(updatePromises);
       
       // Refresh song list
-      const response = await fetch('/api/songs');
+      const response = await fetchWithTimeout('/api/songs');
       const updatedSongs = await response.json();
       setSongs(updatedSongs);
       
@@ -358,13 +360,16 @@ const SeasonalTaggingTool = () => {
         
         {isLoading ? (
           <div className="p-4 text-center text-gray-500">
-            <RefreshCw className="animate-spin h-5 w-5 mx-auto mb-2" />
+            <LoadingSpinner size="md" className="mx-auto mb-2" />
             Loading songs...
           </div>
         ) : filteredSongs.length === 0 ? (
-          <div className="p-4 text-center text-gray-500">
-            No songs match your criteria
-          </div>
+          <EmptyState
+            icon={Search}
+            title="No Songs Match"
+            message="Try adjusting your search or filter criteria."
+            size="sm"
+          />
         ) : (
           <div className="max-h-[400px] overflow-y-auto">
             {filteredSongs.map(song => (

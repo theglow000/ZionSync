@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, Check, Calendar, BookOpen, MessageSquare, Music, Music2, Cross, Trash2, UserCircle, CheckCircle, Pencil } from 'lucide-react';
 import UserSelectionModal from './UserSelectionModal';
+import { useConfirm } from '../../hooks/useConfirm';
 
 const MobileServiceCard = ({ 
   item,
@@ -21,8 +22,7 @@ const MobileServiceCard = ({
   onComplete,
   onSelectDate,
   onServiceDetailChange,
-  setAlertMessage,
-  setShowAlert,
+  showAlertWithTimeout,
   setAlertPosition,
   customServices,
   onEditService,
@@ -31,6 +31,9 @@ const MobileServiceCard = ({
   // Remove currentUser prop if it's not being used anymore
   const [expanded, setExpanded] = useState(false);
   const [showUserSelection, setShowUserSelection] = useState(false);
+  
+  // Use confirm dialog hook
+  const { confirm, ConfirmDialog } = useConfirm();
   
   // Extract properties from item
   const { date, title, day } = item;
@@ -97,7 +100,15 @@ const MobileServiceCard = ({
     e.stopPropagation(); // Prevent card expansion
     
     // Confirm before deletion
-    if (window.confirm('Are you sure you want to delete this service\'s details?')) {
+    const confirmed = await confirm({
+      title: 'Delete Service Details',
+      message: 'This action cannot be undone.',
+      variant: 'danger',
+      confirmText: 'Delete',
+      cancelText: 'Cancel'
+    });
+    
+    if (confirmed) {
       if (onDeleteService) {
         onDeleteService(date);
       }
@@ -371,6 +382,9 @@ const MobileServiceCard = ({
           </div>
         </div>
       )}
+      
+      {/* Confirmation Dialog */}
+      <ConfirmDialog />
     </div>
   );
 };

@@ -8,6 +8,9 @@ import SeasonalTaggingTool from './SeasonalTaggingTool';
 import ReferenceSongPanel from './ReferenceSongPanel';
 import SongRediscoveryPanel from './SongRediscoveryPanel';
 import SeasonalPlanningGuide from './SeasonalPlanningGuide';
+import { useConfirm } from '../../hooks/useConfirm';
+import { LoadingSpinner, EmptyState } from '../shared';
+import { fetchWithTimeout, apiPost, apiDelete } from '../../lib/api-utils';
 
 // Hymnal options
 const hymnalVersions = [
@@ -32,6 +35,8 @@ const liturgicalSeasons = [
 ];
 
 const SongDatabase = () => {
+  const { confirm, ConfirmDialog } = useConfirm();
+  
   // State variables
   const [songs, setSongs] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -69,7 +74,7 @@ const SongDatabase = () => {
       setIsLoading(true);
       try {
         // Fetch songs
-        const songsResponse = await fetch('/api/songs');
+        const songsResponse = await fetchWithTimeout('/api/songs');
         if (!songsResponse.ok) throw new Error('Failed to fetch songs');
         const songsData = await songsResponse.json();
         
@@ -116,7 +121,7 @@ const SongDatabase = () => {
   // Handle song update
   const handleUpdateSong = async () => {
     try {
-      const response = await fetch('/api/songs', {
+      const response = await fetchWithTimeout('/api/songs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editingSong)
@@ -141,16 +146,23 @@ const SongDatabase = () => {
   const handleConfirmDelete = async () => {
     try {
       // First check if the song has usage history
-      const usageResponse = await fetch(`/api/song-usage?title=${encodeURIComponent(selectedSong.title)}`);
+      const usageResponse = await fetchWithTimeout(`/api/song-usage?title=${encodeURIComponent(selectedSong.title)}`);
       
       if (usageResponse.ok) {
         const usageData = await usageResponse.json();
         
         if (usageData && usageData.length > 0) {
           // Song has usage history, show special warning
-          const usageWarning = `This song "${selectedSong.title}" has been used in ${usageData.length} services. If you delete this song, the historical data will be preserved but marked as referring to a deleted song.`;
-          
-          if (!window.confirm(usageWarning + "\n\nAre you sure you want to delete this song?")) {
+          const confirmed = await confirm({
+            title: 'Delete Song with History',
+            message: `"${selectedSong.title}" has been used in ${usageData.length} service${usageData.length > 1 ? 's' : ''}.`,
+            details: ['Historical data will be preserved but marked as deleted'],
+            variant: 'danger',
+            confirmText: 'Delete Anyway',
+            cancelText: 'Cancel'
+          });
+
+          if (!confirmed) {
             return; // Exit if user cancels
           }
         }
@@ -166,7 +178,7 @@ const SongDatabase = () => {
   // Handle actual song deletion
   const handleDeleteSong = async () => {
     try {
-      const response = await fetch(`/api/songs?id=${selectedSong._id}`, {
+      const response = await fetchWithTimeout(`/api/songs?id=${selectedSong._id}`, {
         method: 'DELETE',
       });
       
@@ -209,7 +221,7 @@ const SongDatabase = () => {
   // Add a function to handle song merging
   const handleMergeSongs = async (targetSong) => {
     try {
-      const response = await fetch('/api/songs/merge', {
+      const response = await fetchWithTimeout('/api/songs/merge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -316,7 +328,7 @@ const SongDatabase = () => {
       setError(null);
       
       // Fetch upcoming services with their full details
-      const response = await fetch('/api/upcoming-services?limit=8');
+      const response = await fetchWithTimeout('/api/upcoming-services?limit=8');
       
       if (!response.ok) {
         throw new Error('Failed to fetch upcoming services');
@@ -396,7 +408,7 @@ const SongDatabase = () => {
       setIsAddingSong(true);
       
       // Use the exact same approach as ReferenceSongPanel for adding songs
-      const response = await fetch('/api/reference-songs/import', {
+      const response = await fetchWithTimeout('/api/reference-songs/import', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -527,7 +539,7 @@ const SongDatabase = () => {
 
           {isLoading ? (
             <div className="flex justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-700"></div>
+              <LoadingSpinner size="lg" className="border-purple-700" />
             </div>
           ) : error ? (
             <div className="text-center py-8 text-red-500">
@@ -564,9 +576,12 @@ const SongDatabase = () => {
                       ))}
                     </ul>
                   ) : (
-                    <div className="p-6 text-center text-gray-500">
-                      No songs found matching your search criteria.
-                    </div>
+                    <EmptyState
+                      icon={Search}
+                      title="No Songs Found"
+                      message="No songs match your search criteria. Try different keywords or filters."
+                      size="sm"
+                    />
                   )}
                 </div>
               </div>
@@ -1022,14 +1037,16 @@ const SongDatabase = () => {
                   
                   {loadingServices ? (
                     <div className="text-center py-4 text-gray-500">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-700 mx-auto mb-1"></div>
+                      <LoadingSpinner size="md" className="border-purple-700 mx-auto mb-1" />
                       <p className="text-sm">Loading services...</p>
                     </div>
                   ) : upcomingServices.length === 0 ? (
-                    <div className="text-center py-4 text-gray-500">
-                      <Calendar className="w-5 h-5 mx-auto mb-1" />
-                      <p className="text-sm">No upcoming services found</p>
-                    </div>
+                    <EmptyState
+                      icon={Calendar}
+                      title="No Upcoming Services"
+                      message="Services will appear here when scheduled."
+                      size="sm"
+                    />
                   ) : (
                     <div className="space-y-3">
                       {upcomingServices.map(service => {
@@ -1112,8 +1129,16 @@ const SongDatabase = () => {
                                           
                                           {position.hasSelection ? (
                                             <button
-                                              onClick={() => {
-                                                if (confirm(`Replace "${position.selectionDetails.title}" with "${selectedSong.title}"?`)) {
+                                              onClick={async () => {
+                                                const confirmed = await confirm({
+                                                  title: 'Replace Song',
+                                                  message: `Replace "${position.selectionDetails.title}" with "${selectedSong.title}"?`,
+                                                  variant: 'warning',
+                                                  confirmText: 'Replace',
+                                                  cancelText: 'Cancel'
+                                                });
+
+                                                if (confirmed) {
                                                   setSelectedPosition(position.id);
                                                 }
                                               }}
@@ -1186,7 +1211,7 @@ const SongDatabase = () => {
                     >
                       {isAddingSong ? (
                         <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          <LoadingSpinner size="sm" color="white" className="mr-2" />
                           Adding...
                         </>
                       ) : (
@@ -1232,6 +1257,7 @@ const SongDatabase = () => {
           </div>
         </div>
       )}
+      <ConfirmDialog />
     </div>
   );
 };

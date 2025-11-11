@@ -17,15 +17,11 @@ export async function GET(request) {
     // Parse today's date to MM/DD/YY format for string comparison
     const todayFormatted = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear() % 100}`;
     
-    console.log('Looking for services after date:', todayFormatted);
-    
     // Query the serviceDetails collection for upcoming services
     // This matches your actual collection name from the investigation
     const allServices = await db.collection("serviceDetails")
       .find({})
       .toArray();
-    
-    console.log(`Found ${allServices.length} total services in serviceDetails collection`);
     
     // Filter for dates on or after today - we need to manually compare date strings
     // because MongoDB can't do proper date comparison when they're stored as strings
@@ -53,7 +49,6 @@ export async function GET(request) {
           // Months are equal, compare days
           return serviceParts[1] >= todayParts[1];
         } catch (e) {
-          console.error('Error comparing dates:', service.date, e);
           return false;
         }
       })
@@ -70,16 +65,10 @@ export async function GET(request) {
           // Then days
           return aParts[1] - bParts[1];
         } catch (e) {
-          console.error('Error sorting dates:', a.date, b.date, e);
           return 0;
         }
       })
       .slice(0, limit);
-    
-    console.log(`Found ${upcomingServices.length} upcoming services`);
-    if (upcomingServices.length > 0) {
-      console.log("First 3 upcoming services:", upcomingServices.slice(0, 3).map(s => s.date));
-    }
     
     // Format the services for the frontend
     const formattedServices = upcomingServices.map(service => {

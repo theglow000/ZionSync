@@ -12,9 +12,6 @@ export async function GET() {
       .find({})
       .toArray();
 
-    // Log to help debug
-    console.log('Fetched users:', users);
-    
     return NextResponse.json({
       users: users || [],
       success: true

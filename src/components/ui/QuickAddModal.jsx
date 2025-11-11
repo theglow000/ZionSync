@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X as XIcon, Calendar, AlertCircle } from 'lucide-react';
+import { LoadingSpinner, EmptyState } from '../shared';
+import { fetchWithTimeout } from '../../lib/api-utils';
 
 const QuickAddModal = ({ isOpen, onClose, song }) => {
   const [upcomingServices, setUpcomingServices] = useState([]);
@@ -47,7 +49,7 @@ const QuickAddModal = ({ isOpen, onClose, song }) => {
       setError(null);
       
       // Fetch upcoming services with their full details
-      const response = await fetch('/api/upcoming-services?limit=8');
+      const response = await fetchWithTimeout('/api/upcoming-services?limit=8');
       
       if (!response.ok) {
         throw new Error(`Error ${response.status}: Unable to load services`);
@@ -127,7 +129,7 @@ const QuickAddModal = ({ isOpen, onClose, song }) => {
       setError(null);
       
       // Use the working API endpoint and correct parameter structure
-      const response = await fetch('/api/reference-songs/import', {
+      const response = await fetchWithTimeout('/api/reference-songs/import', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -203,7 +205,7 @@ const QuickAddModal = ({ isOpen, onClose, song }) => {
             </div>
           ) : isLoading ? (
             <div className="text-center py-8">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-purple-500 border-t-transparent"></div>
+              <LoadingSpinner size="lg" className="border-purple-500" />
               <p className="mt-2 text-gray-500">Loading services...</p>
             </div>
           ) : (
@@ -257,9 +259,12 @@ const QuickAddModal = ({ isOpen, onClose, song }) => {
                   <p className="mb-2 font-medium">Select a service:</p>
                   <div className="space-y-1.5">
                     {upcomingServices.length === 0 ? (
-                      <p className="text-center text-gray-500 py-4">
-                        No upcoming services found
-                      </p>
+                      <EmptyState
+                        icon={Calendar}
+                        title="No Upcoming Services"
+                        message="Services will appear here when scheduled."
+                        size="sm"
+                      />
                     ) : (
                       upcomingServices.map((service) => (
                         <div

@@ -6,8 +6,14 @@ import {
 } from 'lucide-react';
 import { LITURGICAL_SEASONS } from '@/lib/LiturgicalSeasons.js';
 import { getLiturgicalInfo } from '@/lib/LiturgicalCalendarService';
+import { useConfirm } from '../../hooks/useConfirm';
+import { LoadingSpinner, EmptyState } from '../shared';
+import { fetchWithTimeout, apiPost } from '../../lib/api-utils';
 
 const SongRediscoveryPanel = () => {
+  // Use confirm dialog hook
+  const { confirm, ConfirmDialog } = useConfirm();
+  
   // State for songs
   const [songs, setSongs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,7 +60,7 @@ const SongRediscoveryPanel = () => {
         setIsLoading(true);
         
         // Fetch songs from your API
-        const songsResponse = await fetch('/api/songs');
+        const songsResponse = await fetchWithTimeout('/api/songs');
         if (!songsResponse.ok) throw new Error('Failed to fetch songs');
         const songsData = await songsResponse.json();
         
@@ -109,8 +115,6 @@ const SongRediscoveryPanel = () => {
               key => LITURGICAL_SEASONS[key] === liturgicalInfo.season
             ) || 'ordinary';
           }
-          
-          console.log("Determined season key:", seasonKey);
           setCurrentSeason(seasonKey);
           
           // Only set the season on initial load, not when user has made a selection
@@ -145,7 +149,7 @@ const SongRediscoveryPanel = () => {
         params.append('season', selectedSeason);
       }
       
-      const response = await fetch(`/api/song-usage/suggestions?${params}`);
+      const response = await fetchWithTimeout(`/api/song-usage/suggestions?${params}`);
       if (!response.ok) throw new Error('Failed to fetch suggestions');
       
       const data = await response.json();
@@ -169,7 +173,7 @@ const SongRediscoveryPanel = () => {
       setLoadingServices(true);
       
       // Fetch upcoming services with their full details
-      const response = await fetch('/api/upcoming-services?limit=8');
+      const response = await fetchWithTimeout('/api/upcoming-services?limit=8');
       
       if (!response.ok) {
         throw new Error('Failed to fetch upcoming services');
@@ -406,7 +410,7 @@ const SongRediscoveryPanel = () => {
       setIsAddingSong(true);
       
       // Use the exact same approach as ReferenceSongPanel for adding songs
-      const response = await fetch('/api/reference-songs/import', {
+      const response = await fetchWithTimeout('/api/reference-songs/import', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -442,7 +446,7 @@ const SongRediscoveryPanel = () => {
       });
       
       // Update song usage data (optional)
-      const analyticsResponse = await fetch('/api/song-usage/analytics');
+      const analyticsResponse = await fetchWithTimeout('/api/song-usage/analytics');
       if (analyticsResponse.ok) {
         const analyticsData = await analyticsResponse.json();
         setUsageAnalytics(analyticsData || { frequency: [] });
@@ -538,7 +542,7 @@ const SongRediscoveryPanel = () => {
       <div className="p-4 overflow-y-auto flex-grow">
         {isLoading ? (
           <div className="flex justify-center items-center h-32">
-            <RefreshCw className="w-6 h-6 text-purple-600 animate-spin" />
+            <LoadingSpinner size="md" className="border-purple-600" />
             <span className="ml-2 text-gray-600">Loading songs...</span>
           </div>
         ) : error ? (
@@ -547,11 +551,12 @@ const SongRediscoveryPanel = () => {
             <p>Error: {error}</p>
           </div>
         ) : getFilteredSongs().length === 0 ? (
-          <div className="text-center p-6 text-gray-500">
-            <Music className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-            <p>No songs found matching your criteria.</p>
-            <p className="text-sm mt-1">Try adjusting your filters.</p>
-          </div>
+          <EmptyState
+            icon={Music}
+            title="No Songs Found"
+            message="Try adjusting your filters or search criteria."
+            size="sm"
+          />
         ) : (
           <div className="space-y-6">
             {/* Intelligent Suggestions Section */}
@@ -584,7 +589,7 @@ const SongRediscoveryPanel = () => {
                 <div className="p-2">
                   {isSuggestionsLoading ? (
                     <div className="flex justify-center items-center h-24">
-                      <RefreshCw className="w-5 h-5 text-green-600 animate-spin" />
+                      <LoadingSpinner size="md" className="border-green-600" />
                       <span className="ml-2 text-gray-600">Loading suggestions...</span>
                     </div>
                   ) : suggestionsError ? (
@@ -592,9 +597,12 @@ const SongRediscoveryPanel = () => {
                       <p>Error: {suggestionsError}</p>
                     </div>
                   ) : intelligentSuggestions.length === 0 ? (
-                    <div className="text-center p-4 text-gray-500">
-                      <p>No suggestions available.</p>
-                    </div>
+                    <EmptyState
+                      icon={Info}
+                      title="No Suggestions Available"
+                      message="Suggestions will appear based on upcoming services and seasonal themes."
+                      size="sm"
+                    />
                   ) : (
                     <div>
                       <p className="text-xs text-gray-500 mb-2 px-2">
@@ -982,14 +990,16 @@ const SongRediscoveryPanel = () => {
               
               {loadingServices ? (
                 <div className="text-center py-4 text-gray-500">
-                  <RefreshCw className="w-5 h-5 mx-auto animate-spin mb-1" />
+                  <LoadingSpinner size="sm" className="mx-auto mb-1" />
                   <p className="text-sm">Loading services...</p>
                 </div>
               ) : upcomingServices.length === 0 ? (
-                <div className="text-center py-4 text-gray-500">
-                  <Calendar className="w-5 h-5 mx-auto mb-1" />
-                  <p className="text-sm">No upcoming services found</p>
-                </div>
+                <EmptyState
+                  icon={Calendar}
+                  title="No Upcoming Services"
+                  message="Services will appear here when scheduled."
+                  size="sm"
+                />
               ) : (
                 <div className="space-y-3">
                   {upcomingServices.map(service => {
@@ -1072,8 +1082,16 @@ const SongRediscoveryPanel = () => {
                                       
                                       {position.hasSelection ? (
                                         <button
-                                          onClick={() => {
-                                            if (confirm(`Replace "${position.selectionDetails.title}" with "${selectedSong.title}"?`)) {
+                                          onClick={async () => {
+                                            const confirmed = await confirm({
+                                              title: 'Replace Song',
+                                              message: `Replace "${position.selectionDetails.title}" with "${selectedSong.title}"?`,
+                                              variant: 'warning',
+                                              confirmText: 'Replace',
+                                              cancelText: 'Cancel'
+                                            });
+                                            
+                                            if (confirmed) {
                                               setSelectedPosition(position.id);
                                             }
                                           }}
@@ -1146,7 +1164,7 @@ const SongRediscoveryPanel = () => {
                 >
                   {isAddingSong ? (
                     <>
-                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      <LoadingSpinner size="sm" color="white" className="mr-2" />
                       Adding...
                     </>
                   ) : (
@@ -1174,6 +1192,7 @@ const SongRediscoveryPanel = () => {
           </div>
         </div>
       )}
+      <ConfirmDialog />
     </div>
   );
 };

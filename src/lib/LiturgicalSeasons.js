@@ -7,7 +7,7 @@
 export const LITURGICAL_SEASONS = {
   ADVENT: { name: "Advent", color: "#5D3FD3" }, // Purple/Blue
   CHRISTMAS: { name: "Christmas", color: "#D4AF37" }, // Gold
-  EPIPHANY: { name: "Epiphany", color: "#008080" }, // Teal
+  EPIPHANY: { name: "Epiphany", color: "#118AB2" }, // Blue
   LENT: { name: "Lent", color: "#800020" }, // Purple
   HOLY_WEEK: { name: "Holy Week", color: "#8B0000" }, // Scarlet
   EASTER: { name: "Easter", color: "#FFF0AA" }, // Gold/White
@@ -36,6 +36,11 @@ export const MAJOR_FEAST_DAYS = {
     name: "Feast of the Epiphany", 
     color: "#008080",
     description: "revelation, light, and the manifestation of Christ to the Gentiles"
+  },
+  BAPTISM_OF_OUR_LORD: { 
+    name: "Baptism of Our Lord", 
+    color: "#FFFFFF",
+    description: "Christ's baptism, the beginning of his ministry, and our baptism into Christ"
   },
   TRANSFIGURATION: { 
     name: "Transfiguration of Our Lord", 
@@ -101,6 +106,16 @@ export const MAJOR_FEAST_DAYS = {
     name: "Thanksgiving",
     color: "#556B2F",
     description: "gratitude, harvest, and God's providential care"
+  },
+  THANKSGIVING_EVE: {
+    name: "Thanksgiving Eve",
+    color: "#556B2F",
+    description: "gratitude and preparation for Thanksgiving"
+  },
+  LENT_MIDWEEK: {
+    name: "Lent Worship",
+    color: "#800020",
+    description: "midweek Lenten devotion, reflection, and prayer"
   }
 };
 

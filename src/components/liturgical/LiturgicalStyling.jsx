@@ -30,7 +30,6 @@ export const getSeasonClass = (dateStr) => {
     
     // Get season - NO MORE LOWERCASE CONVERSION
     const season = getCurrentSeason(date);
-    console.log(`Date: ${dateStr}, Season: ${season}`); // Debug line
     return season;
   } catch (error) {
     console.error('Error determining season class:', error);
@@ -47,9 +46,6 @@ export const getSpecialServiceType = (dateStr) => {
     const formattedDate = `${fullYear}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
     const date = new Date(formattedDate);
     const specialDay = getSpecialDay(date);
-    
-    // Debug output - can remove after confirming it works
-    console.log(`Special day for ${dateStr}: ${specialDay}`);
     
     if (!specialDay) return null;
     
@@ -80,9 +76,6 @@ export const getSpecialServiceType = (dateStr) => {
 export const getHeaderClass = (date) => {
   const seasonClass = getSeasonClass(date);
   const specialType = getSpecialServiceType(date);
-  
-  // Debug output - can remove after confirming it works
-  console.log(`getHeaderClass for ${date}: Season=${seasonClass}, SpecialType=${specialType}`);
   
   return `flex items-center justify-between w-full ${
     seasonClass ? `season-header-${seasonClass}` : ''} ${

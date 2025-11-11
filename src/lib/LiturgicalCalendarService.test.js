@@ -12,7 +12,10 @@ import {
   clearCache,
   isReformationSunday,
   isAllSaintsDay,
-  isChristTheKingSunday
+  isChristTheKingSunday,
+  validateEasterDate,
+  validateLiturgicalDate,
+  validateServiceDateRange
 } from './LiturgicalCalendarService';
 
 import { LITURGICAL_SEASONS, MAJOR_FEAST_DAYS } from './LiturgicalSeasons';
@@ -45,11 +48,11 @@ describe('LiturgicalCalendarService', () => {
       expect(easter2026.getDate()).toBe(5); // April 5, 2026
     });
 
-    test('calculates Easter 2027 correctly (later Easter)', () => {
+    test('calculates Easter 2027 correctly (early March Easter)', () => {
       const easter2027 = calculateEaster(2027);
       expect(easter2027.getFullYear()).toBe(2027);
-      expect(easter2027.getMonth()).toBe(3); // April
-      expect(easter2027.getDate()).toBe(18); // April 18, 2027
+      expect(easter2027.getMonth()).toBe(2); // March
+      expect(easter2027.getDate()).toBe(28); // March 28, 2027
     });
 
     test('calculates Easter 2038 correctly (distant future)', () => {
@@ -211,14 +214,14 @@ describe('LiturgicalCalendarService', () => {
     });
 
     test('identifies All Saints Day correctly', () => {
-      // Exact date
-      const allSaintsDay = new Date(2025, 10, 1); // November 1, 2025
-      expect(getSpecialDay(allSaintsDay)).toBe('ALL_SAINTS_DAY');
-
-      // Sunday observance when Nov 1 falls on a weekday
-      // In 2025, Nov 1 is a Saturday, so the Sunday after (Nov 2) should be All Saints
+      // LCMC Lutheran tradition: First Sunday of November
+      // In 2025, Nov 1 is a Saturday, so first Sunday is Nov 2
       const allSaintsSunday = new Date(2025, 10, 2); // November 2, 2025
       expect(getSpecialDay(allSaintsSunday)).toBe('ALL_SAINTS_DAY');
+      
+      // In 2026, Nov 1 is a Sunday, so it's All Saints Day
+      const allSaintsDay2026 = new Date(2026, 10, 1); // November 1, 2026
+      expect(getSpecialDay(allSaintsDay2026)).toBe('ALL_SAINTS_DAY');
     });
 
     test('identifies Christ the King Sunday correctly', () => {
@@ -234,6 +237,56 @@ describe('LiturgicalCalendarService', () => {
       // Thanksgiving USA (4th Thursday in November)
       const thanksgiving2025 = new Date(2025, 10, 27); // November 27, 2025
       expect(getSpecialDay(thanksgiving2025)).toBe('THANKSGIVING');
+    });
+
+    test('identifies Maundy Thursday correctly', () => {
+      // Maundy Thursday 2025 (Easter - 3 days)
+      // Easter 2025 is April 20, so Maundy Thursday is April 17
+      const maundyThursday2025 = new Date(2025, 3, 17); // April 17, 2025
+      expect(getSpecialDay(maundyThursday2025)).toBe('MAUNDY_THURSDAY');
+
+      // Maundy Thursday 2026 (Easter - 3 days)
+      // Easter 2026 is April 5, so Maundy Thursday is April 2
+      const maundyThursday2026 = new Date(2026, 3, 2); // April 2, 2026
+      expect(getSpecialDay(maundyThursday2026)).toBe('MAUNDY_THURSDAY');
+    });
+
+    test('identifies Good Friday correctly', () => {
+      // Good Friday 2025 (Easter - 2 days)
+      // Easter 2025 is April 20, so Good Friday is April 18
+      const goodFriday2025 = new Date(2025, 3, 18); // April 18, 2025
+      expect(getSpecialDay(goodFriday2025)).toBe('GOOD_FRIDAY');
+
+      // Good Friday 2026 (Easter - 2 days)
+      // Easter 2026 is April 5, so Good Friday is April 3
+      const goodFriday2026 = new Date(2026, 3, 3); // April 3, 2026
+      expect(getSpecialDay(goodFriday2026)).toBe('GOOD_FRIDAY');
+    });
+
+    test('identifies Ascension Day correctly', () => {
+      // Ascension 2025 (Easter + 39 days)
+      // Easter 2025 is April 20, so Ascension is May 29 (always a Thursday)
+      const ascension2025 = new Date(2025, 4, 29); // May 29, 2025
+      expect(getSpecialDay(ascension2025)).toBe('ASCENSION');
+      expect(ascension2025.getDay()).toBe(4); // Verify it's a Thursday
+
+      // Ascension 2026 (Easter + 39 days)
+      // Easter 2026 is April 5, so Ascension is May 14
+      const ascension2026 = new Date(2026, 4, 14); // May 14, 2026
+      expect(getSpecialDay(ascension2026)).toBe('ASCENSION');
+      expect(ascension2026.getDay()).toBe(4); // Verify it's a Thursday
+    });
+
+    test('identifies Baptism of Our Lord correctly', () => {
+      // Baptism of Our Lord 2025 (Sunday after Epiphany)
+      // Epiphany 2025 is Jan 6 (Monday), so Baptism is Jan 12
+      const baptism2025 = new Date(2025, 0, 12); // January 12, 2025
+      expect(getSpecialDay(baptism2025)).toBe('BAPTISM_OF_OUR_LORD');
+
+      // Baptism of Our Lord 2026 (Sunday after Epiphany)
+      // Epiphany 2026 is Jan 6 (Tuesday), so Baptism is Jan 11
+      const baptism2026 = new Date(2026, 0, 11); // January 11, 2026
+      expect(getSpecialDay(baptism2026)).toBe('BAPTISM_OF_OUR_LORD');
     });
 
     test('returns null for ordinary days', () => {
@@ -255,13 +308,20 @@ describe('LiturgicalCalendarService', () => {
   });
 
   describe('isAllSaintsDay', () => {
-    test('correctly identifies All Saints Day and its Sunday observance', () => {
-      // 2024 - Nov 1 is a Friday, so the observance should be Nov 3 (Sunday)
-      expect(isAllSaintsDay(new Date(2024, 10, 1))).toBe(true); // Actual date
-      expect(isAllSaintsDay(new Date(2024, 10, 3))).toBe(true); // Sunday observance
+    test('correctly identifies All Saints Day per LCMC Lutheran tradition', () => {
+      // Lutheran tradition: First Sunday of November
+      // 2024 - Nov 1 is a Friday, so first Sunday is Nov 3
+      expect(isAllSaintsDay(new Date(2024, 10, 3))).toBe(true); // First Sunday
+      
+      // 2025 - Nov 1 is a Saturday, so first Sunday is Nov 2
+      expect(isAllSaintsDay(new Date(2025, 10, 2))).toBe(true); // First Sunday
 
-      // 2026 - Nov 1 is a Sunday, so the observance is the same day
-      expect(isAllSaintsDay(new Date(2026, 10, 1))).toBe(true);
+      // 2026 - Nov 1 is a Sunday, so it's the first Sunday
+      expect(isAllSaintsDay(new Date(2026, 10, 1))).toBe(true); // Nov 1 is Sunday
+      
+      // Should NOT match Nov 1 when it's not Sunday
+      expect(isAllSaintsDay(new Date(2024, 10, 1))).toBe(false); // Nov 1 is Friday
+      expect(isAllSaintsDay(new Date(2025, 10, 1))).toBe(false); // Nov 1 is Saturday
     });
   });
 
@@ -320,6 +380,113 @@ describe('LiturgicalCalendarService', () => {
       // April 25 is the latest possible Easter
       const lateEaster = new Date(2038, 3, 25);
       expect(getCurrentSeason(lateEaster)).toBe('EASTER');
+    });
+  });
+
+  describe('Validation Functions', () => {
+    describe('validateEasterDate', () => {
+      test('validates correct Easter dates', () => {
+        const result2025 = validateEasterDate(2025);
+        expect(result2025.isValid).toBe(true);
+        expect(result2025.calculatedDate.getMonth()).toBe(3);
+        expect(result2025.calculatedDate.getDate()).toBe(20);
+
+        const result2026 = validateEasterDate(2026);
+        expect(result2026.isValid).toBe(true);
+        expect(result2026.calculatedDate.getMonth()).toBe(3);
+        expect(result2026.calculatedDate.getDate()).toBe(5);
+      });
+
+      test('validates earliest possible Easter (March 22)', () => {
+        const result = validateEasterDate(2285);
+        expect(result.isValid).toBe(true);
+        expect(result.calculatedDate.getMonth()).toBe(2);
+        expect(result.calculatedDate.getDate()).toBe(22);
+      });
+
+      test('validates latest possible Easter (April 25)', () => {
+        const result = validateEasterDate(2038);
+        expect(result.isValid).toBe(true);
+        expect(result.calculatedDate.getMonth()).toBe(3);
+        expect(result.calculatedDate.getDate()).toBe(25);
+      });
+    });
+
+    describe('validateLiturgicalDate', () => {
+      test('validates correct season identification', () => {
+        const christmas = new Date(2025, 11, 25);
+        const result = validateLiturgicalDate(christmas, 'CHRISTMAS');
+        expect(result.isValid).toBe(true);
+        expect(result.calculatedSeason).toBe('CHRISTMAS');
+      });
+
+      test('detects incorrect season identification', () => {
+        const christmas = new Date(2025, 11, 25);
+        const result = validateLiturgicalDate(christmas, 'ADVENT');
+        expect(result.isValid).toBe(false);
+        expect(result.expectedSeason).toBe('ADVENT');
+        expect(result.calculatedSeason).toBe('CHRISTMAS');
+      });
+
+      test('validates Epiphany season starts Jan 6', () => {
+        const epiphany = new Date(2025, 0, 6);
+        const result = validateLiturgicalDate(epiphany, 'EPIPHANY');
+        expect(result.isValid).toBe(true);
+      });
+    });
+
+    describe('validateServiceDateRange', () => {
+      test('validates date range with no issues', () => {
+        const dates = [
+          new Date(2025, 0, 5),
+          new Date(2025, 0, 12),
+          new Date(2025, 0, 19),
+          new Date(2025, 0, 26)
+        ];
+        const result = validateServiceDateRange(dates);
+        expect(result.isValid).toBe(true);
+        expect(result.duplicates).toHaveLength(0);
+        expect(result.gaps).toHaveLength(0);
+      });
+
+      test('detects duplicate dates', () => {
+        const dates = [
+          new Date(2025, 0, 5),
+          new Date(2025, 0, 5),
+          new Date(2025, 0, 12)
+        ];
+        const result = validateServiceDateRange(dates);
+        expect(result.isValid).toBe(false);
+        expect(result.duplicates.length).toBeGreaterThan(0);
+      });
+
+      test('detects gaps in service dates', () => {
+        const dates = [
+          new Date(2025, 0, 5),
+          new Date(2025, 0, 12),
+          new Date(2025, 1, 2) // 3 weeks later - too big a gap
+        ];
+        const result = validateServiceDateRange(dates);
+        expect(result.isValid).toBe(false);
+        expect(result.gaps.length).toBeGreaterThan(0);
+      });
+
+      test('handles empty array', () => {
+        const result = validateServiceDateRange([]);
+        expect(result.isValid).toBe(false);
+        expect(result.message).toContain('No service dates');
+      });
+
+      test('handles unsorted dates', () => {
+        const dates = [
+          new Date(2025, 0, 19),
+          new Date(2025, 0, 5),
+          new Date(2025, 0, 12),
+          new Date(2025, 0, 26)
+        ];
+        const result = validateServiceDateRange(dates);
+        expect(result.isValid).toBe(true); // Should still work with unsorted input
+      });
     });
   });
 

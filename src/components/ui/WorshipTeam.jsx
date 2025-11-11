@@ -5,218 +5,38 @@ import { Mail, UserCircle, X, Music2, CheckCircle2, ChevronUp, ChevronDown, Aler
 import ServiceSongSelector from './ServiceSongSelector';
 import MobileWorshipServiceCard from './MobileWorshipServiceCard';
 import MobileWorshipSelect from './MobileWorshipSelect';
+import TeamSelectionModal from './TeamSelectionModal';
+import AddUserModal from './AddUserModal';
 import useResponsive from '../../hooks/useResponsive';
+import { useDebounce } from '../../hooks/useDebounce';
+import { useAlertManager } from '../../hooks/useAlertManager';
+import { LoadingSpinner } from '../shared';
+import { ERROR_MESSAGES, SUCCESS_MESSAGES, createErrorHandler, createSuccessHandler } from '../../utils/errorHandler';
+import { POLLING_INTERVAL, COLOR_THEMES, API_ENDPOINTS } from '../../lib/constants';
+import { fetchWithTimeout, fetchWithRetry, parseJSON, apiPost, apiGet, apiDelete, apiPut } from '../../lib/api-utils';
 import Link from 'next/link';
 import '../../styles/liturgical-themes.css';
 import { getSeasonClass, getSpecialServiceType, getHeaderClass, SpecialServiceIndicator } from '../liturgical/LiturgicalStyling';
 import { LiturgicalDebugger } from '../liturgical/LiturgicalDebug';
+import { YearSelector } from '../shared';
 
-// Dates array
-const DATES = [
-  { date: '1/5/25', day: 'Sunday', title: 'Epiphany' },
-  { date: '1/12/25', day: 'Sunday', title: 'Baptism of our Lord' },
-  { date: '1/19/25', day: 'Sunday', title: 'Epiphany Week 2' },
-  { date: '1/26/25', day: 'Sunday', title: 'Epiphany Week 3' },
-  { date: '2/2/25', day: 'Sunday', title: 'Presentation of Our Lord' },
-  { date: '2/9/25', day: 'Sunday', title: 'Epiphany Week 5' },
-  { date: '2/16/25', day: 'Sunday', title: 'Epiphany Week 6' },
-  { date: '2/23/25', day: 'Sunday', title: 'Epiphany Week 7' },
-  { date: '3/2/25', day: 'Sunday', title: 'The Transfiguration of Our Lord' },
-  { date: '3/5/25', day: 'Wednesday', title: 'Ash Wednesday' },
-  { date: '3/9/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '3/12/25', day: 'Wednesday', title: 'Lent Worship' },
-  { date: '3/16/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '3/19/25', day: 'Wednesday', title: 'Lent Worship' },
-  { date: '3/23/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '3/26/25', day: 'Wednesday', title: 'Lent Worship' },
-  { date: '3/30/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '4/2/25', day: 'Wednesday', title: 'Lent Worship' },
-  { date: '4/6/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '4/9/25', day: 'Wednesday', title: 'Lent Worship' },
-  { date: '4/13/25', day: 'Sunday', title: 'Palm Sunday' },
-  { date: '4/17/25', day: 'Thursday', title: 'Maundy Thursday' },
-  { date: '4/18/25', day: 'Friday', title: 'Good Friday' },
-  { date: '4/20/25', day: 'Sunday', title: 'Easter Sunday' },
-  { date: '4/27/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '5/4/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '5/11/25', day: 'Sunday', title: 'Mother\'s Day' },
-  { date: '5/18/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '5/25/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '6/1/25', day: 'Sunday', title: 'VBS Week' },
-  { date: '6/8/25', day: 'Sunday', title: 'Pentecost/Confirmation Sunday' },
-  { date: '6/15/25', day: 'Sunday', title: 'Trinity Sunday/Father\'s Day' },
-  { date: '6/22/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '6/29/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '7/6/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '7/13/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '7/20/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '7/27/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '8/3/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '8/10/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '8/17/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '8/24/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '8/31/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '9/7/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '9/14/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '9/21/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '9/28/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '10/5/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '10/12/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '10/19/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '10/26/25', day: 'Sunday', title: 'Reformation Sunday' },
-  { date: '11/2/25', day: 'Sunday', title: 'All Saint\'s Day' },
-  { date: '11/9/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '11/16/25', day: 'Sunday', title: 'Sunday Worship' },
-  { date: '11/23/25', day: 'Sunday', title: 'Christ the King' },
-  { date: '11/26/25', day: 'Wednesday', title: 'Thanksgiving Eve' },
-  { date: '11/30/25', day: 'Sunday', title: 'Advent 1' },
-  { date: '12/7/25', day: 'Sunday', title: 'Advent 2' },
-  { date: '12/14/25', day: 'Sunday', title: 'Advent 3' },
-  { date: '12/21/25', day: 'Sunday', title: 'Advent 4 (Kid\'s Christmas Program)' },
-  { date: '12/24/25', day: 'Wednesday', title: 'Christmas Eve Services (3pm & 7pm)' },
-  { date: '12/28/25', day: 'Sunday', title: 'Christmas Week 1' }
-];
-
-// Add team selection modal
-const TeamSelectorModal = ({
-  date,
-  onClose,
-  assignments,
-  serviceDetails,
-  users,
-  currentUser,
-  setAssignments,
-  setAlertMessage,
-  setShowAlert,
-  fetchAssignments
-}) => {
-  const currentAssignment = assignments[date];
-
-  const handleTeamSelect = async (team) => {
-    try {
-      // First update the UI optimistically
-      setAssignments(prev => ({
-        ...prev,
-        [date]: {
-          ...prev[date],
-          team: team.name
-        }
-      }));
-
-      // Make the API call
-      const response = await fetch('/api/worship-assignments', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          date,
-          team: team.name,
-          updatedBy: currentUser?.name || 'Unknown'
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update team');
-      }
-
-      // Show success message
-      setAlertMessage('Team updated successfully');
-      setShowAlert(true);
-      setTimeout(() => setShowAlert(false), 3000);
-
-      // Fetch fresh data
-      await fetchAssignments();
-
-      // Close the modal
-      onClose();
-    } catch (error) {
-      console.error('Error updating team:', error);
-      // Revert the optimistic update
-      setAssignments(prev => ({
-        ...prev,
-        [date]: {
-          ...prev[date],
-          team: currentAssignment?.team
-        }
-      }));
-      setAlertMessage(`Error updating team: ${error.message}`);
-      setShowAlert(true);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <h3 className="text-lg font-bold text-purple-700">Edit Team Assignment</h3>
-            {/* Access the specific service details for this date */}
-            <p className="text-sm text-gray-600">{serviceDetails[date]?.title} - {date}</p>
-          </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          {/* Regular Teams */}
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-700">Regular Teams</p>
-            {users
-              .filter(user => user.name.includes('&'))
-              .map(team => (
-                <button
-                  key={team.name}
-                  onClick={() => handleTeamSelect(team)}
-                  className={`w-full p-3 text-left rounded-lg transition-colors ${currentAssignment?.team === team.name
-                    ? 'bg-purple-700 text-white'
-                    : 'bg-white text-gray-900 border border-gray-200 hover:bg-purple-50'
-                    }`}
-                >
-                  {team.name}
-                </button>
-              ))}
-          </div>
-
-          {/* Special Teams */}
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-700">Special Teams</p>
-            {users
-              .filter(user => (
-                user.role === 'special' ||
-                user.role === 'pastor' ||
-                user.role === 'leader' ||
-                user.name.includes('Confirmation') ||
-                user.name.includes('Sunday School')
-              ))
-              .map(team => (
-                <button
-                  key={team.name}
-                  onClick={() => handleTeamSelect(team)}
-                  className={`w-full p-3 text-left rounded-lg transition-colors ${currentAssignment?.team === team.name
-                    ? 'bg-purple-700 text-white'
-                    : 'bg-white text-gray-900 border border-gray-200 hover:bg-purple-50'
-                    }`}
-                >
-                  {team.name}
-                </button>
-              ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
+const WorshipTeam = ({ serviceDetails, setServiceDetails, selectedYear, setSelectedYear, availableYears }) => {
+  // Use alert manager hook
+  const { 
+    showAlert, 
+    alertMessage, 
+    alertPosition, 
+    setAlertPosition, 
+    showAlertWithTimeout 
+  } = useAlertManager();
+  
+  // Add this hook for responsive detection
+  const { isMobile } = useResponsive();
+  
   // All state declarations stay here
   const [currentUser, setCurrentUser] = useState(null);
-  const [showAlert, setShowAlert] = useState(false);
-  const [alertMessage, setAlertMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [availableUsers, setAvailableUsers] = useState([]);
-  const [alertPosition, setAlertPosition] = useState({ x: 0, y: 0 });
   const [expanded, setExpanded] = useState({});
   const [showUserSelector, setShowUserSelector] = useState(false);
   const [showUserManagement, setShowUserManagement] = useState(false);
@@ -226,18 +46,32 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
   const [teams, setTeams] = useState([]);
   const [assignments, setAssignments] = useState({});
   const [users, setUsers] = useState([]);
-  const dates = useMemo(() => DATES, []);
+  const [dates, setDates] = useState([]);
+  const [datesLoading, setDatesLoading] = useState(false);
   const [customServices, setCustomServices] = useState([]);
-  const POLLING_INTERVAL = 30000;
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [pendingActions, setPendingActions] = useState({}); // Track pending debounced actions
 
-  // Add this hook for responsive detection
-  const { isMobile } = useResponsive();
+  // Refs for auto-scrolling to current date (consolidated for both views)
+  const dateRefs = useRef({});
+  const componentRootRef = useRef(null);
+
+  // Centralized error and success handlers (updated to use useAlertManager)
+  const handleError = useMemo(
+    () => createErrorHandler('Worship Team', (msg) => showAlertWithTimeout(msg), () => {}),
+    [showAlertWithTimeout]
+  );
+  
+  const handleSuccess = useMemo(
+    () => createSuccessHandler((msg) => showAlertWithTimeout(msg), () => {}),
+    [showAlertWithTimeout]
+  );
 
   // Add this useEffect to fetch custom services
   useEffect(() => {
     const fetchCustomServices = async () => {
       try {
-        const response = await fetch('/api/custom-services');
+        const response = await fetchWithTimeout(API_ENDPOINTS.CUSTOM_SERVICES);
         if (!response.ok) throw new Error('Failed to fetch custom services');
         const data = await response.json();
         setCustomServices(data);
@@ -249,11 +83,91 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
     fetchCustomServices();
   }, []);
 
+  // Sprint 4.2: Fetch dates dynamically based on selected year
+  useEffect(() => {
+    if (!selectedYear) return;
+    
+    const fetchDates = async () => {
+      setDatesLoading(true);
+      try {
+        const response = await fetchWithTimeout(`/api/service-dates?year=${selectedYear}&upcomingOnly=false`);
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            handleError(
+              new Error(`Services for ${selectedYear} have not been generated yet.`),
+              `Please generate services for ${selectedYear} in Settings > Calendar Manager.`
+            );
+            setDates([]);
+          } else {
+            throw new Error('Failed to fetch service dates');
+          }
+          return;
+        }
+        
+        const fetchedDates = await response.json();
+        setDates(fetchedDates);
+        
+      } catch (error) {
+        console.error('Error fetching dates for year:', selectedYear, error);
+        handleError(error, 'Error loading service dates');
+        setDates([]);
+      } finally {
+        setDatesLoading(false);
+      }
+    };
+    
+    fetchDates();
+  }, [selectedYear, handleError]);
+
+  // Auto-scroll to current date when dates are loaded
+  useEffect(() => {
+    if (!dates.length || isLoading || datesLoading) return;
+
+    // Small delay to ensure DOM is fully rendered
+    const timer = setTimeout(() => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Find the first date that is today or in the future
+      const currentDateIndex = dates.findIndex(item => {
+        const [month, day, year] = item.date.split('/').map(num => parseInt(num, 10));
+        // Use 2000 + year to match existing codebase pattern
+        const itemDate = new Date(2000 + year, month - 1, day);
+        itemDate.setHours(0, 0, 0, 0);
+        return itemDate >= today;
+      });
+
+      if (currentDateIndex !== -1) {
+        const currentDate = dates[currentDateIndex].date;
+        const targetElement = dateRefs.current[currentDate];
+        
+        if (targetElement) {
+          if (isMobile) {
+            // Mobile: Use scrollIntoView (works with scroll-margin-top CSS)
+            targetElement.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start'
+            });
+          } else {
+            // Desktop: Use scrollIntoView - browser handles optimal positioning
+            targetElement.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start'
+            });
+          }
+        }
+      }
+    }, 1000); // Increased delay to 1000ms for mobile DOM rendering
+
+    return () => clearTimeout(timer);
+  }, [dates, isLoading, datesLoading, isMobile]);
+
   // Single fetch for songs on component mount
   useEffect(() => {
     const fetchSongs = async () => {
       try {
-        const response = await fetch('/api/songs');
+        const response = await fetchWithTimeout(API_ENDPOINTS.SONGS);
         if (response.ok) {
           const songs = await response.json();
           setAvailableSongs({
@@ -275,7 +189,7 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
     const fetchTeamsAndAssignments = async () => {
       try {
         // Fetch worship users
-        const usersResponse = await fetch('/api/users/worship', {
+        const usersResponse = await fetchWithTimeout(API_ENDPOINTS.WORSHIP_USERS, {
           signal: controller.signal
         });
         if (!usersResponse.ok) throw new Error('Failed to fetch users');
@@ -288,7 +202,7 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
         setAvailableUsers(allUsers);
 
         // Fetch assignments
-        const assignmentsResponse = await fetch('/api/worship-assignments', {
+        const assignmentsResponse = await fetchWithTimeout(API_ENDPOINTS.WORSHIP_ASSIGNMENTS, {
           signal: controller.signal
         });
         if (!assignmentsResponse.ok) throw new Error('Failed to fetch assignments');
@@ -312,12 +226,16 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
         });
 
         setAssignments(assignmentsObj);
+        
+        // Set loading to false after initial data is loaded
+        setIsLoading(false);
 
       } catch (error) {
         if (error.name === 'AbortError') return;
         console.error('Error:', error);
-        setAlertMessage('Error loading data: ' + error.message);
-        setShowAlert(true);
+        handleError(error, 'Error loading data');
+        // Set loading to false even on error so user can see the error
+        setIsLoading(false);
       }
     };
 
@@ -332,7 +250,7 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
 
     const fetchServiceDetails = async () => {
       try {
-        const response = await fetch('/api/service-details');
+        const response = await fetchWithTimeout(API_ENDPOINTS.SERVICE_DETAILS);
         if (!response.ok) throw new Error('Failed to fetch service details');
         const data = await response.json();
 
@@ -398,7 +316,7 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
   useEffect(() => {
     const fetchAssignments = async () => {
       try {
-        const response = await fetch('/api/worship-assignments');
+        const response = await fetchWithTimeout(API_ENDPOINTS.WORSHIP_ASSIGNMENTS);
         const data = await response.json();
 
         // Transform the data into the format we need
@@ -425,11 +343,34 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
     setShowTeamSelector(true);
   }, []);
 
-  // Add this function in WorshipTeam.jsx
-  const handleSongSelection = async (date, songId, songData) => {
+  // Add this function in WorshipTeam.jsx - wrapped with useCallback for performance
+  const handleSongSelection = useCallback(async (date, songId, songData) => {
+    // Store previous state for rollback
+    const previousServiceDetails = serviceDetails[date];
+    
+    // Prepare updated elements
+    const updatedElements = serviceDetails[date]?.elements.map(element => {
+      if (element.type === 'song_hymn' && element.id === songId) {
+        return {
+          ...element,
+          selection: songData
+        };
+      }
+      return element;
+    });
+
+    // OPTIMISTIC UPDATE: Update UI immediately
+    setServiceDetails(prev => ({
+      ...prev,
+      [date]: {
+        ...prev[date],
+        elements: updatedElements
+      }
+    }));
+    
     try {
       // First update service-songs collection
-      await fetch('/api/service-songs', {
+      await fetchWithTimeout(API_ENDPOINTS.SERVICE_SONGS, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -444,17 +385,7 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
       });
 
       // Then update service-details collection
-      const updatedElements = serviceDetails[date]?.elements.map(element => {
-        if (element.type === 'song_hymn' && element.id === songId) {
-          return {
-            ...element,
-            selection: songData
-          };
-        }
-        return element;
-      });
-
-      await fetch('/api/service-details', {
+      await fetchWithTimeout(API_ENDPOINTS.SERVICE_DETAILS, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -467,24 +398,32 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
         })
       });
 
-      // Update local state
+    } catch (error) {
+      // ROLLBACK: Restore previous state on error
       setServiceDetails(prev => ({
         ...prev,
-        [date]: {
-          ...prev[date],
-          elements: updatedElements
-        }
+        [date]: previousServiceDetails
       }));
-
-    } catch (error) {
-      console.error('Error saving song selection:', error);
-      setAlertMessage('Error saving song selection');
-      setShowAlert(true);
+      
+      handleError(error, { operation: 'selectSong', date, songId }, ERROR_MESSAGES.SONG_SELECT_ERROR);
+    } finally {
+      // Clear pending state
+      setPendingActions(prev => {
+        const newState = { ...prev };
+        delete newState[`song-${date}-${songId}`];
+        return newState;
+      });
     }
-  };
+  }, [currentUser, serviceDetails, handleError]);
 
-  // Add a function to determine special services
-  const isSpecialService = (title) => {
+  // Debounced version of handleSongSelection
+  const [debouncedSongSelection] = useDebounce((date, songId, songData) => {
+    setPendingActions(prev => ({ ...prev, [`song-${date}-${songId}`]: true }));
+    handleSongSelection(date, songId, songData);
+  }, 500);
+
+  // Add a function to determine special services - wrapped with useCallback
+  const isSpecialService = useCallback((title) => {
     const specialTitles = [
       'ash wednesday', 'palm sunday', 'maundy thursday', 'good friday',
       'easter', 'pentecost', 'reformation', 'all saints', 'thanksgiving',
@@ -494,10 +433,10 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
 
     const lowerTitle = title.toLowerCase();
     return specialTitles.some(special => lowerTitle.includes(special));
-  };
+  }, []);
 
-  // Helper to get season info from a date
-  const getSeasonInfo = (date) => {
+  // Helper to get season info from a date - wrapped with useCallback
+  const getSeasonInfo = useCallback((date) => {
     const service = serviceDetails[date];
     if (!service?.liturgical) return { name: "", color: "", hasSpecialDay: false };
 
@@ -507,18 +446,77 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
       hasSpecialDay: !!service.liturgical.specialDay,
       specialDay: service.liturgical.specialDayName || ""
     };
-  };
+  }, [serviceDetails]);
+
+  // User management handlers - wrapped with useCallback for performance
+  const handleAddUser = useCallback(() => {
+    setShowAddUserModal(true);
+  }, []);
+
+  const handleAddUserSubmit = useCallback(async (name) => {
+    try {
+      await apiPost(API_ENDPOINTS.WORSHIP_USERS, { name });
+
+      setAvailableUsers(prev => [...prev, { name }]);
+      setShowAddUserModal(false);
+      handleSuccess(SUCCESS_MESSAGES.USER_ADDED);
+    } catch (error) {
+      handleError(error, { operation: 'addUser', name }, ERROR_MESSAGES.USER_ADD_ERROR);
+      throw error; // Re-throw to let modal handle error display
+    }
+  }, [handleSuccess, handleError]);
+
+  const handleDeleteUser = useCallback(async (userName) => {
+    try {
+      await apiDelete(API_ENDPOINTS.WORSHIP_USERS, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: userName })
+      });
+
+      setAvailableUsers(prev => prev.filter(user => user.name !== userName));
+      
+      // If deleting current user, clear selection
+      if (currentUser?.name === userName) {
+        setCurrentUser(null);
+      }
+
+      handleSuccess('User removed successfully');
+    } catch (error) {
+      console.error('Error removing user:', error);
+      handleError(error, 'Error removing user');
+    }
+  }, [currentUser]);
+
+  const handleUserSelect = useCallback((user) => {
+    // If clicking the current user, deselect them
+    if (currentUser?.name === user.name) {
+      setCurrentUser(null);
+    } else {
+      // Otherwise select the new user
+      setCurrentUser({
+        name: user.name,
+        role: user.role,
+        color: 'bg-purple-700 bg-opacity-20'
+      });
+    }
+  }, [currentUser]);
 
   return (
-    <Card className="w-full h-full mx-auto relative bg-white shadow-lg">
+    <Card ref={componentRootRef} className="w-full h-full mx-auto relative bg-white shadow-lg">
       {showAlert && (
         <Alert
-          className="fixed z-[60] w-80 bg-white border-purple-700 shadow-lg rounded-lg"
-          style={{
+          className={`fixed z-[60] w-80 bg-white border-purple-700 shadow-lg rounded-lg ${
+            isMobile 
+              ? 'top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2' 
+              : ''
+          }`}
+          style={!isMobile ? {
             top: `${alertPosition.y}px`,
             left: `${alertPosition.x}px`,
             transform: 'translate(-50%, -120%)'
-          }}
+          } : {}}
         >
           <div className="flex items-center gap-2 p-2">
             <Mail className="w-5 h-5 text-purple-700" />
@@ -543,7 +541,15 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
               />
               <div>
                 <h1 className="text-3xl font-bold text-center text-purple-700">Worship Team</h1>
-                <p className="text-2xl font-bold text-center text-gray-600">2025 Service Schedule</p>
+                <div className="flex items-center justify-center mt-2">
+                  <YearSelector 
+                    selectedYear={selectedYear}
+                    setSelectedYear={setSelectedYear}
+                    availableYears={availableYears}
+                    teamColor="#7C3AED"
+                    textSize="text-2xl"
+                  />
+                </div>
               </div>
               <img
                 src="/ZionSyncLogo.png"
@@ -562,7 +568,15 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
               </div>
               <div className="text-center">
                 <h1 className="text-xl font-bold text-purple-700">Worship Team</h1>
-                <p className="text-lg font-bold text-gray-600">2025 Service Schedule</p>
+                <div className="flex items-center justify-center mt-2">
+                  <YearSelector 
+                    selectedYear={selectedYear}
+                    setSelectedYear={setSelectedYear}
+                    availableYears={availableYears}
+                    teamColor="#7C3AED"
+                    textSize="text-lg"
+                  />
+                </div>
               </div>
             </div>
           </CardHeader>
@@ -599,19 +613,7 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
                     .map(user => (
                       <button
                         key={user.name}
-                        onClick={() => {
-                          // If clicking the current user, deselect them
-                          if (currentUser?.name === user.name) {
-                            setCurrentUser(null);
-                          } else {
-                            // Otherwise select the new user
-                            setCurrentUser({
-                              name: user.name,
-                              role: user.role,
-                              color: 'bg-purple-700 bg-opacity-20'
-                            });
-                          }
-                        }}
+                        onClick={() => handleUserSelect(user)}
                         className={`${currentUser?.name === user.name
                           ? 'bg-purple-700 text-white'
                           : 'bg-purple-700 bg-opacity-20 text-purple-700'
@@ -649,12 +651,51 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
         {/* Scrollable Content Section */}
         <div className="flex-1 overflow-hidden">
           <CardContent className="h-full p-0">
+            {(isLoading || datesLoading) ? (
+              <LoadingSpinner 
+                message={datesLoading ? `Loading ${selectedYear} services...` : "Loading Worship Team schedule..."} 
+                color="purple-700" 
+              />
+            ) : dates.length === 0 ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                  <p className="text-gray-600 text-lg mb-2">No services found for {selectedYear}</p>
+                  <p className="text-gray-500 text-sm">Services may not be generated yet.</p>
+                </div>
+              </div>
+            ) : (
             <div className="h-full overflow-y-auto">
               <div className="space-y-4 p-4">
-                {/* Desktop View */}
-                {!isMobile && dates.map((item) => (
-                  <div key={item.date}>
-                    <ServiceSongSelector
+                {isMobile ? (
+                  // Mobile View - Only renders on mobile
+                  dates.map((item) => (
+                    <div key={item.date} ref={el => dateRefs.current[item.date] = el} style={{ scrollMarginTop: '20px' }}>
+                      <MobileWorshipServiceCard
+                      date={item.date}
+                    title={item.title}
+                    day={item.day}
+                    serviceDetails={serviceDetails[item.date]}
+                    assignments={assignments}
+                    currentUser={currentUser}
+                    expanded={expanded[item.date]}
+                    onToggleExpand={(date) => {
+                      setExpanded(prev => ({
+                        ...prev,
+                        [date]: !prev[date]
+                      }));
+                    }}
+                    onEditTeam={() => handleEditTeam(item.date)}
+                    customServices={customServices}
+                    availableSongs={availableSongs}
+                    setServiceDetails={setServiceDetails}
+                  />
+                  </div>
+                ))
+                ) : (
+                  // Desktop View - Only renders on desktop
+                  dates.map((item) => (
+                    <div key={item.date} ref={el => dateRefs.current[item.date] = el} style={{ scrollMarginTop: '60px' }}>
+                      <ServiceSongSelector
                       date={item.date}
                       currentUser={currentUser}
                       serviceDetails={serviceDetails[item.date]}
@@ -663,7 +704,7 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
                       availableSongs={availableSongs}
                       team={assignments[item.date]?.team}
                       expanded={expanded[item.date]}
-                      onSongSelect={handleSongSelection}
+                      onSongSelect={debouncedSongSelection}
                       onToggleExpand={(date) => {
                         setExpanded(prev => ({
                           ...prev,
@@ -720,25 +761,20 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
                               </div>
                             )}
 
-                            {/* Team Assignment Badge - More like presentation team */}
-                            <div className="flex items-center gap-1">
-                              <div className="flex items-center bg-purple-100 rounded px-2 py-0.5">
-                                <UserCircle className="w-3 h-3 text-purple-700 mr-1" />
-                                <span className="text-xs text-purple-700">
-                                  {assignments[item.date]?.team || 'No team assigned'}
-                                </span>
-                              </div>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEditTeam(item.date);
-                                }}
-                                className="p-1 hover:bg-gray-100 rounded"
-                                title="Edit team assignment"
-                              >
-                                <Pencil className="w-3 h-3 text-purple-700" />
-                              </button>
-                            </div>
+                            {/* Team Assignment Badge - Clickable to edit */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditTeam(item.date);
+                              }}
+                              className="flex items-center bg-purple-100 rounded px-2 py-0.5 hover:bg-purple-200 transition-colors"
+                              title="Click to edit team assignment"
+                            >
+                              <UserCircle className="w-3 h-3 text-purple-700 mr-1" />
+                              <span className="text-xs text-purple-700">
+                                {assignments[item.date]?.team || 'No team assigned'}
+                              </span>
+                            </button>
 
                             {/* Expand/Collapse button */}
                             <button
@@ -755,55 +791,88 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
                       }
                     />
                   </div>
-                ))}
-
-                {/* Mobile View */}
-                {isMobile && dates.map((item) => (
-                  <MobileWorshipServiceCard
-                    key={item.date}
-                    date={item.date}
-                    title={item.title}
-                    day={item.day}
-                    serviceDetails={serviceDetails[item.date]}
-                    assignments={assignments}
-                    currentUser={currentUser}
-                    expanded={expanded[item.date]}
-                    onToggleExpand={(date) => {
-                      setExpanded(prev => ({
-                        ...prev,
-                        [date]: !prev[date]
-                      }));
-                    }}
-                    onEditTeam={() => handleEditTeam(item.date)}
-                    customServices={customServices}
-                    availableSongs={availableSongs}
-                    setServiceDetails={setServiceDetails}
-                  />
-                ))}
+                ))
+                )}
               </div>
             </div>
+            )}
           </CardContent>
         </div>
       </div>
 
       {/* Team Selector Modal */}
       {showTeamSelector && editingDate && (
-        <TeamSelectorModal
-          date={editingDate}
+        <TeamSelectionModal
+          showModal={showTeamSelector}
           onClose={() => {
             setShowTeamSelector(false);
             setEditingDate(null);
           }}
-          assignments={assignments}
-          serviceDetails={serviceDetails}
+          date={editingDate}
           users={users}
           currentUser={currentUser}
-          setAssignments={setAssignments}
-          setAlertMessage={setAlertMessage}
-          setShowAlert={setShowAlert}
-          fetchAssignments={() => {
-            // Add your fetchAssignments logic here if needed
+          assignments={assignments}
+          serviceDetails={serviceDetails}
+          onSelect={async (teamName) => {
+            try {
+              // Optimistically update UI
+              setAssignments(prev => ({
+                ...prev,
+                [editingDate]: {
+                  ...prev[editingDate],
+                  team: teamName
+                }
+              }));
+
+              // Make the API call
+              const response = await fetchWithTimeout(API_ENDPOINTS.WORSHIP_ASSIGNMENTS, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  date: editingDate,
+                  team: teamName,
+                  updatedBy: currentUser?.name || 'Unknown'
+                })
+              });
+
+              if (!response.ok) {
+                throw new Error('Failed to update team');
+              }
+
+              // Show success message
+              handleSuccess(teamName ? 'Team updated successfully' : 'Team assignment removed');
+
+              // Fetch fresh data
+              const assignmentsResponse = await fetchWithTimeout(API_ENDPOINTS.WORSHIP_ASSIGNMENTS);
+              if (assignmentsResponse.ok) {
+                const assignmentsData = await assignmentsResponse.json();
+                const assignmentsObj = {};
+                assignmentsData.forEach(assignment => {
+                  if (assignment.date) {
+                    assignmentsObj[assignment.date] = {
+                      team: assignment.team,
+                      lastUpdated: assignment.lastUpdated
+                    };
+                  }
+                });
+                setAssignments(assignmentsObj);
+              }
+            } catch (error) {
+              console.error('Error updating team:', error);
+              // Revert the optimistic update
+              setAssignments(prev => ({
+                ...prev,
+                [editingDate]: {
+                  ...prev[editingDate],
+                  team: assignments[editingDate]?.team
+                }
+              }));
+              handleError(error, 'Error updating team');
+            }
           }}
+          title="Assign Worship Team"
         />
       )}
 
@@ -832,30 +901,7 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
               </div>
               <div className="space-y-4">
                 <button
-                  onClick={async () => {
-                    const name = prompt('Enter new user name:');
-                    if (name) {
-                      try {
-                        await fetch('/api/worship-users', {
-                          method: 'POST',
-                          headers: {
-                            'Content-Type': 'application/json',
-                          },
-                          body: JSON.stringify({ name })
-                        });
-
-                        setAvailableUsers(prev => [...prev, { name }]);
-                        setAlertMessage('User added successfully');
-                        setShowAlert(true);
-                        setTimeout(() => setShowAlert(false), 3000);
-                      } catch (error) {
-                        console.error('Error adding user:', error);
-                        setAlertMessage('Error adding user');
-                        setShowAlert(true);
-                        setTimeout(() => setShowAlert(false), 3000);
-                      }
-                    }
-                  }}
+                  onClick={handleAddUser}
                   className="w-full px-3 py-2 rounded border border-purple-700 text-purple-700 hover:bg-purple-50"
                 >
                   + Add New User
@@ -870,28 +916,7 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
                         )}
                       </div>
                       <button
-                        onClick={async () => {
-                          try {
-                            await fetch('/api/worship-users', {
-                              method: 'DELETE',
-                              headers: {
-                                'Content-Type': 'application/json',
-                              },
-                              body: JSON.stringify({ name: user.name })
-                            });
-                            setAvailableUsers(prev =>
-                              prev.filter(u => u.name !== user.name)
-                            );
-                            if (user.name === currentUser?.name) {
-                              setCurrentUser(null);
-                            }
-                          } catch (error) {
-                            console.error('Error removing user:', error);
-                            setAlertMessage('Error removing user');
-                            setShowAlert(true);
-                            setTimeout(() => setShowAlert(false), 3000);
-                          }
-                        }}
+                        onClick={() => handleDeleteUser(user.name)}
                         className="text-red-500 hover:text-red-700"
                       >
                         <X className="w-4 h-4" />
@@ -904,6 +929,14 @@ const WorshipTeam = ({ serviceDetails, setServiceDetails }) => {
           </div>
         )
       }
+      
+      <AddUserModal
+        isOpen={showAddUserModal}
+        onClose={() => setShowAddUserModal(false)}
+        onSubmit={handleAddUserSubmit}
+        teamColor="#9333EA"
+        teamName="Worship"
+      />
     </Card >
   );
 };

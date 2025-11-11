@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { ChevronRight, X } from 'lucide-react';
 import stringSimilarity from 'string-similarity';
+import { fetchWithTimeout } from '../../lib/api-utils';
 
 // Add at the top of the file
 const ELEMENT_TYPES = {
@@ -264,17 +265,10 @@ const AddCustomService = ({
             <div className="flex justify-end">
               <button
                 onClick={() => {
-                  console.log('Review button clicked');
-                  console.log('Service Name:', serviceName);
-                  console.log('Raw Order:', rawOrder);
-
                   if (serviceName && rawOrder) {
                     const elements = parseOrderOfWorship(rawOrder);
-                    console.log('Parsed Elements:', elements);
                     setParsedElements(elements);
                     setStep('review');
-                  } else {
-                    console.log('Missing required fields');
                   }
                 }}
                 disabled={!serviceName || !rawOrder}
@@ -385,9 +379,8 @@ const AddCustomService = ({
                   };
 
                   try {
-                    console.log('Saving custom service:', serviceData);
                     const method = existingService ? 'PUT' : 'POST';
-                    const response = await fetch('/api/custom-services', {
+                    const response = await fetchWithTimeout('/api/custom-services', {
                       method,
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify(serviceData),
@@ -397,7 +390,7 @@ const AddCustomService = ({
                       const savedService = await response.json();
 
                       // First update custom services
-                      const updatedServices = await fetch('/api/custom-services').then(res => res.json());
+                      const updatedServices = await fetchWithTimeout('/api/custom-services').then(res => res.json());
                       await setCustomServices(updatedServices);
 
                       // Then update other states synchronously

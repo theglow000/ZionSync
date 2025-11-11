@@ -100,31 +100,66 @@ describe('Quick Add Workflow E2E Test', () => {
 
   const mockUpcomingServices = [
     {
-      _id: 'service1',
-      title: 'Sunday Worship',
-      date: new Date('2024-05-05').toISOString(),
-      serviceType: 'Sunday',
-      season: 'Easter',
-      seasonColor: '#ffffff'
+      date: '5/5/25',
+      title: 'Sunday Service - 5/5/25',
+      type: 'communion',
+      liturgical: {
+        season: 'Easter',
+        seasonName: 'Easter',
+        color: '#ffffff'
+      },
+      elements: [
+        {
+          type: 'song_hymn',
+          content: 'Opening Hymn: ',
+          selection: {
+            title: 'Christ the Lord is Risen Today',
+            type: 'hymn'
+          }
+        },
+        {
+          type: 'song_hymn',
+          content: 'Hymn of the Day: ',
+          selection: null
+        },
+        {
+          type: 'song_hymn',
+          content: 'Communion Hymn: ',
+          selection: null
+        },
+        {
+          type: 'song_hymn',
+          content: 'Closing Hymn: ',
+          selection: {
+            title: 'Crown Him with Many Crowns',
+            type: 'hymn'
+          }
+        }
+      ]
     },
     {
-      _id: 'service2',
-      title: 'Midweek Service',
-      date: new Date('2024-05-08').toISOString(),
-      serviceType: 'Midweek',
-      season: 'Easter',
-      seasonColor: '#ffffff'
+      date: '5/8/25',
+      title: 'Midweek Service - 5/8/25',
+      type: 'communion',
+      liturgical: {
+        season: 'Easter',
+        seasonName: 'Easter',
+        color: '#ffffff'
+      },
+      elements: [
+        {
+          type: 'song_hymn',
+          content: 'Opening Hymn: ',
+          selection: null
+        },
+        {
+          type: 'song_hymn',
+          content: 'Closing Hymn: ',
+          selection: null
+        }
+      ]
     }
   ];
-
-  const mockServiceSongs = {
-    'service1': [
-      { position: 'Opening Hymn', title: 'Christ the Lord is Risen Today', type: 'hymn' },
-      { position: 'Hymn of the Day', title: '', type: '' },
-      { position: 'Communion Hymn', title: '', type: '' },
-      { position: 'Closing Hymn', title: 'Crown Him with Many Crowns', type: 'hymn' }
-    ]
-  };
 
   beforeEach(() => {
     // Clear all mocks
@@ -188,24 +223,15 @@ describe('Quick Add Workflow E2E Test', () => {
       else if (url.startsWith('/api/upcoming-services')) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ services: mockUpcomingServices })
+          json: () => Promise.resolve(mockUpcomingServices)
         });
       }
       
-      // Match service-songs with any query parameter
-      else if (url.includes('/api/service-songs') && !url.includes('quick-add')) {
-        console.log('Service songs request:', url);
+      // Match reference-songs import endpoint
+      else if (url.includes('/api/reference-songs/import')) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ songSelections: mockServiceSongs['service1'] })
-        });
-      }
-      
-      // Match quick-add endpoint
-      else if (url === '/api/service-songs/quick-add' || url.includes('quick-add')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ success: true })
+          json: () => Promise.resolve({ success: true, message: '"Amazing Grace" successfully added to Sunday Service - 5/5/25' })
         });
       }
       
@@ -248,18 +274,17 @@ describe('Quick Add Workflow E2E Test', () => {
       expect(screen.getByText(modalTitleText)).toBeInTheDocument();
     });
 
-    // 5. Wait for service cards to be loaded
+    // 5. Wait for service cards to be loaded - look for "Select" button
     await waitFor(() => {
-      const serviceCard = screen.getByText('Sunday Worship');
-      expect(serviceCard).toBeInTheDocument();
+      const selectButtons = screen.getAllByText('Select');
+      expect(selectButtons.length).toBeGreaterThan(0);
     });
 
-    // 6. Select a service
-    const serviceCard = screen.getByText('Sunday Worship');
-    const cardContainer = serviceCard.closest('div[class*="border"]');
+    // 6. Select a service by clicking the Select button
+    const selectButtons = screen.getAllByText('Select');
     
     await act(async () => {
-      fireEvent.click(cardContainer);
+      fireEvent.click(selectButtons[0]);
     });
 
     // 7. Wait for positions to be displayed
@@ -282,13 +307,15 @@ describe('Quick Add Workflow E2E Test', () => {
       fireEvent.click(emptyButton);
     });
 
-    // 10. Verify the success message appears
+    // 10. Verify the success message appears (new format)
     await waitFor(() => {
-      expect(screen.getByText('Song added successfully!')).toBeInTheDocument();
+      expect(screen.getByText((content) => 
+        content.includes('successfully added to')
+      )).toBeInTheDocument();
     });
   });
 
-  test('replacing an existing song in a service shows confirmation dialog', async () => {
+  test('shows warning indicator when slot has existing song', async () => {
     // 1. Directly render the QuickAddModal with a selected song and service
     const selectedSong = mockSongs[0]; // Amazing Grace
     
@@ -309,11 +336,10 @@ describe('Quick Add Workflow E2E Test', () => {
     });
 
     // 3. Select a service
-    const serviceCard = screen.getByText('Sunday Worship');
-    const cardContainer = serviceCard.closest('div[class*="border"]');
+    const selectButtons = screen.getAllByText('Select');
     
     await act(async () => {
-      fireEvent.click(cardContainer);
+      fireEvent.click(selectButtons[0]);
     });
 
     // 4. Wait for positions to be displayed
@@ -322,19 +348,27 @@ describe('Quick Add Workflow E2E Test', () => {
       expect(filledPosition).toBeInTheDocument();
     }, { timeout: 3000 });
 
-    // 5. Click a filled position (Opening Hymn) to trigger confirmation
+    // 5. Verify "Will replace existing" warnings are shown for filled slots
+    const replaceWarnings = screen.getAllByText('Will replace existing');
+    expect(replaceWarnings.length).toBeGreaterThan(0);
+    
+    // 6. Verify current song info is shown
+    expect(screen.getByText(/Current.*Christ the Lord is Risen Today/i)).toBeInTheDocument();
+    
+    // 7. Click a filled position (Opening Hymn) - no confirmation needed, just direct action
     const filledPosition = screen.getByText('Opening Hymn');
     const filledButton = filledPosition.closest('button');
-    
-    // Clear confirmation mock
-    confirm.mockClear();
     
     await act(async () => {
       fireEvent.click(filledButton);
     });
 
-    // 6. Verify confirmation dialog was shown
-    expect(confirm).toHaveBeenCalled();
-    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('Replace'));
+    // 8. Verify the API was called (song is replaced without additional confirmation)
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/reference-songs/import'),
+        expect.any(Object)
+      );
+    });
   });
 });

@@ -4,64 +4,111 @@ import '@testing-library/jest-dom';
 import { act } from 'react';
 import QuickAddModal from './QuickAddModal';
 
-// Mock fetch API
-global.fetch = jest.fn();
+// Mock api-utils module
+jest.mock('../../lib/api-utils', () => ({
+  fetchWithTimeout: jest.fn()
+}));
+
+// Import the mocked function after mocking
+import { fetchWithTimeout } from '../../lib/api-utils';
 
 // Mock confirm function
 global.confirm = jest.fn(() => true);
 
-// Mock data for tests
+// Mock data for tests - matching actual API structure
 const mockUpcomingServices = [
   {
-    _id: 'service1',
-    date: new Date('2024-05-05T00:00:00Z').toISOString(), // Adding explicit time zone
-    title: 'Sunday Service',
-    serviceType: 'Sunday',
-    season: 'Easter',
-    seasonColor: '#ffffff',
-    slots: ['Opening Hymn', 'Hymn of the Day', 'Communion Hymn', 'Closing Hymn']
+    date: '5/5/25',
+    title: 'Sunday Service - 5/5/25',
+    type: 'communion',
+    liturgical: {
+      season: 'Easter',
+      seasonName: 'Easter',
+      color: '#ffffff'
+    },
+    elements: [
+      {
+        type: 'song_hymn',
+        content: 'Opening Hymn: ',
+        selection: {
+          title: 'Amazing Grace',
+          type: 'hymn',
+          number: '123',
+          hymnal: 'Cranberry'
+        }
+      },
+      {
+        type: 'song_hymn',
+        content: 'Hymn of the Day: ',
+        selection: null
+      },
+      {
+        type: 'song_hymn',
+        content: 'Communion Hymn: ',
+        selection: null
+      },
+      {
+        type: 'song_hymn',
+        content: 'Closing Hymn: ',
+        selection: {
+          title: 'How Great Thou Art',
+          type: 'hymn',
+          number: '456',
+          hymnal: 'Cranberry'
+        }
+      }
+    ]
   },
   {
-    _id: 'service2',
-    date: new Date('2024-05-12T00:00:00Z').toISOString(), // Adding explicit time zone
-    title: 'Sunday Service',
-    serviceType: 'Sunday',
-    season: 'Easter',
-    seasonColor: '#ffffff',
-    slots: ['Opening Hymn', 'Hymn of the Day', 'Communion Hymn', 'Closing Hymn']
+    date: '5/12/25',
+    title: 'Sunday Service - 5/12/25',
+    type: 'communion',
+    liturgical: {
+      season: 'Easter',
+      seasonName: 'Easter',
+      color: '#ffffff'
+    },
+    elements: [
+      {
+        type: 'song_hymn',
+        content: 'Opening Hymn: ',
+        selection: null
+      },
+      {
+        type: 'song_hymn',
+        content: 'Hymn of the Day: ',
+        selection: null
+      },
+      {
+        type: 'song_hymn',
+        content: 'Communion Hymn: ',
+        selection: null
+      },
+      {
+        type: 'song_hymn',
+        content: 'Closing Hymn: ',
+        selection: null
+      }
+    ]
   }
 ];
 
-const mockSongSelections = {
-  'service1': [
-    { position: 'Opening Hymn', title: 'Amazing Grace', type: 'hymn' },
-    { position: 'Hymn of the Day', title: '', type: '' },
-    { position: 'Communion Hymn', title: '', type: '' },
-    { position: 'Closing Hymn', title: 'How Great Thou Art', type: 'hymn' }
-  ]
-};
-
 describe('QuickAddModal Component', () => {
   beforeEach(() => {
-    fetch.mockClear();
+    fetchWithTimeout.mockClear();
     confirm.mockClear();
     
     // Mock successful responses for API calls
-    fetch.mockImplementation((url) => {
-      if (url.includes('/api/services/upcoming')) {
+    fetchWithTimeout.mockImplementation((url, options) => {
+      if (url.includes('/api/upcoming-services')) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ services: mockUpcomingServices })
+          json: () => Promise.resolve(mockUpcomingServices)
         });
-      } else if (url.includes('/api/service-songs')) {
+      } else if (url.includes('/api/reference-songs/import')) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ songSelections: mockSongSelections['service1'] })
-        });
-      } else if (url.includes('/api/service-songs/quick-add')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ success: true })
+          json: () => Promise.resolve({ success: true, message: 'Song added successfully!' })
         });
       }
       return Promise.reject(new Error('Not found'));
@@ -108,16 +155,17 @@ describe('QuickAddModal Component', () => {
     });
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith('/api/services/upcoming', expect.any(Object));
+      expect(fetchWithTimeout).toHaveBeenCalledWith('/api/upcoming-services?limit=8');
     });
     
     // After services load, we should see them in the list
-    // Use findAllByText instead of findByText
-    const serviceElements = await screen.findAllByText('Sunday Service');
+    const serviceElements = await screen.findAllByText(/Sunday Service/i);
     expect(serviceElements.length).toBeGreaterThan(0);
     
-    // Check for the May date text - note the date in the error was May 4, not May 5
-    expect(await screen.findByText(/May 4, 2024/i)).toBeInTheDocument();
+    // Check for the formatted date text using a function matcher to handle split text
+    expect(await screen.findByText((content, element) => {
+      return element?.textContent === '5/5/2025' || content.includes('5/5/2025');
+    })).toBeInTheDocument();
   });
 
   test('shows song slots when a service is selected', async () => {
@@ -139,30 +187,33 @@ describe('QuickAddModal Component', () => {
     
     // Wait for services to load
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith('/api/services/upcoming', expect.any(Object));
+      expect(fetchWithTimeout).toHaveBeenCalledWith('/api/upcoming-services?limit=8');
     });
     
-    // Select the first service
-    const serviceCards = await screen.findAllByTestId('service-card');
-    fireEvent.click(serviceCards[0]);
+    // Select the first service - find "Select" button
+    const selectButtons = await screen.findAllByText('Select');
     
-    // Wait for slots to load
+    await act(async () => {
+      fireEvent.click(selectButtons[0]);
+    });
+    
+    // Check if slots are displayed - these come from the elements array
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/api/service-songs'), expect.any(Object));
+      expect(screen.getByText(/Opening Hymn/i)).toBeInTheDocument();
     });
     
-    // Check if slots are displayed
-    expect(await screen.findByText('Opening Hymn')).toBeInTheDocument();
-    expect(await screen.findByText('Hymn of the Day')).toBeInTheDocument();
-    expect(await screen.findByText('Communion Hymn')).toBeInTheDocument();
-    expect(await screen.findByText('Closing Hymn')).toBeInTheDocument();
+    expect(screen.getByText(/Hymn of the Day/i)).toBeInTheDocument();
+    expect(screen.getByText(/Communion Hymn/i)).toBeInTheDocument();
+    expect(screen.getByText(/Closing Hymn/i)).toBeInTheDocument();
   });
 
   test('adds song to selected slot', async () => {
     const mockSong = { 
       _id: 'song1', 
       title: 'Test Song', 
-      type: 'hymn'
+      type: 'hymn',
+      number: '789',
+      hymnal: 'Cranberry'
     };
     
     await act(async () => {
@@ -177,40 +228,55 @@ describe('QuickAddModal Component', () => {
     
     // Wait for services to load and select first service
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith('/api/services/upcoming', expect.any(Object));
+      expect(fetchWithTimeout).toHaveBeenCalledWith('/api/upcoming-services?limit=8');
     });
     
-    const serviceCards = await screen.findAllByTestId('service-card');
-    fireEvent.click(serviceCards[0]);
+    const selectButtons = await screen.findAllByText('Select');
     
-    // Wait for slots to load
+    await act(async () => {
+      fireEvent.click(selectButtons[0]);
+    });
+    
+    // Wait for slots to appear
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/api/service-songs'), expect.any(Object));
+      expect(screen.getByText(/Hymn of the Day/i)).toBeInTheDocument();
     });
     
-    // Find an empty slot and click it
-    const emptySlot = await screen.findByText('Hymn of the Day');
-    const emptySlotButton = emptySlot.closest('button');
-    fireEvent.click(emptySlotButton);
+    // Find an empty slot button (Hymn of the Day is empty)
+    const emptySlotText = screen.getByText(/Hymn of the Day/i);
+    const emptySlotButton = emptySlotText.closest('button');
     
-    // Check if add song API is called
+    await act(async () => {
+      fireEvent.click(emptySlotButton);
+    });
+    
+    // Check if add song API is called with correct endpoint
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith('/api/service-songs/quick-add', expect.objectContaining({
-        method: 'POST',
-        headers: expect.any(Object),
-        body: expect.any(String)
-      }));
+      expect(fetchWithTimeout).toHaveBeenCalledWith(
+        '/api/reference-songs/import',
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json'
+          }),
+          body: expect.any(String)
+        })
+      );
     });
     
-    // Should show success message
-    expect(await screen.findByText('Song added successfully!')).toBeInTheDocument();
+    // Should show success message - matches actual message format
+    expect(await screen.findByText((content) => 
+      content.includes('successfully added to')
+    )).toBeInTheDocument();
   });
   
-  test('confirms before replacing existing song', async () => {
+  test('shows warning when replacing existing song', async () => {
     const mockSong = { 
       _id: 'song1', 
       title: 'Test Song', 
-      type: 'hymn'
+      type: 'hymn',
+      number: '999',
+      hymnal: 'Cranberry'
     };
     
     await act(async () => {
@@ -225,28 +291,41 @@ describe('QuickAddModal Component', () => {
     
     // Wait for services to load and select first service
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith('/api/services/upcoming', expect.any(Object));
+      expect(fetchWithTimeout).toHaveBeenCalledWith('/api/upcoming-services?limit=8');
     });
     
-    const serviceCards = await screen.findAllByTestId('service-card');
-    fireEvent.click(serviceCards[0]);
+    const selectButtons = await screen.findAllByText('Select');
     
-    // Wait for slots to load
+    await act(async () => {
+      fireEvent.click(selectButtons[0]);
+    });
+    
+    // Wait for slots to appear
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/api/service-songs'), expect.any(Object));
+      expect(screen.getByText(/Opening Hymn/i)).toBeInTheDocument();
     });
+    
+    // Check for the "Will replace existing" warning on filled slots (there are 2)
+    const replaceWarnings = screen.getAllByText('Will replace existing');
+    expect(replaceWarnings.length).toBeGreaterThan(0);
+    
+    // Check for "Current: Amazing Grace" text showing what will be replaced
+    expect(screen.getByText(/Current.*Amazing Grace/i)).toBeInTheDocument();
     
     // Find a filled slot (Opening Hymn has "Amazing Grace")
-    const filledSlot = await screen.findByText('Opening Hymn');
-    const filledSlotButton = filledSlot.closest('button');
-    fireEvent.click(filledSlotButton);
+    const filledSlotText = screen.getByText(/Opening Hymn/i);
+    const filledSlotButton = filledSlotText.closest('button');
     
-    // Confirm dialog should be shown
-    expect(confirm).toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.click(filledSlotButton);
+    });
     
-    // Check if add song API is still called (since confirm returns true)
+    // Check if add song API is called (no confirm needed, just direct replacement)
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith('/api/service-songs/quick-add', expect.any(Object));
+      expect(fetchWithTimeout).toHaveBeenCalledWith(
+        '/api/reference-songs/import',
+        expect.any(Object)
+      );
     });
   });
 });
