@@ -4,16 +4,20 @@ import React, { useState, useEffect, Suspense } from 'react';
 import SignupSheet from './ui/SignupSheet';
 import AVTeam from './ui/AVTeam';
 import WorshipTeam from './ui/WorshipTeam';
+import Settings from './Settings';
 import SplashScreen from './SplashScreen';
+import ErrorBoundary from './ErrorBoundary';
 import { IoHomeOutline } from "react-icons/io5";
+import { IoSettingsOutline } from "react-icons/io5";
 import useResponsive from '../hooks/useResponsive';
 import { useSearchParams } from 'next/navigation';
+import { fetchWithTimeout } from '../lib/api-utils';
 
 // Desktop tab button component
-const TabButton = ({ active, label, onClick, colors, isHome }) => (
+const TabButton = ({ active, label, onClick, colors, isHome, isSettings }) => (
   <div
     className={`
-      relative w-14 ${isHome ? 'h-11' : 'h-32'} cursor-pointer
+      relative w-14 ${(isHome || isSettings) ? 'h-11' : 'h-32'} cursor-pointer
       ${active ? 'z-20' : 'z-10 hover:brightness-110'}
     `}
     onClick={onClick}
@@ -32,6 +36,8 @@ const TabButton = ({ active, label, onClick, colors, isHome }) => (
 
       {isHome ? (
         <IoHomeOutline className={`text-xl ${colors.text}`} />
+      ) : isSettings ? (
+        <IoSettingsOutline className={`text-xl ${colors.text}`} />
       ) : (
         <span
           className={`
@@ -50,7 +56,7 @@ const TabButton = ({ active, label, onClick, colors, isHome }) => (
 );
 
 // New mobile bottom tab button component with lighter colors when inactive
-const MobileTabButton = ({ active, label, onClick, colors, isHome }) => (
+const MobileTabButton = ({ active, label, onClick, colors, isHome, isSettings }) => (
   <button
     className={`
       flex-1 flex flex-col items-center justify-center py-2
@@ -63,6 +69,8 @@ const MobileTabButton = ({ active, label, onClick, colors, isHome }) => (
     <div className="flex flex-col items-center">
       {isHome ? (
         <IoHomeOutline className={`text-xl ${active ? colors.text : colors.textLight}`} />
+      ) : isSettings ? (
+        <IoSettingsOutline className={`text-xl ${active ? colors.text : colors.textLight}`} />
       ) : (
         <span className={`text-sm font-medium ${active ? colors.text : colors.textLight}`}>
           {label}
@@ -89,9 +97,52 @@ const TabInitializer = ({ setActiveTab, setShowSplash }) => {
 
 const MainLayout = () => {
   const [showSplash, setShowSplash] = useState(true);
-  const [activeTab, setActiveTab] = useState('presentation');  const [serviceDetails, setServiceDetails] = useState({});
+  const [activeTab, setActiveTab] = useState('presentation');
+  const [serviceDetails, setServiceDetails] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const { isMobile } = useResponsive();
+  
+  // Sprint 4.2: Year state management
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(null);
+  const [availableYears, setAvailableYears] = useState([]);
+  
+  // Sprint 4.2: Fetch available years and set smart default
+  useEffect(() => {
+    const fetchAvailableYears = async () => {
+      try {
+        const response = await fetchWithTimeout('/api/service-calendar/available-years');
+        if (!response.ok) {
+          console.error('Failed to fetch available years');
+          // Fallback to current year if API fails
+          setSelectedYear(currentYear);
+          return;
+        }
+        
+        const years = await response.json();
+        setAvailableYears(years);
+        
+        // Smart default: current year if available, else most recent
+        if (years.includes(currentYear)) {
+          setSelectedYear(currentYear);
+        } else if (years.length > 0) {
+          // Use most recent available year
+          const sortedYears = [...years].sort((a, b) => b - a);
+          setSelectedYear(sortedYears[0]);
+        } else {
+          // No years generated yet, default to current year
+          setSelectedYear(currentYear);
+        }
+      } catch (error) {
+        console.error('Error fetching available years:', error);
+        // Fallback to current year on error
+        setSelectedYear(currentYear);
+      }
+    };
+    
+    fetchAvailableYears();
+  }, [currentYear]);
+  
   // Add this useEffect to fetch service details
   useEffect(() => {
     // Track if the component is mounted
@@ -120,9 +171,7 @@ const MainLayout = () => {
           }
         }, 8000); // 8 second timeout
         
-        // Add timestamp for cache-busting to ensure fresh data
-        const timestamp = Date.now();
-        const response = await fetch(`/api/service-details?_t=${timestamp}`, { 
+        const response = await fetchWithTimeout('/api/service-details', { 
           signal: controller.signal,
           // Add cache control to prevent stale data
           headers: {
@@ -149,11 +198,14 @@ const MainLayout = () => {
         
         // Convert array to object with date keys
         const detailsObj = {};
-        data.forEach(detail => {
-          if (detail.date) {
-            detailsObj[detail.date] = detail;
-          }
-        });
+        // Defensive check: ensure data is an array
+        if (Array.isArray(data)) {
+          data.forEach(detail => {
+            if (detail.date) {
+              detailsObj[detail.date] = detail;
+            }
+          });
+        }
 
         setServiceDetails(detailsObj);
         setIsLoading(false);
@@ -164,7 +216,6 @@ const MainLayout = () => {
         console.error('Error fetching service details:', error);
         
         if (error.name === 'AbortError') {
-          console.log('Request timed out, retrying in 5 seconds...');
           retryTimeoutId = setTimeout(() => {
             if (isMounted) {
               fetchServiceDetails();
@@ -185,17 +236,7 @@ const MainLayout = () => {
       if (isMounted) {
         fetchServiceDetails();
       }
-    }, 30000); // Reduced from 60s to 30s for better multi-user sync balance
-    
-    // Add event listener for cross-team refresh events
-    const handleRefreshEvent = () => {
-      console.log('🔄 MainLayout: Received refresh event, updating global state');
-      if (isMounted) {
-        fetchServiceDetails();
-      }
-    };
-    
-    window.addEventListener('refreshServiceDetails', handleRefreshEvent);
+    }, 60000); // Poll every 60 seconds instead of 30 to reduce server load
     
     // Cleanup function to handle component unmounting
     return () => {
@@ -205,48 +246,6 @@ const MainLayout = () => {
       if (fetchTimeoutId) clearTimeout(fetchTimeoutId);
       if (retryTimeoutId) clearTimeout(retryTimeoutId);
       clearInterval(pollingIntervalId);
-      
-      // Remove event listener
-      window.removeEventListener('refreshServiceDetails', handleRefreshEvent);
-    };
-  }, []);
-
-  // Listen for refresh events from ServiceSongSelector to update serviceDetails
-  // even when SignupSheet is unmounted (e.g., user on worship team tab)
-  useEffect(() => {
-    const handleRefreshEvent = async () => {
-      console.log('🎯 MainLayout: Received refresh event, updating serviceDetails...');
-      try {
-        const timestamp = Date.now();
-        const response = await fetch(`/api/service-details?_t=${timestamp}`, {
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
-        });
-        
-        if (!response.ok) throw new Error('Failed to fetch service details');
-        const data = await response.json();
-
-        // Convert array to object with date keys
-        const detailsObj = {};
-        data.forEach(detail => {
-          if (detail.date) {
-            detailsObj[detail.date] = detail;
-          }
-        });
-
-        setServiceDetails(detailsObj);
-        console.log('✅ MainLayout: ServiceDetails updated from refresh event');
-      } catch (error) {
-        console.error('❌ MainLayout: Error handling refresh event:', error);
-      }
-    };
-
-    window.addEventListener('refreshServiceDetails', handleRefreshEvent);
-    
-    return () => {
-      window.removeEventListener('refreshServiceDetails', handleRefreshEvent);
     };
   }, []);
 
@@ -295,6 +294,18 @@ const MainLayout = () => {
         textLight: 'text-red-700'
       },
       background: 'url("/audio_videobg.jpg")'
+    },
+    {
+      id: 'settings',
+      label: 'Settings',
+      colors: {
+        bg: 'bg-gray-600',
+        bgLight: 'bg-gray-100',
+        text: 'text-white',
+        textLight: 'text-gray-600'
+      },
+      background: '',
+      isSettings: true
     }
   ];
 
@@ -322,27 +333,50 @@ const MainLayout = () => {
       {isMobile ? (
         <div className="min-h-screen flex flex-col relative">
           {/* Main content area */}
-          <div className="flex-1"> 
-            <div className="bg-white shadow-md h-full overflow-hidden">
+          <div className="flex-1 overflow-hidden"> 
+            <div className="bg-white shadow-md h-full flex flex-col">
               {isLoading ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
                 </div>
               ) : (
-                <div className="h-full overflow-y-auto" style={{ paddingBottom: "76px" }}> {/* Fixed padding for safe area */}
+                <div className="flex-1 overflow-y-auto" style={{ paddingBottom: "76px" }}> {/* Fixed padding for safe area */}
                   {activeTab === 'presentation' && (
-                    <SignupSheet
-                      serviceDetails={serviceDetails}
-                      setServiceDetails={setServiceDetails}
-                    />
+                    <ErrorBoundary>
+                      <SignupSheet
+                        serviceDetails={serviceDetails}
+                        setServiceDetails={setServiceDetails}
+                        selectedYear={selectedYear}
+                        setSelectedYear={setSelectedYear}
+                        availableYears={availableYears}
+                      />
+                    </ErrorBoundary>
                   )}
                   {activeTab === 'worship' && (
-                    <WorshipTeam
-                      serviceDetails={serviceDetails}
-                      setServiceDetails={setServiceDetails}
-                    />
+                    <ErrorBoundary>
+                      <WorshipTeam
+                        serviceDetails={serviceDetails}
+                        setServiceDetails={setServiceDetails}
+                        selectedYear={selectedYear}
+                        setSelectedYear={setSelectedYear}
+                        availableYears={availableYears}
+                      />
+                    </ErrorBoundary>
                   )}
-                  {activeTab === 'av' && <AVTeam />}
+                  {activeTab === 'av' && (
+                    <ErrorBoundary>
+                      <AVTeam
+                        selectedYear={selectedYear}
+                        setSelectedYear={setSelectedYear}
+                        availableYears={availableYears}
+                      />
+                    </ErrorBoundary>
+                  )}
+                  {activeTab === 'settings' && (
+                    <ErrorBoundary>
+                      <Settings />
+                    </ErrorBoundary>
+                  )}
                 </div>
               )}
             </div>
@@ -362,6 +396,7 @@ const MainLayout = () => {
                 onClick={() => tab.id === 'home' ? setShowSplash(true) : setActiveTab(tab.id)}
                 colors={tab.colors}
                 isHome={tab.isHome}
+                isSettings={tab.isSettings}
               />
             ))}
           </div>
@@ -379,6 +414,7 @@ const MainLayout = () => {
                   onClick={() => tab.id === 'home' ? setShowSplash(true) : setActiveTab(tab.id)}
                   colors={tab.colors}
                   isHome={tab.isHome}
+                  isSettings={tab.isSettings}
                 />
               ))}
             </div>
@@ -390,20 +426,43 @@ const MainLayout = () => {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
                 </div>
               ) : (
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-hidden">
                   {activeTab === 'presentation' && (
-                    <SignupSheet
-                      serviceDetails={serviceDetails}
-                      setServiceDetails={setServiceDetails}
-                    />
+                    <ErrorBoundary>
+                      <SignupSheet
+                        serviceDetails={serviceDetails}
+                        setServiceDetails={setServiceDetails}
+                        selectedYear={selectedYear}
+                        setSelectedYear={setSelectedYear}
+                        availableYears={availableYears}
+                      />
+                    </ErrorBoundary>
                   )}
                   {activeTab === 'worship' && (
-                    <WorshipTeam
-                      serviceDetails={serviceDetails}
-                      setServiceDetails={setServiceDetails}
-                    />
+                    <ErrorBoundary>
+                      <WorshipTeam
+                        serviceDetails={serviceDetails}
+                        setServiceDetails={setServiceDetails}
+                        selectedYear={selectedYear}
+                        setSelectedYear={setSelectedYear}
+                        availableYears={availableYears}
+                      />
+                    </ErrorBoundary>
                   )}
-                  {activeTab === 'av' && <AVTeam />}
+                  {activeTab === 'av' && (
+                    <ErrorBoundary>
+                      <AVTeam
+                        selectedYear={selectedYear}
+                        setSelectedYear={setSelectedYear}
+                        availableYears={availableYears}
+                      />
+                    </ErrorBoundary>
+                  )}
+                  {activeTab === 'settings' && (
+                    <ErrorBoundary>
+                      <Settings />
+                    </ErrorBoundary>
+                  )}
                 </div>
               )}
             </div>

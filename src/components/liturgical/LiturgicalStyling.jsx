@@ -8,14 +8,6 @@ import {
   calculateAshWednesday,
   calculateAdventStart
 } from '../../lib/LiturgicalCalendarService.js';
-import { validateDate } from '../../lib/liturgical-validation.js';
-
-// Cache for memoizing liturgical calculations
-const liturgicalCache = {
-  seasons: new Map(),
-  specialDays: new Map(),
-  headerClasses: new Map()
-};
 
 // Add this helper function after the imports
 function isSameDate(date1, date2) {
@@ -28,19 +20,6 @@ function isSameDate(date1, date2) {
 export const getSeasonClass = (dateStr) => {
   if (!dateStr) return 'ORDINARY_TIME';
   
-  // Validate date string format
-  try {
-    validateDate(dateStr);
-  } catch (error) {
-    console.error('Invalid date format in getSeasonClass:', dateStr, error.message);
-    return 'ORDINARY_TIME'; // Safe fallback
-  }
-  
-  // Check cache first
-  if (liturgicalCache.seasons.has(dateStr)) {
-    return liturgicalCache.seasons.get(dateStr);
-  }
-  
   try {
     // Parse MM/DD/YY format
     const [month, day, year] = dateStr.split('/').map(Number);
@@ -51,26 +30,15 @@ export const getSeasonClass = (dateStr) => {
     
     // Get season - NO MORE LOWERCASE CONVERSION
     const season = getCurrentSeason(date);
-    // console.log(`Date: ${dateStr}, Season: ${season}`); // Debug line - commented out to reduce console spam
-    
-    // Cache the result
-    liturgicalCache.seasons.set(dateStr, season);
     return season;
   } catch (error) {
     console.error('Error determining season class:', error);
-    const fallback = 'ORDINARY_TIME';
-    liturgicalCache.seasons.set(dateStr, fallback);
-    return fallback;
+    return 'ORDINARY_TIME';
   }
 };
 
 export const getSpecialServiceType = (dateStr) => {
   if (!dateStr) return null;
-  
-  // Check cache first
-  if (liturgicalCache.specialDays.has(dateStr)) {
-    return liturgicalCache.specialDays.get(dateStr);
-  }
   
   try {
     const [month, day, year] = dateStr.split('/').map(Number);
@@ -79,65 +47,39 @@ export const getSpecialServiceType = (dateStr) => {
     const date = new Date(formattedDate);
     const specialDay = getSpecialDay(date);
     
-    // Debug output - commented out to reduce console spam
-    // console.log(`Special day for ${dateStr}: ${specialDay}`);
+    if (!specialDay) return null;
     
-    if (!specialDay) {
-      liturgicalCache.specialDays.set(dateStr, null);
-      return null;
-    }
-    
-    let result = null;
     // Map the special day ID to our CSS class names
     switch(specialDay) {
-      case 'ASH_WEDNESDAY': result = 'ash-wednesday'; break;
-      case 'PALM_SUNDAY': result = 'holy-week'; break;
-      case 'MAUNDY_THURSDAY': result = 'holy-week'; break;
-      case 'GOOD_FRIDAY': result = 'holy-week'; break;
-      case 'EASTER_SUNDAY': result = 'easter'; break;
-      case 'PENTECOST_SUNDAY': result = 'pentecost'; break;
-      case 'REFORMATION_SUNDAY': result = 'reformation'; break;
-      case 'ALL_SAINTS_DAY': result = 'all-saints'; break;
-      case 'CHRISTMAS_EVE': result = 'christmas'; break;
-      case 'CHRISTMAS_DAY': result = 'christmas'; break;
-      case 'TRINITY_SUNDAY': result = 'trinity'; break;
-      case 'CHRIST_THE_KING': result = 'christ-king'; break;
-      case 'THANKSGIVING': result = 'thanksgiving'; break;
-      case 'ADVENT_1': result = 'advent'; break; // Add this case
-      default: result = null; break;
+      case 'ASH_WEDNESDAY': return 'ash-wednesday';
+      case 'PALM_SUNDAY': return 'holy-week';
+      case 'MAUNDY_THURSDAY': return 'holy-week';
+      case 'GOOD_FRIDAY': return 'holy-week';
+      case 'EASTER_SUNDAY': return 'easter';
+      case 'PENTECOST_SUNDAY': return 'pentecost';
+      case 'REFORMATION_SUNDAY': return 'reformation';
+      case 'ALL_SAINTS_DAY': return 'all-saints';
+      case 'CHRISTMAS_EVE': return 'christmas';
+      case 'CHRISTMAS_DAY': return 'christmas';
+      case 'TRINITY_SUNDAY': return 'trinity';
+      case 'CHRIST_THE_KING': return 'christ-king';
+      case 'THANKSGIVING': return 'thanksgiving';
+      case 'ADVENT_1': return 'advent'; // Add this case
+      default: return null;
     }
-    
-    // Cache the result
-    liturgicalCache.specialDays.set(dateStr, result);
-    return result;
   } catch (error) {
     console.error('Error determining special service type:', error);
-    liturgicalCache.specialDays.set(dateStr, null);
     return null;
   }
 };
 
 export const getHeaderClass = (date) => {
-  if (!date) return 'flex items-center justify-between w-full';
-  
-  // Check cache first
-  if (liturgicalCache.headerClasses.has(date)) {
-    return liturgicalCache.headerClasses.get(date);
-  }
-  
   const seasonClass = getSeasonClass(date);
   const specialType = getSpecialServiceType(date);
   
-  // Debug output - commented out to reduce console spam
-  // console.log(`getHeaderClass for ${date}: Season=${seasonClass}, SpecialType=${specialType}`);
-  
-  const result = `flex items-center justify-between w-full ${
+  return `flex items-center justify-between w-full ${
     seasonClass ? `season-header-${seasonClass}` : ''} ${
     specialType ? `special-service-header special-service-${specialType}` : ''}`;
-  
-  // Cache the result
-  liturgicalCache.headerClasses.set(date, result);
-  return result;
 };
 
 // Component for displaying special service indicator

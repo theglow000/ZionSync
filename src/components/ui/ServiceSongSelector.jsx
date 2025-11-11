@@ -5,6 +5,9 @@ import SongSection from './SongSection';
 import Logger from '@/utils/logger'
 import { getSeasonForDate } from '../../lib/LiturgicalCalendarService';
 import { LITURGICAL_SEASONS, MAJOR_FEAST_DAYS } from '../../lib/LiturgicalSeasons.js';
+import { useConfirm } from '../../hooks/useConfirm';
+import { LoadingSpinner } from '../shared';
+import { fetchWithTimeout, apiPost } from '../../lib/api-utils';
 
 // Constants
 const hymnalVersions = [
@@ -17,34 +20,24 @@ const hymnalVersions = [
 const checkForDuplicateSongs = async (songs, currentDate) => {
   const duplicates = [];
   const currentServiceDate = new Date(currentDate); // This might be the issue
-  // console.log('Checking songs:', songs, 'for date:', currentDate);
-
   for (const song of songs) {
     if (!song?.title) continue;
 
     try {
-      const response = await fetch(`/api/song-usage?title=${encodeURIComponent(song.title)}&months=1`);
+      const response = await fetchWithTimeout(`/api/song-usage?title=${encodeURIComponent(song.title)}&months=1`);
       if (!response.ok) {
         console.error('Error response from song-usage API:', await response.text());
         continue;
       }
 
       const usage = await response.json();
-      // console.log('Raw usage data for', song.title, ':', usage);
-
-      // Fix date comparison
       const fourWeeksAgo = new Date(currentServiceDate);
       fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
 
       const recentUsage = usage.filter(u => {
         const usageDate = new Date(u.dateUsed);
         // Add more detailed logging
-        // console.log('Comparing dates:', {
-        //   songTitle: song.title,
-        //   usageDate: usageDate.toISOString(),
-        //   fourWeeksAgo: fourWeeksAgo.toISOString(),
-        //   currentServiceDate: currentServiceDate.toISOString(),
-        // });
+        
         // Fix date comparison
         return usageDate >= fourWeeksAgo && usageDate < currentServiceDate;
       });
@@ -66,45 +59,45 @@ const checkForDuplicateSongs = async (songs, currentDate) => {
       console.error('Error checking song usage:', error);
     }
   }
-
-  // console.log('Final duplicates found:', duplicates);
   return duplicates;
 };
 
 const formatDuplicateWarning = (duplicates) => {
-  const formattedMessage = duplicates.map(d => {
-    const usageList = d.usedOn.map(u =>
-      `• ${u.date} (${u.service})`
-    ).join('\n');
+  const details = [];
+  
+  duplicates.forEach(d => {
+    // Add song title
+    details.push(`"${d.title}" was used on:`);
+    // Add each usage date indented
+    d.usedOn.forEach(u => {
+      details.push(`  ${u.date} (${u.service})`);
+    });
+  });
 
-    return `"${d.title}" was recently used on:\n${usageList}`;
-  }).join('\n\n');
-
-  return `Warning: The following songs have been used in the last 4 weeks:\n\n${formattedMessage}\n\nDo you want to use these songs anyway?`;
+  return {
+    message: 'These songs were used in the last 4 weeks:',
+    details
+  };
 };
 
 const recordSongUsage = async (songs, date, serviceType, currentUser) => {
   try {
-    // console.log('Recording songs for date:', date, 'service:', serviceType);
-
-    // Filter out empty songs before recording
     const validSongs = songs.filter(song => song?.title?.trim());
 
     // Process each song one by one to better handle errors
     for (const song of validSongs) {
       try {
         // First check if this song+date combination already exists
-        const checkResponse = await fetch(`/api/song-usage/check?title=${encodeURIComponent(song.title)}&date=${encodeURIComponent(date)}`);
+        const checkResponse = await fetchWithTimeout(`/api/song-usage/check?title=${encodeURIComponent(song.title)}&date=${encodeURIComponent(date)}`);
         const checkResult = await checkResponse.json();
 
         // If this song is already recorded for this date, skip it
         if (checkResult.exists) {
-          // console.log(`Song "${song.title}" already recorded for ${date}, skipping`);
           continue;
         }
 
         // Add new usage record
-        await fetch('/api/song-usage', {
+        await fetchWithTimeout('/api/song-usage', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -122,8 +115,6 @@ const recordSongUsage = async (songs, date, serviceType, currentUser) => {
             notes: song.notes
           })
         });
-
-        // console.log(`Successfully recorded usage for "${song.title}" on ${date}`);
       } catch (songError) {
         console.error(`Error recording song "${song.title}":`, songError);
       }
@@ -218,11 +209,14 @@ const checkForMissingLinks = (songSelections) => {
 };
 
 const formatLinkWarning = (songsWithMissingLinks) => {
-  const formattedMessage = songsWithMissingLinks.map(song => {
-    return `• "${song.title}" is missing: ${song.missingLinks.join(', ')}`;
-  }).join('\n');
+  const details = songsWithMissingLinks.map(song => {
+    return `"${song.title}" needs: ${song.missingLinks.join(', ')}`;
+  });
 
-  return `The following songs are missing reference links:\n\n${formattedMessage}\n\nAdding links helps other team members find resources for these songs.\n\nDo you want to save anyway?`;
+  return {
+    message: 'Adding links helps team members find resources:',
+    details
+  };
 };
 
 const ServiceSongSelector = ({
@@ -243,6 +237,7 @@ const ServiceSongSelector = ({
   // Set context for all logs in this component
   Logger.setContext('ServiceSongSelector');
 
+  const { confirm, ConfirmDialog } = useConfirm();
   const [serviceSongStates, setServiceSongStates] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -260,7 +255,7 @@ const ServiceSongSelector = ({
     const fetchSelections = async () => {
       setIsLoading(true);
       try {
-        const selectionsResponse = await fetch(`/api/service-songs?date=${date}`);
+        const selectionsResponse = await fetchWithTimeout(`/api/service-songs?date=${date}`);
         if (!selectionsResponse.ok) throw new Error('Failed to fetch selections');
         const selectionsData = await selectionsResponse.json();
 
@@ -279,26 +274,14 @@ const ServiceSongSelector = ({
     fetchSelections();
   }, [expanded, date]);
 
-  // useEffect(() => {
-  //   if (process.env.NODE_ENV === 'development') {
-  //     console.log('Service Details:', {
-  //       date,
-  //       elements: serviceDetails?.elements,
-  //       serviceSongStates
-  //     });
-  //   }
-  // }, [date, serviceDetails?.elements, serviceSongStates]);
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+    }
+  }, [date, serviceDetails?.elements, serviceSongStates]);
 
   // Add near top of component
-  // useEffect(() => {
-  //   console.log('Service Data:', {
-  //     date,
-  //     serviceDetails,
-  //     elements: serviceDetails?.elements,
-  //   });
-  // }, [date, serviceDetails]);
-
-  const handleSongStateUpdate = useCallback((slot, newState) => {
+  useEffect(() => {
+  }, [date, serviceDetails]);  const handleSongStateUpdate = useCallback((slot, newState) => {
     setServiceSongStates(prev => {
       // Create a clean state object preserving all existing valid song slots
       const cleanState = {};
@@ -320,27 +303,6 @@ const ServiceSongSelector = ({
         }
       };
     });
-  }, []);
-
-  // Handle clearing a song (reverting to blank/pending state)
-  const handleSongClear = useCallback((slot) => {
-    // Create an empty song object that maintains the structure but clears all content
-    const emptyState = {
-      type: 'hymn',
-      title: '',
-      number: '',
-      hymnal: '',
-      author: '',
-      sheetMusic: '',
-      youtube: '',
-      notes: ''
-    };
-    
-    // Update the state to empty
-    setServiceSongStates(prev => ({
-      ...prev,
-      [slot]: emptyState
-    }));
   }, []);
 
   const getWeekInfo = (dateStr) => {
@@ -444,7 +406,7 @@ const ServiceSongSelector = ({
     if (!serviceDetails?.elements) return [];
 
     return serviceDetails.elements
-      .filter(element => element.type === 'song_hymn' || element.type === 'song_contemporary')
+      .filter(element => element.type === 'song_hymn')
       .map((element, index) => {
         // Ensure we always have a numeric index for the ID
         const songId = index.toString();
@@ -461,7 +423,6 @@ const ServiceSongSelector = ({
 
   // Memoize showAlertMessage
   const showAlertMessage = useCallback((message, type = 'success') => {
-    // console.log('showAlertMessage called with:', message, type); // Add this
     setAlertMessage(message);
     setAlertType(type);
     setShowAlert(true);
@@ -473,15 +434,12 @@ const ServiceSongSelector = ({
         x: rect.left + rect.width / 2,
         y: rect.top
       });
-      // console.log('Alert position set to:', rect.left + rect.width / 2, rect.top); // Add this
     } else {
-      // console.log('Form element not found'); // Add this
     }
 
     // Increase timeout and add cleanup
     const timeoutId = setTimeout(() => {
       setShowAlert(false);
-      // console.log('Alert hidden by timeout'); // Add this
     }, 3000);
 
     return () => clearTimeout(timeoutId);
@@ -517,18 +475,24 @@ const ServiceSongSelector = ({
     e.preventDefault();
     setIsSaving(true);
 
-    try {      // Check for duplicate songs before saving
-      // FIXED: Create ordered array that preserves song slot positions
-      const requiredSongSections = getRequiredSongSections(serviceDetails[date] || serviceDetails);
-      const songSelections = requiredSongSections.map(section => serviceSongStates[section.id]).filter(song => song);
+    try {
+      // Check for duplicate songs before saving
+      const songSelections = Object.values(serviceSongStates);
       const duplicates = await checkForDuplicateSongs(songSelections, date);
 
       if (duplicates.length > 0) {
         // Create warning message
-        const warningMessage = formatDuplicateWarning(duplicates);
+        const warning = formatDuplicateWarning(duplicates);
 
         // Show confirmation dialog
-        const confirmUse = window.confirm(warningMessage);
+        const confirmUse = await confirm({
+          title: 'Duplicate Songs Detected',
+          message: warning.message,
+          details: warning.details,
+          variant: 'warning',
+          confirmText: 'Use Anyway',
+          cancelText: 'Cancel'
+        });
 
         if (!confirmUse) {
           setIsSaving(false);
@@ -540,10 +504,17 @@ const ServiceSongSelector = ({
       const songsWithMissingLinks = checkForMissingLinks(songSelections);
       if (songsWithMissingLinks.length > 0) {
         // Create warning message
-        const linkWarningMessage = formatLinkWarning(songsWithMissingLinks);
+        const warning = formatLinkWarning(songsWithMissingLinks);
 
         // Show confirmation dialog
-        const confirmSave = window.confirm(linkWarningMessage);
+        const confirmSave = await confirm({
+          title: 'Missing Links',
+          message: warning.message,
+          details: warning.details,
+          variant: 'warning',
+          confirmText: 'Save Anyway',
+          cancelText: 'Cancel'
+        });
 
         if (!confirmSave) {
           setIsSaving(false);
@@ -556,7 +527,7 @@ const ServiceSongSelector = ({
         if (!isValidSongData(song)) return;
 
         try {
-          await fetch('/api/songs', {
+          await fetchWithTimeout('/api/songs', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -578,7 +549,7 @@ const ServiceSongSelector = ({
       }));
 
       // Proceed with existing save logic...
-      const serviceSongsResponse = await fetch('/api/service-songs', {
+      const serviceSongsResponse = await fetchWithTimeout('/api/service-songs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -605,50 +576,60 @@ const ServiceSongSelector = ({
         throw new Error(`No service elements found for date: ${date}`);
       }
 
-      // After successful save, record the song usage
-      await recordSongUsage(songSelections, date, serviceDetailsForDate?.type, currentUser);
+      // Then map the songs to the elements array
+      const updatedElements = serviceDetailsForDate.elements.map(element => {
+        if (element.type === 'song_hymn') {
+          const matchingSong = songSelections[currentSongIndex];
+          currentSongIndex++;
 
-      // IMPROVED STATE UPDATE: Build updated elements locally to match server state
-      const updatedElements = serviceDetailsForDate.elements.map((element, index) => {
-        if (element.type === 'song_hymn' || element.type === 'song_contemporary') {
-          // Find the matching song selection based on the element index
-          let matchingSong = null;
-          let songIndex = 0;
-          
-          // Count how many song elements come before this one (excluding liturgical songs)
-          for (let i = 0; i < index; i++) {
-            if (serviceDetailsForDate.elements[i].type === 'song_hymn' || 
-                serviceDetailsForDate.elements[i].type === 'song_contemporary') {
-              songIndex++;
-            }
-          }
-          
-          // Get the corresponding song selection
-          const songKeys = Object.keys(serviceSongStates);
-          if (songKeys[songIndex] && serviceSongStates[songKeys[songIndex]]?.title) {
-            matchingSong = serviceSongStates[songKeys[songIndex]];
-          }
-          
+          // Get the original prefix/label WITHOUT any existing song info
+          const prefix = element.content.split(':')[0].split(' - ')[0].trim();
+
           if (matchingSong?.title) {
-            const prefix = element.content.split(':')[0].split(' - ')[0].trim();
+            // Format song details based on type
             const songDetails = matchingSong.type === 'hymn'
               ? `${matchingSong.title} #${matchingSong.number} (${formatHymnalName(matchingSong.hymnal)})`
               : matchingSong.author
                 ? `${matchingSong.title} - ${matchingSong.author}`
                 : matchingSong.title;
-
             return {
               ...element,
-              content: `${prefix}: ${songDetails}`,
               selection: {
                 ...matchingSong,
-                originalPrefix: prefix
-              }
+                content: prefix // Store original prefix with selection
+              },
+              content: `${prefix}: ${songDetails}`
             };
           }
+
+          return {
+            ...element,
+            selection: null,
+            content: `${prefix}: <Awaiting Song Selection>`
+          };
         }
-        return element; // Preserve all non-song elements exactly as they are (including liturgical songs)
+        return element;
       });
+
+      // Debug the final elements array
+      const serviceDetailsResponse = await fetchWithTimeout('/api/service-details', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date,
+          elements: updatedElements,
+          content: serviceDetailsForDate?.content,
+          type: serviceDetailsForDate?.type,
+          setting: serviceDetailsForDate?.setting
+        })
+      });
+
+      if (!serviceDetailsResponse.ok) {
+        throw new Error('Failed to update service details');
+      }
+
+      // After successful save, record the song usage
+      await recordSongUsage(songSelections, date, serviceDetailsForDate?.type, currentUser);
 
       // Update local state - adapt based on the structure of serviceDetails
       if (serviceDetails[date]) {
@@ -667,17 +648,7 @@ const ServiceSongSelector = ({
           elements: updatedElements
         }));
       }
-
-      // console.log('About to show success message');
       showAlertMessage('Songs saved successfully');
-      // console.log('Success message should be shown');
-      
-      // Trigger immediate refresh to sync changes - reduced delay for better responsiveness
-      console.log('🔄 Scheduling refresh event in 1 second...');
-      setTimeout(() => {
-        console.log('🔄 Dispatching refresh event to SignupSheet');
-        window.dispatchEvent(new CustomEvent('refreshServiceDetails'));
-      }, 1000); // Reduced delay from 3s to 1s for better responsiveness
     } catch (error) {
       console.error('Error saving songs:', error);
       showAlertMessage('Failed to save songs', 'error');
@@ -964,7 +935,7 @@ const ServiceSongSelector = ({
             <form ref={formRef} onSubmit={handleSubmit} className="space-y-2">
               {isLoading ? (
                 <div className="flex justify-center py-4">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-700" />
+                  <LoadingSpinner size="md" className="border-purple-700" />
                 </div>
               ) : (
                 <>
@@ -984,7 +955,6 @@ const ServiceSongSelector = ({
                         notes: ''
                       }}
                       onSongStateUpdate={handleSongStateUpdate}
-                      onSongClear={handleSongClear}
                       availableSongs={availableSongs}
                       currentUser={currentUser}
                       hymnalVersions={hymnalVersions}
@@ -1007,6 +977,7 @@ const ServiceSongSelector = ({
           </div>
         </div>
       )}
+      <ConfirmDialog />
     </div>
   );
 };

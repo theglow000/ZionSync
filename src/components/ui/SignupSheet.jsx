@@ -1,27 +1,46 @@
 'use client'
 
 // Add UserSelectionModal to the imports at the top
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { UserCircle, Calendar, Check, ChevronDown, ChevronUp, Mail, X, Music2, BookOpen, Pencil, Trash2, Cross, MessageSquare, Music } from 'lucide-react';
 import { format, addMonths, subMonths, isSameMonth } from 'date-fns';
 import MobileServiceCard from './MobileServiceCard';
 import UserSelectionModal from './UserSelectionModal';
+import AddUserModal from './AddUserModal';
 import useResponsive from '../../hooks/useResponsive';
+import { useDebounce } from '../../hooks/useDebounce';
+import { useAlertManager } from '../../hooks/useAlertManager';
+import { useConfirm } from '../../hooks/useConfirm';
+import { LoadingSpinner, YearSelector } from '../shared';
+import { ERROR_MESSAGES, SUCCESS_MESSAGES, createErrorHandler, createSuccessHandler } from '../../utils/errorHandler';
+import { POLLING_INTERVAL, ALERT_DURATION, COLOR_THEMES, API_ENDPOINTS } from '../../lib/constants';
+import { fetchWithTimeout, fetchWithRetry, parseJSON, apiPost, apiGet, apiDelete, apiPut } from '../../lib/api-utils';
 import './table.css'
 import PastorServiceInput from './PastorServiceInput'; // Add this import
 import { downloadICSFile } from '../../lib/ics-generator'; // Change this import
 
-const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
+const SignupSheet = ({ serviceDetails, setServiceDetails, selectedYear, setSelectedYear, availableYears }) => {
   const { isMobile } = useResponsive();
+  
+  // Use alert manager hook
+  const { 
+    showAlert, 
+    alertMessage, 
+    alertPosition, 
+    setAlertPosition, 
+    showAlertWithTimeout 
+  } = useAlertManager();
+  
+  // Use confirm dialog hook
+  const { confirm, ConfirmDialog } = useConfirm();
+  
   // Initialize all state at the top of component
   const [expanded, setExpanded] = useState({});
   const [showRegistration, setShowRegistration] = useState(false);
   const [signups, setSignups] = useState({});
   const [currentDate, setCurrentDate] = useState(null);
-  const [showAlert, setShowAlert] = useState(false);
-  const [alertMessage, setAlertMessage] = useState('');
   const [completed, setCompleted] = useState({});
   const [selectedDates, setSelectedDates] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -33,21 +52,37 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
   const [showTooltip, setShowTooltip] = useState(false);
   const [showPastorInput, setShowPastorInput] = useState(false);
   const [editingDate, setEditingDate] = useState(null);
-  const [alertPosition, setAlertPosition] = useState({ x: 0, y: 0 });
-  // Removed redundant polling - MainLayout now handles all service details polling
-  // This eliminates duplicate API calls and potential state conflicts
   const [customServices, setCustomServices] = useState([]);
   const [showUserSelectModal, setShowUserSelectModal] = useState(null); // { date, currentAssignment }
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [pendingActions, setPendingActions] = useState({}); // Track pending debounced actions
+  
+  // Sprint 4.2: Dynamic dates fetching
+  const [dates, setDates] = useState([]);
+  const [datesLoading, setDatesLoading] = useState(false);
 
-  // State for refresh button loading
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  // Refs for auto-scrolling to current date (consolidated for both views)
+  const dateRefs = useRef({});
+  const componentRootRef = useRef(null);
 
-  const checkForOrderOfWorship = (date) => {
+  // Centralized error and success handlers (updated to use useAlertManager)
+  const handleError = useMemo(
+    () => createErrorHandler('Presentation Team', (msg) => showAlertWithTimeout(msg), () => {}),
+    [showAlertWithTimeout]
+  );
+  
+  const handleSuccess = useMemo(
+    () => createSuccessHandler((msg) => showAlertWithTimeout(msg), () => {}),
+    [showAlertWithTimeout]
+  );
+
+  // Utility functions wrapped in useCallback for performance
+  const checkForOrderOfWorship = useCallback((date) => {
     const elements = serviceDetails[date]?.elements;
     return Array.isArray(elements) && elements.length > 0;
-  };
+  }, [serviceDetails]);
 
-  const isFutureDate = (dateStr) => {
+  const isFutureDate = useCallback((dateStr) => {
     const [month, day, year] = dateStr.split('/').map(num => parseInt(num, 10));
     // Set time to start of day for accurate comparison
     const dateToCheck = new Date(year, month - 1, day);
@@ -57,38 +92,40 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
     today.setHours(0, 0, 0, 0);
 
     return dateToCheck >= today;
-  };
+  }, []);
 
-  const handleAddUser = async () => {
-    const name = prompt('Enter new user name:');
-    if (name) {
-      try {
-        await fetch('/api/users', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ name })
-        });
+  // Handler functions wrapped in useCallback for performance
+  const handleAddUser = useCallback(() => {
+    setShowAddUserModal(true);
+  }, []);
 
-        setAvailableUsers(prev => [...prev, { name }]);
-      } catch (error) {
-        console.error('Error adding user:', error);
-        setAlertMessage('Error adding user');
-        setShowAlert(true);
-        setTimeout(() => setShowAlert(false), 3000);
-      }
+  const handleAddUserSubmit = useCallback(async (name) => {
+    try {
+      await apiPost(API_ENDPOINTS.USERS, { name });
+
+      setAvailableUsers(prev => [...prev, { name }]);
+      setShowAddUserModal(false);
+      handleSuccess(SUCCESS_MESSAGES.USER_ADDED);
+    } catch (error) {
+      handleError(error, { operation: 'addUser', name }, ERROR_MESSAGES.USER_ADD_ERROR);
+      throw error; // Re-throw to let modal handle error display
     }
-  };
+  }, [handleSuccess, handleError]);
 
-  const handleRemoveUser = async (userName, skipConfirm = true) => {
-    if (!skipConfirm && !confirm(`Remove ${userName} from users list?`)) {
-      return;
+  const handleRemoveUser = useCallback(async (userName, skipConfirm = true) => {
+    if (!skipConfirm) {
+      const confirmed = await confirm({
+        title: 'Remove User',
+        message: `Remove ${userName} from the system?`,
+        variant: 'danger',
+        confirmText: 'Remove',
+        cancelText: 'Cancel'
+      });
+      if (!confirmed) return;
     }
 
     try {
-      await fetch('/api/users', {
-        method: 'DELETE',
+      await apiDelete(API_ENDPOINTS.USERS, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -111,29 +148,41 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
       // If current user was deleted, clear current user
     } catch (error) {
       console.error('Error removing user:', error);
-      setAlertMessage('Error removing user');
-      setShowAlert(true);
-      setTimeout(() => setShowAlert(false), 3000);
+      handleError(error, 'Error removing user');
     }
-  };
+  }, [confirm, handleError]);
 
-  // Update the useEffect data fetching
+  // Consolidated initial data fetch - runs once on mount
   useEffect(() => {
-    const fetchData = async () => {
+    const controller = new AbortController();
+    
+    const fetchInitialData = async () => {
       setIsLoading(true);
       try {
-        // Fetch users
-        console.log('Fetching users...');
-        const usersResponse = await fetch('/api/users');
-        if (!usersResponse.ok) throw new Error('Failed to fetch users');
-        const usersData = await usersResponse.json();
-        setAvailableUsers(usersData);
+        // Fetch all initial data in parallel for better performance
+        const [usersResponse, signupsResponse, completedResponse, customServicesResponse] = await Promise.all([
+          fetchWithTimeout(API_ENDPOINTS.USERS, { signal: controller.signal }),
+          fetchWithTimeout(API_ENDPOINTS.SIGNUPS, { signal: controller.signal }),
+          fetchWithTimeout(API_ENDPOINTS.COMPLETED, { signal: controller.signal }),
+          fetchWithTimeout(API_ENDPOINTS.CUSTOM_SERVICES, { signal: controller.signal })
+        ]);
 
-        // Fetch signups
-        console.log('Fetching signups...');
-        const signupsResponse = await fetch('/api/signups');
+        // Check for errors
+        if (!usersResponse.ok) throw new Error('Failed to fetch users');
         if (!signupsResponse.ok) throw new Error('Failed to fetch signups');
-        const signupsData = await signupsResponse.json();
+        if (!completedResponse.ok) throw new Error('Failed to fetch completed status');
+        // customServices can fail silently
+
+        // Parse responses
+        const [usersData, signupsData, completedData, customServicesData] = await Promise.all([
+          usersResponse.json(),
+          signupsResponse.json(),
+          completedResponse.json(),
+          customServicesResponse.ok ? customServicesResponse.json() : []
+        ]);
+
+        // Process users
+        setAvailableUsers(usersData);
 
         // Process signups
         const signupsObj = {};
@@ -152,51 +201,64 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
         setSignupDetails(detailsObj);
         setSelectedDates(userFutureDates);
 
-        // Fetch completed status
-        console.log('Fetching completed status...');
-        const completedResponse = await fetch('/api/completed');
-        if (!completedResponse.ok) throw new Error('Failed to fetch completed status');
-        const completedData = await completedResponse.json();
-
+        // Process completed status
         const completedObj = {};
         completedData.forEach(item => {
           completedObj[item.date] = item.completed;
         });
         setCompleted(completedObj);
 
+        // Process custom services
+        setCustomServices(customServicesData);
+
       } catch (error) {
-        console.error('Error fetching data:', error);
-        setAlertMessage(`Error loading data: ${error.message}`);
-        setShowAlert(true);
+        if (error.name === 'AbortError') return;
+        console.error('Error fetching initial data:', error);
+        handleError(error, 'Error loading data');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchData();
-  }, []);
+    fetchInitialData();
 
+    return () => controller.abort();
+  }, [isFutureDate]); // Include isFutureDate in dependencies since it's used
+
+  // Service details polling - critical for syncing Worship Team song selections
+  // Runs on mount and every 30 seconds to keep data fresh
   useEffect(() => {
     let isSubscribed = true;
 
     const fetchServiceDetails = async () => {
       try {
-        console.log('🕐 TIMER REFRESH: Fetching service details...');
-        // Add cache-busting parameter to ensure fresh data
-        const timestamp = Date.now();
-        const response = await fetch(`/api/service-details?_t=${timestamp}`);
+        const response = await fetchWithTimeout(API_ENDPOINTS.SERVICE_DETAILS);
         if (!response.ok) throw new Error('Failed to fetch service details');
         const data = await response.json();
 
         if (isSubscribed) {
           setServiceDetails(prev => {
             const merged = { ...prev };
-            Object.keys(data).forEach(date => {
-              const existingElements = prev[date]?.elements || [];
-              const newElements = data[date]?.elements || [];
+            
+            // Convert array to object if needed
+            let dataObj = data;
+            if (Array.isArray(data)) {
+              dataObj = {};
+              data.forEach(detail => {
+                if (detail.date) {
+                  dataObj[detail.date] = detail;
+                }
+              });
+            }
+            
+            // Defensive check: ensure dataObj is an object
+            if (dataObj && typeof dataObj === 'object') {
+              Object.keys(dataObj).forEach(date => {
+                const existingElements = prev[date]?.elements || [];
+                const newElements = dataObj[date]?.elements || [];
 
-              // Create a map of existing elements by ID and type-content key for quick lookup
-              const existingElementMap = new Map();
+                // Create a map of existing elements by ID and type-content key for quick lookup
+                const existingElementMap = new Map();
               existingElements.forEach(element => {
                 // Store by ID if available
                 if (element.id) {
@@ -259,7 +321,8 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                 // If matching element found, merge properly based on type
                 if (existingElement) {
                   // For song elements, preserve the selection data
-                  if (newElement.type === 'song_hymn' || newElement.type === 'song_contemporary') {
+                  if (newElement.type === 'song_hymn' || newElement.type === 'song_contemporary' ||
+                      newElement.type === 'liturgical_song') {
                     
                     // Generate display content based on existing selection if available
                     let content = newElement.content;
@@ -294,17 +357,13 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                     };
                   }
                   
-                  // For readings and messages, use new data (allow updates)
+                  // For readings and messages, update content but preserve formatting
                   if (newElement.type === 'reading' || newElement.type === 'message') {
-                    return newElement;
+                    return {
+                      ...existingElement,
+                      ...newElement
+                    };
                   }
-                  
-                  // For liturgical songs, use new data (they are not editable by worship team)
-                  if (newElement.type === 'liturgical_song') {
-                    return newElement;
-                  }
-                } else {
-                  // For elements without a match, use the new data
                 }
                 
                 // For elements without a match or other element types, use the new data
@@ -313,114 +372,112 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
 
               merged[date] = {
                 ...prev[date],
-                ...data[date],
+                ...dataObj[date],
                 elements: mergedElements
               };
             });
-            console.log('✅ TIMER REFRESH: Complete');
+            }
             return merged;
           });
         }
       } catch (error) {
-        console.error('❌ TIMER REFRESH: Error fetching service details:', error);
+        console.error('Error fetching service details:', error);
+        // Don't show alert for polling errors to avoid annoying users
       }
     };
 
     fetchServiceDetails();
-    console.log('🕐 TIMER: Starting 10-second refresh interval');
-    const intervalId = setInterval(() => {
-      console.log('🕐 TIMER: 10-second interval triggered');
-      fetchServiceDetails();
-    }, 10000); // Reduced from 30s to 10s for better responsiveness
+    const intervalId = setInterval(fetchServiceDetails, POLLING_INTERVAL);
 
     return () => {
       isSubscribed = false;
       clearInterval(intervalId);
     };
-  }, []);
+  }, [POLLING_INTERVAL]); // Include POLLING_INTERVAL in dependencies
 
+  // Sprint 4.2: Fetch dates dynamically based on selected year
   useEffect(() => {
-    const fetchCustomServices = async () => {
+    // Don't fetch if no year selected yet
+    if (!selectedYear) return;
+    
+    const fetchDates = async () => {
+      setDatesLoading(true);
       try {
-        const response = await fetch('/api/custom-services');
-        if (response.ok) {
-          const data = await response.json();
-          setCustomServices(data);
+        const response = await fetchWithTimeout(`/api/service-dates?year=${selectedYear}&upcomingOnly=false`);
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            // Year not generated yet
+            handleError(
+              new Error(`Services for ${selectedYear} have not been generated yet.`),
+              `Please generate services for ${selectedYear} in Settings > Calendar Manager.`
+            );
+            setDates([]);
+          } else {
+            throw new Error('Failed to fetch service dates');
+          }
+          return;
         }
+        
+        const fetchedDates = await response.json();
+        setDates(fetchedDates);
+        
       } catch (error) {
-        console.error('Error fetching custom services:', error);
+        console.error('Error fetching dates for year:', selectedYear, error);
+        handleError(error, 'Error loading service dates');
+        setDates([]);
+      } finally {
+        setDatesLoading(false);
       }
     };
+    
+    fetchDates();
+  }, [selectedYear, handleError]);
 
-    fetchCustomServices();
-  }, []);
+  // Auto-scroll to current date when dates are loaded
+  useEffect(() => {
+    if (!dates.length || isLoading || datesLoading) return;
 
-  const dates = [
-    { date: '1/5/25', day: 'Sunday', title: 'Epiphany' },
-    { date: '1/12/25', day: 'Sunday', title: 'Baptism of our Lord' },
-    { date: '1/19/25', day: 'Sunday', title: 'Epiphany Week 2' },
-    { date: '1/26/25', day: 'Sunday', title: 'Epiphany Week 3' },
-    { date: '2/2/25', day: 'Sunday', title: 'Presentation of Our Lord' },
-    { date: '2/9/25', day: 'Sunday', title: 'Epiphany Week 5' },
-    { date: '2/16/25', day: 'Sunday', title: 'Epiphany Week 6' },
-    { date: '2/23/25', day: 'Sunday', title: 'Epiphany Week 7' },
-    { date: '3/2/25', day: 'Sunday', title: 'The Transfiguration of Our Lord' },
-    { date: '3/5/25', day: 'Wednesday', title: 'Ash Wednesday' },
-    { date: '3/9/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '3/12/25', day: 'Wednesday', title: 'Lent Worship' },
-    { date: '3/16/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '3/19/25', day: 'Wednesday', title: 'Lent Worship' },
-    { date: '3/23/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '3/26/25', day: 'Wednesday', title: 'Lent Worship' },
-    { date: '3/30/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '4/2/25', day: 'Wednesday', title: 'Lent Worship' },
-    { date: '4/6/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '4/9/25', day: 'Wednesday', title: 'Lent Worship' },
-    { date: '4/13/25', day: 'Sunday', title: 'Palm Sunday' },
-    { date: '4/17/25', day: 'Thursday', title: 'Maundy Thursday' },
-    { date: '4/18/25', day: 'Friday', title: 'Good Friday' },
-    { date: '4/20/25', day: 'Sunday', title: 'Easter Sunday' },
-    { date: '4/27/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '5/4/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '5/11/25', day: 'Sunday', title: 'Mother\'s Day' },
-    { date: '5/18/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '5/25/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '6/1/25', day: 'Sunday', title: 'VBS Week' },
-    { date: '6/8/25', day: 'Sunday', title: 'Pentecost/Confirmation Sunday' },
-    { date: '6/15/25', day: 'Sunday', title: 'Trinity Sunday/Father\'s Day' },
-    { date: '6/22/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '6/29/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '7/6/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '7/13/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '7/20/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '7/27/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '8/3/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '8/10/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '8/17/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '8/24/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '8/31/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '9/7/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '9/14/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '9/21/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '9/28/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '10/5/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '10/12/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '10/19/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '10/26/25', day: 'Sunday', title: 'Reformation Sunday' },
-    { date: '11/2/25', day: 'Sunday', title: 'All Saint\'s Day' },
-    { date: '11/9/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '11/16/25', day: 'Sunday', title: 'Sunday Worship' },
-    { date: '11/23/25', day: 'Sunday', title: 'Christ the King' },
-    { date: '11/26/25', day: 'Wednesday', title: 'Thanksgiving Eve' },
-    { date: '11/30/25', day: 'Sunday', title: 'Advent 1' },
-    { date: '12/7/25', day: 'Sunday', title: 'Advent 2' },
-    { date: '12/14/25', day: 'Sunday', title: 'Advent 3' },
-    { date: '12/21/25', day: 'Sunday', title: 'Advent 4 (Kid\'s Christmas Program)' },
-    { date: '12/24/25', day: 'Wednesday', title: 'Christmas Eve Services (3pm & 7pm)' },
-    { date: '12/28/25', day: 'Sunday', title: 'Christmas Week 1' }
-  ];
+    // Small delay to ensure DOM is fully rendered
+    const timer = setTimeout(() => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-  const handleSignup = async () => {
+      // Find the first date that is today or in the future
+      const currentDateIndex = dates.findIndex(item => {
+        const [month, day, year] = item.date.split('/').map(num => parseInt(num, 10));
+        // Use 2000 + year to match existing codebase pattern
+        const itemDate = new Date(2000 + year, month - 1, day);
+        itemDate.setHours(0, 0, 0, 0);
+        return itemDate >= today;
+      });
+
+      if (currentDateIndex !== -1) {
+        const currentDate = dates[currentDateIndex].date;
+        const targetElement = dateRefs.current[currentDate];
+        
+        if (targetElement) {
+          if (isMobile) {
+            // Mobile: Use scrollIntoView (works with scroll-margin-top CSS)
+            targetElement.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start'
+            });
+          } else {
+            // Desktop: Use scrollIntoView - browser handles optimal positioning
+            targetElement.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start'
+            });
+          }
+        }
+      }
+    }, 1000); // Increased delay to 1000ms for mobile DOM rendering
+
+    return () => clearTimeout(timer);
+  }, [dates, isLoading, datesLoading, isMobile]);
+
+  const handleSignup = useCallback(async () => {
     const nameInput = document.querySelector('input[name="name"]');
 
     if (!nameInput) return;
@@ -431,15 +488,9 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
 
     try {
       // Save to MongoDB
-      await fetch('/api/signups', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          date: currentDate,
-          name,
-        })
+      await apiPost(API_ENDPOINTS.SIGNUPS, {
+        date: currentDate,
+        name,
       });
 
       const newUser = {
@@ -462,18 +513,14 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
 
       setSelectedDates(prev => [...prev, currentDate]);
       setShowRegistration(false);
-      setAlertMessage('Successfully signed up! Date added to calendar selection.');
-      setShowAlert(true);
-      setTimeout(() => setShowAlert(false), 3000);
+      handleSuccess('Successfully signed up! Date added to calendar selection.');
     } catch (error) {
-      setAlertMessage('Error saving signup. Please try again.');
-      setShowAlert(true);
-      setTimeout(() => setShowAlert(false), 3000);
+      handleError(error, 'Error saving signup');
     }
-  };
+  }, [currentDate]);
 
   // Update handleServiceDetailChange function
-  const handleServiceDetailChange = async (date, field, value) => {
+  const handleServiceDetailChange = useCallback(async (date, field, value) => {
     try {
       // Update local state immediately
       setServiceDetails(prev => ({
@@ -494,7 +541,7 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
         try {
           const currentDetails = serviceDetails[date] || {};
 
-          const response = await fetch('/api/service-details', {
+          const response = await fetchWithTimeout(API_ENDPOINTS.SERVICE_DETAILS, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -502,8 +549,7 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
             body: JSON.stringify({
               date,
               ...currentDetails,
-              [field]: value,
-              lastUpdated: currentDetails.lastUpdated // Include version for concurrency control
+              [field]: value
             })
           });
 
@@ -512,27 +558,23 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
           }
 
           const result = await response.json();
-          console.log('Save successful:', result);
         } catch (error) {
           console.error('Save error:', error);
           setServiceDetailsError(error.message);
-          setAlertMessage('Failed to save service details');
-          setShowAlert(true);
+          handleError(error, 'Failed to save service details');
         }
       }, 500);
     } catch (error) {
       console.error('Error:', error);
       setServiceDetailsError(error.message);
-      setAlertMessage('Error updating service details');
-      setShowAlert(true);
+      handleError(error, 'Error updating service details');
     }
-  };
+  }, [serviceDetails]);
 
-  const handleRemoveReservation = async (date) => {
+  const handleRemoveReservation = useCallback(async (date) => {
     if (signups[date]) {
       try {
-        await fetch('/api/signups', {
-          method: 'DELETE',
+        await apiDelete(API_ENDPOINTS.SIGNUPS, {
           headers: {
             'Content-Type': 'application/json',
           },
@@ -555,41 +597,121 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
         });
 
         setSelectedDates(prev => prev.filter(d => d !== date));
-        setAlertMessage('Reservation removed successfully');
-        setShowAlert(true);
-        setTimeout(() => setShowAlert(false), 3000);
+        handleSuccess('Reservation removed successfully');
       } catch (error) {
-        setAlertMessage('Error removing reservation. Please try again.');
-        setShowAlert(true);
-        setTimeout(() => setShowAlert(false), 3000);
+        handleError(error, 'Error removing reservation');
       }
     }
-  };
+  }, [signups]);
 
-  const handleCompleted = async (date) => {
+  const handleCompleted = useCallback(async (date) => {
     const newValue = !completed[date];
+    const previousValue = completed[date];
+    
+    // OPTIMISTIC UPDATE: Update UI immediately
+    setCompleted(prev => ({
+      ...prev,
+      [date]: newValue
+    }));
+    
     try {
-      await fetch('/api/completed', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          date,
-          completed: newValue
-        })
+      await apiPost(API_ENDPOINTS.COMPLETED, {
+        date,
+        completed: newValue
       });
-
-      setCompleted(prev => ({
-        ...prev,
-        [date]: newValue
-      }));
     } catch (error) {
       console.error('Error updating completed status:', error);
+      
+      // ROLLBACK: Restore previous state on error
+      setCompleted(prev => ({
+        ...prev,
+        [date]: previousValue
+      }));
+      
+      handleError(error, { operation: 'updateCompletion', date }, ERROR_MESSAGES.COMPLETION_ERROR);
+    } finally {
+      // Clear pending state
+      setPendingActions(prev => {
+        const newState = { ...prev };
+        delete newState[`complete-${date}`];
+        return newState;
+      });
     }
-  };
+  }, [completed, handleError]);
 
-  const handleCalendarDownload = async () => {
+  // Debounced version of handleCompleted
+  const [debouncedCompleted] = useDebounce((date) => {
+    setPendingActions(prev => ({ ...prev, [`complete-${date}`]: true }));
+    handleCompleted(date);
+  }, 500);
+
+  const handlePastorEdit = useCallback((date) => {
+    setEditingDate(date);
+    setShowPastorInput(true);
+  }, []);
+
+  const handleDeleteServiceDetails = useCallback(async (date) => {
+    const confirmed = await confirm({
+      title: 'Delete Service Details',
+      message: 'This action cannot be undone.',
+      variant: 'danger',
+      confirmText: 'Delete',
+      cancelText: 'Cancel'
+    });
+    
+    if (confirmed) {
+      try {
+        const response = await fetchWithTimeout(`/api/service-details?date=${date}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) throw new Error('Failed to delete service details');
+
+        // Update the local state by removing service details
+        setServiceDetails(prev => {
+          const newDetails = { ...prev };
+          delete newDetails[date];
+          return newDetails;
+        });
+        handleSuccess('Service details deleted successfully');
+      } catch (error) {
+        console.error('Error deleting service details:', error);
+        handleError(error, 'Error deleting service details');
+      }
+    }
+  }, [confirm, handleSuccess, handleError]);
+
+  const handleCloseUserManagement = useCallback(() => {
+    setShowUserManagement(false);
+    setUsersToDelete([]);
+  }, []);
+
+  const handleRemoveSelectedUsers = useCallback(async () => {
+    if (usersToDelete.length === 0) {
+      handleError(null, 'Please select users to remove');
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: 'Remove Users',
+      message: `Remove ${usersToDelete.length} user${usersToDelete.length > 1 ? 's' : ''} from the system?`,
+      details: ['This action cannot be undone'],
+      variant: 'danger',
+      confirmText: 'Remove',
+      cancelText: 'Cancel'
+    });
+    
+    if (confirmed) {
+      for (const userName of usersToDelete) {
+        await handleRemoveUser(userName);
+      }
+      setShowUserManagement(false);
+      setUsersToDelete([]);
+      handleSuccess('Users removed successfully');
+    }
+  }, [usersToDelete, handleRemoveUser, confirm]);
+
+  const handleCalendarDownload = useCallback(async () => {
     try {
       // Use selected dates directly without filtering by currentUser
       const eventsToDownload = dates.filter(date => selectedDates.includes(date.date));
@@ -635,31 +757,58 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
       link.click();
       document.body.removeChild(link);
 
-      setAlertMessage('Calendar file downloaded successfully');
-      setShowAlert(true);
-      setTimeout(() => setShowAlert(false), 3000);
+      handleSuccess('Calendar file downloaded successfully');
     } catch (error) {
       console.error('Error creating calendar file:', error);
-      setAlertMessage('Error creating calendar file. Please try again.');
-      setShowAlert(true);
-      setTimeout(() => setShowAlert(false), 3000);
+      handleError(error, 'Error creating calendar file');
     }
-  };
+  }, [dates, selectedDates, signups]);
 
-  const checkForSelectedSongs = (date) => {
+  const checkForSelectedSongs = useCallback((date) => {
     const elements = serviceDetails[date]?.elements;
     const songElements = elements?.filter(element => element.type === 'song_hymn');
+
+    
 
     // Check if any songs have a reference (which indicates they were selected)
     // OR if they have a selection.title
     return songElements?.some(element =>
       element.reference || element.selection?.title
     );
-  };
+  }, [serviceDetails]);
 
-  const handleAssignUser = async (date, userName) => {
+  const handleAssignUser = useCallback(async (date, userName) => {
+    // Store previous state for rollback
+    const previousSignups = signups[date];
+    const previousDetails = signupDetails[date];
+    const previousSelectedDates = selectedDates;
+
+    // OPTIMISTIC UPDATE: Update UI immediately
+    setSignups(prev => ({
+      ...prev,
+      [date]: userName
+    }));
+    
+    setSignupDetails(prev => ({
+      ...prev,
+      [date]: {
+        name: userName
+      }
+    }));
+
+    // Add to selected dates for future dates
+    const [month, day, shortYear] = date.split('/').map(num => parseInt(num, 10));
+    const year = 2000 + shortYear;
+    const dateObj = new Date(year, month - 1, day);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (dateObj >= today) {
+      setSelectedDates(prev => [...prev, date]);
+    }
+
     try {
-      const response = await fetch('/api/signups', {
+      const response = await fetchWithTimeout(API_ENDPOINTS.SIGNUPS, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -671,43 +820,41 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
       });
 
       if (!response.ok) throw new Error('Failed to save signup');
-      
+
+      handleSuccess(SUCCESS_MESSAGES.ASSIGNMENT_SAVED);
+    } catch (error) {
+      // ROLLBACK: Restore previous state on error
       setSignups(prev => ({
         ...prev,
-        [date]: userName
+        [date]: previousSignups
       }));
       
       setSignupDetails(prev => ({
         ...prev,
-        [date]: {
-          name: userName
-        }
+        [date]: previousDetails
       }));
-
-      // Add to selected dates for future dates
-      const [month, day, shortYear] = date.split('/').map(num => parseInt(num, 10));
-      const year = 2000 + shortYear;
-      const dateObj = new Date(year, month - 1, day);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      if (dateObj >= today) {
-        setSelectedDates(prev => [...prev, date]);
-      }
-
-      setAlertMessage(`Successfully assigned to ${userName}!`);
-      setShowAlert(true);
-      setTimeout(() => setShowAlert(false), 3000);
-    } catch (error) {
-      console.error('Error saving signup:', error);
-      setAlertMessage('Error saving assignment. Please try again.');
-      setShowAlert(true);
-      setTimeout(() => setShowAlert(false), 3000);
+      
+      setSelectedDates(previousSelectedDates);
+      
+      handleError(error, { operation: 'assignUser', date, userName }, ERROR_MESSAGES.ASSIGNMENT_ERROR);
+    } finally {
+      // Clear pending state
+      setPendingActions(prev => {
+        const newState = { ...prev };
+        delete newState[`assign-${date}`];
+        return newState;
+      });
     }
-  };
+  }, [signups, signupDetails, selectedDates, handleSuccess, handleError]); // Add error handlers
+
+  // Debounced version of handleAssignUser
+  const [debouncedAssignUser] = useDebounce((date, userName) => {
+    setPendingActions(prev => ({ ...prev, [`assign-${date}`]: true }));
+    handleAssignUser(date, userName);
+  }, 300);
 
   // Add this helper function near your other helper functions
-  const isSongElementFullyLoaded = (element) => {
+  const isSongElementFullyLoaded = useCallback((element) => {
     if (element.type !== 'song_hymn') return true;
     
     // If it has selection with title, it's fully loaded
@@ -729,242 +876,10 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
     }
     
     return true; // Default to fully loaded if we can't determine
-  };
-
-  // Manual refresh function for immediate updates
-  const manualRefresh = async () => {
-    if (isRefreshing) return; // Prevent multiple simultaneous refreshes
-    
-    setIsRefreshing(true);
-    try {
-      console.log('🔄 MANUAL REFRESH: Button clicked, fetching fresh data...');
-      // Add cache-busting parameter to ensure fresh data
-      const timestamp = Date.now();
-      const response = await fetch(`/api/service-details?_t=${timestamp}`);
-      if (!response.ok) throw new Error('Failed to fetch service details');
-      const data = await response.json();
-
-      setServiceDetails(prev => {
-        const merged = { ...prev };
-        Object.keys(data).forEach(date => {
-          const existingElements = prev[date]?.elements || [];
-          const newElements = data[date]?.elements || [];
-
-          // Use the same sophisticated merging logic as the main fetch
-          const existingElementMap = new Map();
-          existingElements.forEach(element => {
-            if (element.id) {
-              existingElementMap.set(element.id, element);
-            }
-            const contentPrefix = element.content?.split(':')[0]?.trim();
-            if (contentPrefix) {
-              existingElementMap.set(`${element.type}-${contentPrefix}`, element);
-            }
-            if (element.type === 'song_hymn' || element.type === 'song_contemporary') {
-              const songIndex = existingElements.filter(
-                e => e.type === 'song_hymn' || e.type === 'song_contemporary'
-              ).indexOf(element);
-              if (songIndex >= 0) {
-                existingElementMap.set(`song-${songIndex}`, element);
-              }
-            }
-          });
-
-          const mergedElements = newElements.map(newElement => {
-            let existingElement = newElement.id ? existingElementMap.get(newElement.id) : null;
-            
-            if (!existingElement) {
-              const contentPrefix = newElement.content?.split(':')[0]?.trim();
-              if (contentPrefix) {
-                existingElement = existingElementMap.get(`${newElement.type}-${contentPrefix}`);
-              }
-            }
-            
-            if (!existingElement && (newElement.type === 'song_hymn' || newElement.type === 'song_contemporary')) {
-              const songIndex = newElements.filter(
-                e => e.type === 'song_hymn' || e.type === 'song_contemporary'
-              ).indexOf(newElement);
-              if (songIndex >= 0 && existingElementMap.has(`song-${songIndex}`)) {
-                existingElement = existingElementMap.get(`song-${songIndex}`);
-              }
-            }
-
-            if (existingElement) {
-              return {
-                ...newElement,
-                selection: existingElement.selection,
-                reference: existingElement.reference,
-                notes: existingElement.notes
-              };
-            }
-            return newElement;
-          });
-
-          merged[date] = {
-            ...prev[date],
-            ...data[date],
-            elements: mergedElements
-          };
-        });
-        console.log('✅ MANUAL REFRESH: Complete');
-        return merged;
-      });
-    } catch (error) {
-      console.error('❌ MANUAL REFRESH: Error:', error);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  // Event-based refresh function for immediate updates after song changes
-  const eventBasedRefresh = async () => {
-    console.log('🎯 EVENT REFRESH: Received refresh event from ServiceSongSelector, fetching fresh data...');
-    try {
-      // Add cache-busting parameter to ensure fresh data
-      const timestamp = Date.now();
-      const response = await fetch(`/api/service-details?_t=${timestamp}`);
-      if (!response.ok) throw new Error('Failed to fetch service details');
-      const data = await response.json();
-      
-      // Log what came back from API
-      Object.keys(data).forEach(date => {
-        const readings = data[date]?.elements?.filter(e => e.type === 'reading') || [];
-        console.log(`📖 EVENT REFRESH: API returned readings for ${date}:`, readings.map(r => ({ content: r.content, reference: r.reference })));
-      });
-
-      setServiceDetails(prev => {
-        const merged = { ...prev };
-        Object.keys(data).forEach(date => {
-          const existingElements = prev[date]?.elements || [];
-          const newElements = data[date]?.elements || [];
-
-          // Use the same sophisticated merging logic as the main fetch
-          const existingElementMap = new Map();
-          existingElements.forEach(element => {
-            if (element.id) {
-              existingElementMap.set(element.id, element);
-            }
-            const contentPrefix = element.content?.split(':')[0]?.trim();
-            if (contentPrefix) {
-              existingElementMap.set(`${element.type}-${contentPrefix}`, element);
-            }
-            if (element.type === 'song_hymn' || element.type === 'song_contemporary') {
-              const songIndex = existingElements.filter(
-                e => e.type === 'song_hymn' || e.type === 'song_contemporary'
-              ).indexOf(element);
-              if (songIndex >= 0) {
-                existingElementMap.set(`song-${songIndex}`, element);
-              }
-            }
-          });
-
-          const mergedElements = newElements.map(newElement => {
-            let existingElement = newElement.id ? existingElementMap.get(newElement.id) : null;
-            
-            if (!existingElement) {
-              const contentPrefix = newElement.content?.split(':')[0]?.trim();
-              if (contentPrefix) {
-                existingElement = existingElementMap.get(`${newElement.type}-${contentPrefix}`);
-              }
-            }
-
-            if (!existingElement && (newElement.type === 'song_hymn' || newElement.type === 'song_contemporary')) {
-              const songIndex = newElements.filter(
-                e => e.type === 'song_hymn' || e.type === 'song_contemporary'
-              ).indexOf(newElement);
-              if (songIndex >= 0) {
-                existingElement = existingElementMap.get(`song-${songIndex}`);
-              }
-            }
-
-            if (existingElement) {
-              if (newElement.type === 'song_hymn' || newElement.type === 'song_contemporary') {
-                const prefix = newElement.content?.split(':')[0]?.trim();
-                let content = newElement.content;
-                
-                if (existingElement.selection && prefix) {
-                  let songDetails;
-                  if (existingElement.selection.hymnal) {
-                    songDetails = `${existingElement.selection.title} (#${
-                      existingElement.selection.hymnal.startsWith('#') ? 
-                        existingElement.selection.hymnal.slice(1) : 
-                        'Hymnal'
-                    })`;
-                  } else {
-                    songDetails = existingElement.selection.author ? 
-                      `${existingElement.selection.title} - ${existingElement.selection.author}` : 
-                      existingElement.selection.title;
-                  }
-                  
-                  content = `${prefix}: ${songDetails}`;
-                }
-                
-                return {
-                  ...newElement,
-                  selection: existingElement.selection,
-                  reference: existingElement.reference,
-                  content: content
-                };
-              }
-              
-              // For readings and messages, use NEW content but preserve existing reference if not provided
-              if (newElement.type === 'reading' || newElement.type === 'message') {
-                const finalElement = {
-                  ...newElement,  // Use new content (pastor's changes)
-                  reference: newElement.reference || existingElement.reference || '',  // Preserve reference if not provided
-                  id: existingElement.id  // Keep existing ID
-                };
-                
-                console.log(`📖 EVENT REFRESH: Merging ${newElement.type} - "${newElement.content}" | New ref: "${newElement.reference}" | Existing ref: "${existingElement.reference}" | Final ref: "${finalElement.reference}"`);
-                
-                return finalElement;
-              }
-            }
-
-            return newElement;
-          });
-
-          merged[date] = {
-            ...data[date],
-            elements: mergedElements
-          };
-        });
-
-        console.log('✅ EVENT REFRESH: Complete - final merged readings:',
-          Object.entries(merged).map(([date, details]) => ({
-            date,
-            readings: details?.elements?.filter(e => e.type === 'reading')?.map(r => ({ content: r.content, reference: r.reference })) || []
-          }))
-        );
-        return merged;
-      });
-    } catch (error) {
-      console.error('❌ EVENT REFRESH: Error:', error);
-    }
-  };
-
-  // Listen for refresh events from other components
-  useEffect(() => {
-    const handleRefreshEvent = () => {
-      // Immediate refresh + backup with small delay to handle timing issues
-      eventBasedRefresh();
-      
-      // Backup refresh in case the first one missed the database update
-      setTimeout(() => {
-        console.log('🔄 EVENT REFRESH: Backup refresh triggered');
-        eventBasedRefresh();
-      }, 2000);
-    };
-
-    window.addEventListener('refreshServiceDetails', handleRefreshEvent);
-    
-    return () => {
-      window.removeEventListener('refreshServiceDetails', handleRefreshEvent);
-    };
   }, []);
 
   return (
- <Card className="w-full h-full mx-auto relative bg-white shadow-lg">
+ <Card ref={componentRootRef} className="w-full h-full mx-auto relative bg-white shadow-lg">
       {showAlert && (
         <Alert
           className="fixed z-[200] w-80 bg-white border-[#6B8E23] shadow-lg rounded-lg"
@@ -1030,7 +945,15 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
               />
               <div>
                 <h1 className="text-3xl font-bold text-center text-[#6B8E23]">Proclaim Presentation Team</h1>
-                <p className="text-2xl font-bold text-center text-gray-600">2025 Service Schedule</p>
+                <div className="flex items-center justify-center mt-2">
+                  <YearSelector 
+                    selectedYear={selectedYear}
+                    setSelectedYear={setSelectedYear}
+                    availableYears={availableYears}
+                    teamColor="#6B8E23"
+                    textSize="text-2xl"
+                  />
+                </div>
               </div>
               <img
                 src="/ZionSyncLogo.png"
@@ -1049,7 +972,15 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
               </div>
               <div className="text-center">
                 <h1 className="text-xl font-bold text-[#6B8E23]">Proclaim Presentation Team</h1>
-                <p className="text-lg font-bold text-gray-600">2025 Service Schedule</p>
+                <div className="flex items-center justify-center mt-2">
+                  <YearSelector 
+                    selectedYear={selectedYear}
+                    setSelectedYear={setSelectedYear}
+                    availableYears={availableYears}
+                    teamColor="#6B8E23"
+                    textSize="text-lg"
+                  />
+                </div>
               </div>
             </div>
           </CardHeader>
@@ -1104,9 +1035,83 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
       {/* Scrollable Content Section */}
         <div className="flex-1 overflow-hidden"> {/* This wrapper prevents double scrollbar */}
           <CardContent className="h-full p-0"> {/* Remove default padding */}
+            {(isLoading || datesLoading) ? (
+              <LoadingSpinner 
+                message={datesLoading ? `Loading ${selectedYear} services...` : "Loading Presentation Team schedule..."} 
+                color="[#6B8E23]" 
+              />
+            ) : dates.length === 0 ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                  <p className="text-gray-600 text-lg mb-2">No services found for {selectedYear}</p>
+                  <p className="text-gray-500 text-sm">Services may not be generated yet.</p>
+                </div>
+              </div>
+            ) : (
             <div className="h-full">
-              {/* Desktop Table View */}
-              <div className="hidden md:block h-full">
+              {isMobile ? (
+                // Mobile Card View - Only renders on mobile
+                dates.map((item) => (
+                  <div key={item.date} ref={el => dateRefs.current[item.date] = el} style={{ scrollMarginTop: '20px' }}>
+                    <MobileServiceCard
+                      item={item}
+                    checkForSelectedSongs={checkForSelectedSongs}
+                    checkForOrderOfWorship={checkForOrderOfWorship}
+                    expanded={expanded}
+                    completed={completed}
+                    signups={signups}
+                    availableUsers={availableUsers}
+                    selectedDates={selectedDates}
+                    serviceDetails={serviceDetails}
+                    setSelectedDates={setSelectedDates}
+                    showAlertWithTimeout={showAlertWithTimeout}
+                    setAlertPosition={setAlertPosition}
+                    customServices={customServices}
+                    onExpand={(date) => setExpanded(prev => ({
+                      ...prev,
+                      [date]: !prev[date]
+                    }))}
+                    onAssignUser={handleAssignUser}
+                    onRemoveAssignment={handleRemoveReservation}
+                    onComplete={handleCompleted}
+                    onSelectDate={(date) => {
+                      setSelectedDates(prev =>
+                        prev.includes(date)
+                          ? prev.filter(d => d !== date)
+                          : [...prev, date]
+                      );
+                    }}
+                    onServiceDetailChange={handleServiceDetailChange}
+                    onEditService={(date) => {
+                      setEditingDate(date);
+                      setShowPastorInput(true);
+                    }}
+                    onDeleteService={async (date) => {
+                      try {
+                        await fetchWithTimeout(API_ENDPOINTS.SERVICE_DETAILS, {
+                          method: 'DELETE',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ date })
+                        });
+
+                        // Update local state
+                        setServiceDetails(prev => {
+                          const newState = { ...prev };
+                          delete newState[date];
+                          return newState;
+                        });
+
+                        handleSuccess('Service details deleted successfully');
+                      } catch (error) {
+                        console.error('Error deleting service details:', error);
+                        handleError(error, 'Error deleting service details');
+                      }
+                    }}
+                  />
+                  </div>
+                ))
+              ) : (
+                // Desktop Table View - Only renders on desktop
                 <div className="relative h-full">
                   {/* Single table with sticky header */}
                   <div className="overflow-y-auto h-full">
@@ -1125,7 +1130,11 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                       <tbody>
                         {dates.map((item, index) => (
                           <React.Fragment key={item.date}>
-                            <tr className={index % 2 === 0 ? 'bg-gray-50' : ''}>
+                            <tr 
+                              ref={el => dateRefs.current[item.date] = el}
+                              style={{ scrollMarginTop: '60px' }}
+                              className={index % 2 === 0 ? 'bg-gray-50' : ''}
+                            >
                               <td style={{ width: '64px' }} className="p-2 border-r border-gray-300 text-center">
                                 {signups[item.date] && (
                                   <input
@@ -1201,13 +1210,20 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                               </td>
                               <td style={{ width: '96px' }} className="p-2 text-center">
                                 <button
-                                  onClick={() => handleCompleted(item.date)}
+                                  onClick={() => debouncedCompleted(item.date)}
+                                  disabled={pendingActions[`complete-${item.date}`]}
                                   className={`w-6 h-6 rounded border ${completed[item.date]
                                     ? 'bg-[#6B8E23] border-[#556B2F]'
                                     : 'bg-white border-gray-300'
-                                    } flex items-center justify-center`}
+                                    } flex items-center justify-center relative ${
+                                      pendingActions[`complete-${item.date}`] ? 'opacity-50 cursor-wait' : ''
+                                    }`}
                                 >
-                                  {completed[item.date] && <Check className="w-4 h-4 text-white" />}
+                                  {pendingActions[`complete-${item.date}`] ? (
+                                    <LoadingSpinner size="sm" color="[#6B8E23]" className="!m-0" />
+                                  ) : (
+                                    completed[item.date] && <Check className="w-4 h-4 text-white" />
+                                  )}
                                 </button>
                               </td>
                             </tr>
@@ -1228,55 +1244,13 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                                       </div>
                                       <div className="flex gap-2">
                                         <button
-                                          onClick={() => {
-                                            manualRefresh();
-                                          }}
-                                          disabled={isRefreshing}
-                                          className={`px-2 py-0.5 text-sm border rounded ${
-                                            isRefreshing 
-                                              ? 'text-gray-400 border-gray-300 cursor-not-allowed' 
-                                              : 'text-blue-600 border-blue-600 hover:bg-blue-50'
-                                          }`}
-                                          title={isRefreshing ? "Refreshing..." : "Refresh order of worship"}
-                                        >
-                                          {isRefreshing ? '⟳ Refreshing...' : '↻ Refresh'}
-                                        </button>
-                                        <button
-                                          onClick={() => {
-                                            setEditingDate(item.date);
-                                            setShowPastorInput(true);
-                                          }}
+                                          onClick={() => handlePastorEdit(item.date)}
                                           className="px-2 py-0.5 text-sm text-[#6B8E23] border border-[#6B8E23] rounded hover:bg-[#6B8E23] hover:text-white"
                                         >
                                           Pastor Edit
                                         </button>
                                         <button
-                                          onClick={async () => {
-                                            if (confirm('Are you sure you want to delete this service\'s details?')) {
-                                              try {
-                                                const response = await fetch(`/api/service-details?date=${item.date}`, {
-                                                  method: 'DELETE',
-                                                });
-
-                                                if (!response.ok) throw new Error('Failed to delete service details');
-
-                                                // Update the local state by removing service details
-                                                setServiceDetails(prev => {
-                                                  const newDetails = { ...prev };
-                                                  delete newDetails[item.date];
-                                                  return newDetails;
-                                                });
-                                                setAlertMessage('Service details deleted successfully');
-                                                setShowAlert(true);
-                                                setTimeout(() => setShowAlert(false), 3000);
-                                              } catch (error) {
-                                                console.error('Error deleting service details:', error);
-                                                setAlertMessage('Error deleting service details');
-                                                setShowAlert(true);
-                                                setTimeout(() => setShowAlert(false), 3000);
-                                              }
-                                            }
-                                          }}
+                                          onClick={() => handleDeleteServiceDetails(item.date)}
                                           className="px-2 py-0.5 text-sm text-red-600 border border-red-600 rounded hover:bg-red-50"
                                         >
                                           Delete
@@ -1284,13 +1258,7 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                                       </div>
                                     </div>
                                     {/* Map through ordered service elements */}
-                                    {serviceDetails[item.date]?.elements?.map((element, index) => {
-                                      // Debug log for readings
-                                      if (element.type === 'reading') {
-                                        console.log(`🎯 DISPLAY: Rendering reading "${element.content}" with reference "${element.reference}"`);
-                                      }
-                                      
-                                      return (
+                                    {serviceDetails[item.date]?.elements?.map((element, index) => (
                                       <div key={index} className="flex items-center gap-1 text-sm leading-tight">
                                         <div className={`p-0.5 rounded ${element.type === 'song_hymn' ? 'bg-blue-50 text-blue-600' :
                                           element.type === 'reading' ? 'bg-green-50 text-green-600' :
@@ -1322,23 +1290,9 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                                                 <>
                                                   <span className="font-bold">{element.content.split(':')[0]}</span>:
                                                   <span>{element.content.split(':').slice(1).join(':')}</span>
-                                                  {/* Show reference content for readings and messages */}
-                                                  {(element.type === 'reading' || element.type === 'message') && element.reference && (
-                                                    <span className="ml-1 text-blue-600 font-medium">
-                                                      {element.reference}
-                                                    </span>
-                                                  )}
                                                 </>
                                               ) : (
-                                                <>
-                                                  {element.content}
-                                                  {/* Show reference content for readings and messages without colons */}
-                                                  {(element.type === 'reading' || element.type === 'message') && element.reference && (
-                                                    <span className="ml-1 text-blue-600 font-medium">
-                                                      {element.reference}
-                                                    </span>
-                                                  )}
-                                                </>
+                                                element.content
                                               )}
                                               {element.selection && (element.type === 'song_hymn' || element.type === 'song_contemporary') && (
                                                 <span className="text-blue-600 font-semibold ml-1">
@@ -1358,8 +1312,7 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                                           )}
                                         </div>
                                       </div>
-                                    );
-                                    })}
+                                    ))}
                                     {/* Fallback message if no elements */}
                                     {(!serviceDetails[item.date]?.elements || serviceDetails[item.date]?.elements.length === 0) && (
                                       <div className="text-gray-500 italic">
@@ -1376,74 +1329,9 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
                     </table>
                   </div>
                 </div>
-              </div>
-              {/* Mobile Card View */}
-              <div className="md:hidden">
-                {dates.map((item) => (
-                  <MobileServiceCard
-                    key={item.date}
-                    item={item}
-                    checkForSelectedSongs={checkForSelectedSongs}
-                    checkForOrderOfWorship={checkForOrderOfWorship}
-                    expanded={expanded}
-                    completed={completed}
-                    signups={signups}
-                    availableUsers={availableUsers}
-                    selectedDates={selectedDates}
-                    serviceDetails={serviceDetails}
-                    setSelectedDates={setSelectedDates}
-                    setAlertMessage={setAlertMessage}
-                    setShowAlert={setShowAlert}
-                    setAlertPosition={setAlertPosition}
-                    customServices={customServices}
-                    onExpand={(date) => setExpanded(prev => ({
-                      ...prev,
-                      [date]: !prev[date]
-                    }))}
-                    onAssignUser={handleAssignUser}
-                    onRemoveAssignment={handleRemoveReservation}
-                    onComplete={handleCompleted}
-                    onSelectDate={(date) => {
-                      setSelectedDates(prev =>
-                        prev.includes(date)
-                          ? prev.filter(d => d !== date)
-                          : [...prev, date]
-                      );
-                    }}
-                    onServiceDetailChange={handleServiceDetailChange}
-                    onEditService={(date) => {
-                      setEditingDate(date);
-                      setShowPastorInput(true);
-                    }}
-                    onDeleteService={async (date) => {
-                      try {
-                        await fetch('/api/service-details', {
-                          method: 'DELETE',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ date })
-                        });
-
-                        // Update local state
-                        setServiceDetails(prev => {
-                          const newState = { ...prev };
-                          delete newState[date];
-                          return newState;
-                        });
-
-                        setAlertMessage('Service details deleted successfully');
-                        setShowAlert(true);
-                        setTimeout(() => setShowAlert(false), 3000);
-                      } catch (error) {
-                        console.error('Error deleting service details:', error);
-                        setAlertMessage('Error deleting service details');
-                        setShowAlert(true);
-                        setTimeout(() => setShowAlert(false), 3000);
-                      }
-                    }}
-                  />
-                ))}
-              </div>
+              )}
             </div>
+            )}
           </CardContent>
         </div>
       </div>
@@ -1454,10 +1342,7 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-[#6B8E23]">Manage Users</h2>
               <button
-                onClick={() => {
-                  setShowUserManagement(false);
-                  setUsersToDelete([]);
-                }}
+                onClick={handleCloseUserManagement}
                 className="p-1 hover:bg-gray-100 rounded"
               >
                 <X className="w-5 h-5" />
@@ -1494,34 +1379,13 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
               </div>
               <div className="flex justify-end gap-2 mt-4">
                 <button
-                  onClick={() => {
-                    setShowUserManagement(false);
-                    setUsersToDelete([]);
-                  }}
+                  onClick={handleCloseUserManagement}
                   className="px-4 py-2 rounded border border-[#6B8E23] text-[#6B8E23] hover:bg-gray-100"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={async () => {
-                    if (usersToDelete.length === 0) {
-                      setAlertMessage('Please select users to remove');
-                      setShowAlert(true);
-                      setTimeout(() => setShowAlert(false), 3000);
-                      return;
-                    }
-
-                    if (confirm(`Are you sure you want to remove ${usersToDelete.length} user${usersToDelete.length > 1 ? 's' : ''}?`)) {
-                      for (const userName of usersToDelete) {
-                        await handleRemoveUser(userName);
-                      }
-                      setShowUserManagement(false);
-                      setUsersToDelete([]);
-                      setAlertMessage('Users removed successfully');
-                      setShowAlert(true);
-                      setTimeout(() => setShowAlert(false), 3000);
-                    }
-                  }}
+                  onClick={handleRemoveSelectedUsers}
                   className="px-4 py-2 rounded bg-red-500 text-white hover:bg-red-600"
                 >
                   Remove Selected
@@ -1534,164 +1398,117 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
       {showPastorInput && (
         <PastorServiceInput
           date={editingDate}
-          serviceDetails={serviceDetails[editingDate]}  // Pass the specific date's service details
+          serviceDetails={serviceDetails}  // Add this line
           onClose={() => {
             setShowPastorInput(false);
             setEditingDate(null);
           }}          onSave={async (serviceData) => {
             try {
-              console.log('💾 PASTOR SAVE: Starting save process', {
-                newElementCount: serviceData.elements.length,
-                existingElementCount: serviceDetails[editingDate]?.elements?.length
-              });
-              
               // Keep existing elements that have selections/references with improved matching
               const existingElements = serviceDetails[editingDate]?.elements || [];
               
-              // Separate existing elements by type for better matching
-              const existingSongs = existingElements.filter(e => e.type === 'song_hymn' || e.type === 'song_contemporary').filter(e => e.selection?.title);
-              const existingReadings = existingElements.filter(e => e.type === 'reading').filter(e => e.reference);
-              const existingMessages = existingElements.filter(e => e.type === 'message').filter(e => e.reference);
+              // Create a map to track which existing elements have been used
+              const usedExistingElements = new Map();
               
-              console.log('💾 PASTOR SAVE: Existing data to preserve:', {
-                songsWithSelections: existingSongs.length,
-                readingsWithReferences: existingReadings.length,
-                messagesWithReferences: existingMessages.length
-              });
+              // Helper function to extract song number from content
+              const extractSongNumber = (text) => {
+                if (!text) return '';
+                const numberMatch = text.match(/#(\d+)/);
+                return numberMatch ? numberMatch[1] : '';
+              };
               
-              const updatedElements = serviceData.elements.map((newElement, index) => {
-                // Handle songs with intelligent matching
-                if (newElement.type === 'song_hymn' || newElement.type === 'song_contemporary') {
-                  const newElementPrefix = newElement.content?.split(':')[0]?.trim().toLowerCase();
+              const updatedElements = serviceData.elements.map(newElement => {
+                // If this element already has selections/references, keep them as-is
+                if (newElement.selection?.title || newElement.reference) {
+                  return newElement;
+                }
+                
+                // Find best matching existing element using multiple strategies
+                let bestMatch = null;
+                let bestScore = -1;
+                
+                existingElements.forEach(existing => {
+                  // Skip if already used or not the same type
+                  if (usedExistingElements.has(existing.id) || existing.type !== newElement.type) {
+                    return;
+                  }
                   
-                  // First try exact prefix match
-                  let matchingSong = existingSongs.find(existing => {
-                    const existingPrefix = existing.content?.split(':')[0]?.trim().toLowerCase();
-                    return existingPrefix === newElementPrefix;
-                  });
+                  // Skip if no selection or reference to preserve
+                  if (!existing.selection?.title && !existing.reference) {
+                    return;
+                  }
                   
-                  // If no exact match, try positional matching (nth song gets nth existing song)
-                  if (!matchingSong) {
-                    const newSongElements = serviceData.elements.filter(e => e.type === 'song_hymn' || e.type === 'song_contemporary');
-                    const songPosition = newSongElements.indexOf(newElement);
+                  // Calculate match score between elements
+                  let score = 0;
+                  
+                  // STRATEGY 1: Exact content match (50 points)
+                  if (existing.content === newElement.content) {
+                    score += 50;
+                  }
+                  
+                  // STRATEGY 2: Prefix match (30 points)
+                  const existingPrefix = existing.content.split(':')[0].trim().toLowerCase();
+                  const newPrefix = newElement.content.split(':')[0].trim().toLowerCase();
+                  
+                  if (existingPrefix === newPrefix) {
+                    score += 30;
+                  } else if (existingPrefix.includes(newPrefix) || newPrefix.includes(existingPrefix)) {
+                    score += 20;
+                  }
+                  
+                  // STRATEGY 3: Position similarity (20 points max)
+                  const existingIndex = existingElements.findIndex(el => el.type === existing.type);
+                  const newIndex = serviceData.elements.findIndex(el => el.type === newElement.type);
+                  const positionDiff = Math.abs(existingIndex - newIndex);
+                  
+                  if (positionDiff === 0) score += 20;
+                  else if (positionDiff === 1) score += 15;
+                  else if (positionDiff <= 2) score += 10;
+                  
+                  // STRATEGY 4: Song number match for hymns (40 points)
+                  if (existing.type === 'song_hymn' || existing.type === 'liturgical_song') {
+                    const existingSongNumber = extractSongNumber(existing.content);
+                    const newSongNumber = extractSongNumber(newElement.content);
                     
-                    if (songPosition >= 0 && songPosition < existingSongs.length) {
-                      matchingSong = existingSongs[songPosition];
-                      console.log(`💾 PASTOR SAVE: Using positional matching for song ${songPosition + 1}`);
+                    if (existingSongNumber && newSongNumber && existingSongNumber === newSongNumber) {
+                      score += 40;
                     }
                   }
                   
-                  if (matchingSong) {
-                    // Reconstruct content with preserved song selection
-                    const prefix = newElement.content?.split(':')[0]?.trim();
-                    let songDetails;
-                    
-                    if (matchingSong.selection.type === 'hymn') {
-                      songDetails = `${matchingSong.selection.title} #${matchingSong.selection.number} (${matchingSong.selection.hymnal})`;
-                    } else {
-                      songDetails = matchingSong.selection.author ? 
-                        `${matchingSong.selection.title} - ${matchingSong.selection.author}` : 
-                        matchingSong.selection.title;
-                    }
-                    
-                    console.log(`💾 PASTOR SAVE: Preserving song selection: ${prefix} -> ${songDetails}`);
-                    
-                    return {
-                      ...newElement,
-                      content: `${prefix}: ${songDetails}`,
-                      selection: matchingSong.selection,
-                      id: matchingSong.id
-                    };
+                  // Update best match if this is better
+                  if (score > bestScore) {
+                    bestScore = score;
+                    bestMatch = existing;
                   }
-                }
+                });
                 
-                // Handle readings with exact prefix matching
-                if (newElement.type === 'reading') {
-                  const newElementPrefix = newElement.content?.split(':')[0]?.trim().toLowerCase();
-                  const matchingReading = existingReadings.find(existing => {
-                    const existingPrefix = existing.content?.split(':')[0]?.trim().toLowerCase();
-                    return existingPrefix === newElementPrefix;
-                  });
+                // If we found a good match, preserve selections and references
+                if (bestMatch && bestScore >= 15) {
+                  // Mark this existing element as used
+                  usedExistingElements.set(bestMatch.id, true);
                   
-                  // Only preserve existing reference if the new element doesn't have one
-                  if (matchingReading && !newElement.reference && matchingReading.reference) {
-                    console.log(`💾 PASTOR SAVE: Preserving existing reading reference: ${newElementPrefix} -> "${matchingReading.reference}"`);
-                    return {
-                      ...newElement,
-                      reference: matchingReading.reference,
-                      id: matchingReading.id
-                    };
-                  } else if (newElement.reference) {
-                    console.log(`💾 PASTOR SAVE: Using NEW reading reference: ${newElementPrefix} -> "${newElement.reference}"`);
-                    // Use the pastor's new reference, but keep existing ID if available
-                    return {
-                      ...newElement,
-                      id: matchingReading?.id || newElement.id
-                    };
-                  }
+                  return {
+                    ...newElement,
+                    selection: bestMatch.selection,
+                    reference: bestMatch.reference,
+                    // Preserve ID for better continuation
+                    id: bestMatch.id
+                  };
                 }
                 
-                // Handle messages with exact prefix matching
-                if (newElement.type === 'message') {
-                  const newElementPrefix = newElement.content?.split(':')[0]?.trim().toLowerCase();
-                  const matchingMessage = existingMessages.find(existing => {
-                    const existingPrefix = existing.content?.split(':')[0]?.trim().toLowerCase();
-                    return existingPrefix === newElementPrefix;
-                  });
-                  
-                  // Only preserve existing reference if the new element doesn't have one
-                  if (matchingMessage && !newElement.reference && matchingMessage.reference) {
-                    console.log(`💾 PASTOR SAVE: Preserving existing message reference: ${newElementPrefix} -> "${matchingMessage.reference}"`);
-                    return {
-                      ...newElement,
-                      reference: matchingMessage.reference,
-                      id: matchingMessage.id
-                    };
-                  } else if (newElement.reference) {
-                    console.log(`💾 PASTOR SAVE: Using NEW message reference: ${newElementPrefix} -> "${newElement.reference}"`);
-                    // Use the pastor's new reference, but keep existing ID if available
-                    return {
-                      ...newElement,
-                      id: matchingMessage?.id || newElement.id
-                    };
-                  }
-                }
-                
-                // For unmatched elements, return as-is
                 return newElement;
               });
 
-              console.log('💾 PASTOR SAVE: Final elements prepared for save:', {
-                totalElements: updatedElements.length,
-                songsWithSelections: updatedElements.filter(e => (e.type === 'song_hymn' || e.type === 'song_contemporary') && e.selection).length,
-                readingsAndMessages: updatedElements.filter(e => e.type === 'reading' || e.type === 'message').map(e => ({
-                  type: e.type,
-                  content: e.content,
-                  reference: e.reference
-                }))
-              });
-
-              console.log('💾 PASTOR SAVE: About to send to API:', {
-                date: editingDate,
-                content: serviceData.content,
-                type: serviceData.type,
-                elements: updatedElements.map(e => ({ type: e.type, content: e.content, reference: e.reference }))
-              });
-
-              const requestBody = {
-                date: editingDate,
-                content: serviceData.content,
-                type: serviceData.type,
-                elements: updatedElements,  // Use merged elements
-                lastUpdated: serviceDetails[editingDate]?.lastUpdated // Include version for concurrency control
-              };
-              
-              console.log('🌐 PASTOR SAVE: Full POST request body:', JSON.stringify(requestBody, null, 2));
-
-              const response = await fetch('/api/service-details', {
+              const response = await fetchWithTimeout(API_ENDPOINTS.SERVICE_DETAILS, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody)
+                body: JSON.stringify({
+                  date: editingDate,
+                  content: serviceData.content,
+                  type: serviceData.type,
+                  setting: serviceData.setting,
+                  elements: updatedElements  // Use merged elements
+                })
               });
               
               if (!response.ok) throw new Error('Failed to save service details');
@@ -1709,26 +1526,10 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
               }));
               
               setShowPastorInput(false);
-              setAlertMessage('Service details saved successfully');
-              setShowAlert(true);
-              setTimeout(() => setShowAlert(false), 3000);
-              
-              // Trigger refresh event to update other tabs/components
-              setTimeout(() => {
-                console.log('🔄 SignupSheet: Dispatching refresh event after pastor save');
-                console.log('🔄 SignupSheet: Current local state readings before refresh:', 
-                  Object.entries(serviceDetails).map(([date, details]) => ({
-                    date,
-                    readings: details?.elements?.filter(e => e.type === 'reading')?.map(r => ({ content: r.content, reference: r.reference })) || []
-                  }))
-                );
-                window.dispatchEvent(new CustomEvent('refreshServiceDetails'));
-              }, 1000);
+              handleSuccess('Service details saved successfully');
             } catch (error) {
               console.error('Error saving service details:', error);
-              setAlertMessage('Error saving service details. Please try again.');
-              setShowAlert(true);
-              setTimeout(() => setShowAlert(false), 3000);
+              handleError(error, 'Error saving service details');
             }
           }}
         />
@@ -1739,11 +1540,22 @@ const SignupSheet = ({ serviceDetails, setServiceDetails }) => {
           onClose={() => setShowUserSelectModal(null)}
           availableUsers={availableUsers}
           initialUserName={showUserSelectModal.currentAssignment}
-          onSelect={(userName) => handleAssignUser(showUserSelectModal.date, userName)}
+          onSelect={(userName) => debouncedAssignUser(showUserSelectModal.date, userName)}
           onDelete={() => handleRemoveReservation(showUserSelectModal.date)}
           title={showUserSelectModal.currentAssignment ? "Reassign Service" : "Assign User"}
         />
       )}
+      
+      <AddUserModal
+        isOpen={showAddUserModal}
+        onClose={() => setShowAddUserModal(false)}
+        onSubmit={handleAddUserSubmit}
+        teamColor="#6B8E23"
+        teamName="Presentation"
+      />
+      
+      {/* Confirmation Dialog */}
+      <ConfirmDialog />
     </Card>
   );
 };

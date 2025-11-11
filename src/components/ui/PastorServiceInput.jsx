@@ -3,6 +3,8 @@ import { Card } from '@/components/ui/card';
 import { ChevronDown, X, Edit2, Trash2, ArrowLeft, Save, FileText, Edit3 } from 'lucide-react';
 import AddCustomService from './AddCustomService';
 import useResponsive from '../../hooks/useResponsive';
+import { useConfirm } from '../../hooks/useConfirm';
+import { fetchWithTimeout } from '../../lib/api-utils';
 
 // Helper functions
 const getSundayInfo = (dateStr) => {
@@ -54,9 +56,6 @@ const parseServiceContent = (content, existingElements = []) => {
   // Create a unique timestamp for this parsing session
   // This ensures unique IDs even when function is called multiple times in quick succession
   const timestamp = Date.now();
-  
-  // Track used IDs to ensure uniqueness
-  const usedIds = new Set();
   
   // Parse each line of the content
   const elements = content.split('\n')
@@ -125,21 +124,13 @@ const parseServiceContent = (content, existingElements = []) => {
       ) {
         type = 'liturgical_song';
       }      
-        
-      // Generate a unique ID that includes the index to prevent duplicates
+        // Generate a stable, predictable ID based on content
+      // This approach creates consistent IDs across renders
       const cleanContent = line.replace(/[^a-zA-Z0-9]/g, '');
-      let baseId = `temp_${type}_${cleanContent}`;
-      let uniqueId = baseId;
-      let counter = 0;
       
-      // Ensure the ID is unique by adding a counter if needed
-      while (usedIds.has(uniqueId)) {
-        counter++;
-        uniqueId = `${baseId}_${counter}`;
-      }
-      
-      // Add the final ID to our set of used IDs
-      usedIds.add(uniqueId);
+      // We need to use an externally passed date here, but we'll add it in the map function later
+      // For now, create a preliminary ID that will be made fully stable in saveOrderAndReturnToMain
+      const uniqueId = `temp_${type}_${cleanContent}`;
 
       return {
         id: uniqueId,
@@ -316,48 +307,12 @@ const determineElementType = (line) => {
 const PastorServiceInput = ({ date, onClose, onSave, serviceDetails }) => {
   // Add the responsive hook
   const { isMobile } = useResponsive();
+  const { confirm, ConfirmDialog } = useConfirm();
   
   // Create refs for dynamic layout adjustments
   const cardRef = useRef(null);
   const editorRef = useRef(null);
   const elementsListRef = useRef(null);
-  
-  // NEW FUNCTION: Convert current elements back to editable content
-  const reconstructContentFromElements = (elements) => {
-    if (!elements || !elements.length) return '';
-    
-    console.log('🔄 PASTOR EDIT: Reconstructing content from current elements:', {
-      elementCount: elements.length,
-      elementTypes: elements.map(e => e.type)
-    });
-    
-    return elements.map(element => {
-      // For song elements with selections, extract just the prefix for editing
-      if (element.type === 'song_hymn' || element.type === 'song_contemporary') {
-        if (element.selection) {
-          // Extract the original prefix from the content
-          const prefix = element.content?.split(':')[0]?.trim() || 'Song';
-          return `${prefix}:`;
-        }
-      }
-      
-      // For readings and messages, include both content and reference if available
-      if (element.type === 'reading' || element.type === 'message') {
-        let contentLine = element.content || '';
-        if (element.reference && !contentLine.includes(element.reference)) {
-          // If content doesn't end with colon, add one
-          if (!contentLine.endsWith(':')) {
-            contentLine += ':';
-          }
-          contentLine += ` ${element.reference}`;
-        }
-        return contentLine;
-      }
-      
-      // For all other elements, use content as-is
-      return element.content || '';
-    }).join('\n');
-  };
   
   // State management
   const [selectedType, setSelectedType] = useState(() => getDefaultServiceType(date));
@@ -368,7 +323,6 @@ const PastorServiceInput = ({ date, onClose, onSave, serviceDetails }) => {
   const [customServices, setCustomServices] = useState([]);
   const [hasExistingContent, setHasExistingContent] = useState(false);
   const [isCustomService, setIsCustomService] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false); // NEW: Prevent race conditions
   
   // Add state for the new two-step workflow
   const [currentStep, setCurrentStep] = useState('main'); // 'main', 'editor'
@@ -469,10 +423,9 @@ Postlude`
   useEffect(() => {
     const fetchCustomServices = async () => {
       try {
-        const response = await fetch('/api/custom-services');
+        const response = await fetchWithTimeout('/api/custom-services');
         if (response.ok) {
           const data = await response.json();
-          console.log('Custom services data:', data);
           setCustomServices(data);
         }
       } catch (error) {
@@ -485,101 +438,12 @@ Postlude`
   
   // Update useEffect to load service content
   useEffect(() => {
-    const loadExistingContent = async () => {
-      // Prevent race conditions - only initialize once
-      if (isInitialized) {
-        console.log('📖 PASTOR EDIT: Already initialized, ignoring prop changes to prevent overwriting user edits');
-        return;
-      }
-      
-      // Wait for custom services to be loaded before determining service type
-      if (customServices.length === 0) {
-        console.log('📖 PASTOR EDIT: Waiting for custom services to load...');
-        return;
-      }
-      
+    const fetchExistingContent = async () => {
       try {
-        // First, check if we have serviceDetails passed as props (EDIT MODE)
-        if (serviceDetails && (serviceDetails.elements || serviceDetails.content)) {
-          console.log('📖 PASTOR EDIT: Loading existing service from props (EDIT MODE):', {
-            type: serviceDetails.type,
-            hasContent: !!serviceDetails.content,
-            hasElements: !!serviceDetails.elements,
-            elementCount: serviceDetails.elements?.length
-          });
-          
-          let editableContent;
-          let elementsToUse;
-          
-          // If we have elements (current state), reconstruct content from them
-          if (serviceDetails.elements && serviceDetails.elements.length > 0) {
-            console.log('📖 PASTOR EDIT: Reconstructing content from current elements');
-            editableContent = reconstructContentFromElements(serviceDetails.elements);
-            
-            // Create cleaned elements for pastor editing (remove detailed song info)
-            elementsToUse = serviceDetails.elements.map(element => {
-              if (element.type === 'song_hymn' || element.type === 'song_contemporary') {
-                if (element.selection) {
-                  // Extract just the prefix for pastor editing
-                  const prefix = element.content?.split(':')[0]?.trim() || 'Song';
-                  return {
-                    ...element,
-                    content: `${prefix}:`
-                  };
-                }
-              }
-              return element;
-            });
-          } 
-          // Fallback to stored content if no elements
-          else if (serviceDetails.content) {
-            console.log('📖 PASTOR EDIT: Using stored content as fallback');
-            editableContent = serviceDetails.content;
-            elementsToUse = parseServiceContent(serviceDetails.content);
-          }
-          
-          setOrderOfWorship(editableContent);
-          setSelectedType(serviceDetails.type || getDefaultServiceType(date));
-          setHasExistingContent(true);
-          const isCustom = customServices.some(s => s.id === serviceDetails.type);
-          console.log('📖 PASTOR EDIT: Service type detection:', {
-            serviceType: serviceDetails.type,
-            customServicesCount: customServices.length,
-            isCustom: isCustom
-          });
-          setIsCustomService(isCustom);
-          
-          // Use the elements (either existing or parsed)
-          setServiceElementLines(elementsToUse);
-          
-          // Initialize element details from existing elements
-          const details = {};
-          elementsToUse.forEach(element => {
-            details[element.id] = {
-              reference: element.reference || '',
-              notes: element.notes || '',
-              selection: element.selection || null
-            };
-          });
-          
-          console.log('🔧 PastorServiceInput: Initial elementDetails from props:', details);
-          
-          setElementDetails(details);
-          setIsInitialized(true); // Mark as initialized
-          return; // Exit early - we have the data we need
-        }
-
-        // If no props data, fetch from API
-        const response = await fetch(`/api/service-details?date=${date}`);
+        const response = await fetchWithTimeout(`/api/service-details?date=${date}`);
         if (response.ok) {
           const data = await response.json();
           if (data && data.content) {
-            console.log('📖 PASTOR EDIT: Loading existing service from API:', {
-              type: data.type,
-              contentLength: data.content?.length,
-              hasElements: !!data.elements
-            });
-            
             // Only update if we have existing content
             setOrderOfWorship(data.content);
             setSelectedType(data.type || getDefaultServiceType(date));
@@ -602,12 +466,8 @@ Postlude`
                 };
               });
             }
-            
-            console.log('🔧 PastorServiceInput: Initial elementDetails from API:', details);
-            
             setElementDetails(details);
           } else if (!hasExistingContent) {
-            console.log('📖 PASTOR EDIT: No existing content, using default template');
             // Only set default if we don't have any content
             const defaultType = getDefaultServiceType(date);
             setSelectedType(defaultType);
@@ -620,15 +480,16 @@ Postlude`
             setIsCustomService(false);
           }
         }
-        setIsInitialized(true); // Mark as initialized
       } catch (error) {
-        console.error('Error loading service content:', error);
-        setIsInitialized(true); // Mark as initialized even on error
+        console.error('Error fetching existing content:', error);
       }
     };
 
-    loadExistingContent();
-  }, [date, customServices]); // Added customServices to ensure proper custom service detection
+    // Only fetch if we don't have a custom service selected
+    if (!isCustomService) {
+      fetchExistingContent();
+    }
+  }, [date, customServices]);
 
   // Add a cleanup effect when the component unmounts
   useEffect(() => {
@@ -643,28 +504,23 @@ Postlude`
 
   // Add this effect to persist custom service selection
   useEffect(() => {
-    // Only run if initialized and user explicitly selected a custom service
-    if (isInitialized && isCustomService && selectedType && !hasExistingContent) {
+    if (isCustomService && selectedType) {
       const customService = customServices.find(s => s.id === selectedType);
       if (customService) {
-        console.log('📖 PASTOR EDIT: Loading custom service template (user selection)');
-        const serviceContent = customService.order || customService.template;
-        setOrderOfWorship(serviceContent);
+        setOrderOfWorship(customService.order || customService.template);
         setHasExistingContent(false);
-        
-        // Also update the service element lines to display the custom service
-        const parsedElements = parseServiceContent(serviceContent);
-        setServiceElementLines(parsedElements);
-        
-        // Reset element details since we're loading a new template
-        setElementDetails({});
       }
     }
-  }, [isCustomService, selectedType]); // REMOVED: customServices to prevent race conditions
+  }, [isCustomService, selectedType, customServices]);
+
+  // Add this near your other useEffects
+  useEffect(() => {
+    
+  }, [selectedType, isCustomService, orderOfWorship, hasExistingContent]);
 
   // Update the handleServiceTypeChange to preserve selections when possible
-  const handleServiceTypeChange = (typeId) => {
-    if (!hasExistingContent || window.confirm('Changing service type will reset the order of worship. Continue?')) {
+  const handleServiceTypeChange = async (typeId) => {
+    if (!hasExistingContent) {
       const elements = standardServiceElements[typeId];
       const content = elements.map(el => el.content).join('\n');
       
@@ -672,78 +528,177 @@ Postlude`
       setIsCustomService(false);
       setOrderOfWorship(content);
       setHasExistingContent(false);
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: 'Change Service Type',
+      message: 'Changing service type will reset the order of worship. Continue?',
+      variant: 'warning',
+      confirmText: 'Continue',
+      cancelText: 'Cancel'
+    });
+
+    if (confirmed) {
+      const elements = standardServiceElements[typeId];
+      const content = elements.map(el => el.content).join('\n');
       
-      // Parse the content into service element lines and update the display
-      const parsedElements = parseServiceContent(content);
-      setServiceElementLines(parsedElements);
-      
-      // Reset element details since we're changing service type
-      setElementDetails({});
+      setSelectedType(typeId);
+      setIsCustomService(false);
+      setOrderOfWorship(content);
+      setHasExistingContent(false);
     }
   };
 
-  // Add a function to handle element type changes
-  const handleElementTypeChange = (elementIndex, newType) => {
-    const updatedElements = [...serviceElementLines]; // Shallow copy of array
-    // Create a shallow copy of the element to modify, to avoid direct state mutation before setState
-    const elementToModify = { ...updatedElements[elementIndex] };
+  // Add this effect to prevent unwanted state resets
+  useEffect(() => {
+    if (isCustomService && selectedType && orderOfWorship) {
+      // Prevent the default service type from overriding custom service
+      return;
+    }
+    // ... rest of your existing fetchExistingContent effect
+  }, [date, customServices]);
 
-    // Only proceed if type actually changes
-    if (elementToModify.type === newType) {
-      return; // Type is the same, no ID change needed
+  // Replace the custom service selection handler
+  const handleCustomServiceSelection = async (service) => {
+    if (!hasExistingContent) {
+      setSelectedType(service.id);
+      setIsCustomService(true);
+      setOrderOfWorship(service.order || service.template);
+      setShowCustomDropdown(false);
+      return;
     }
 
-    const oldId = elementToModify.id;
-    elementToModify.type = newType; // Update the type on the copied element
-
-    const formattedDate = date.replace(/\//g, '');
-    // Use content from the element being modified
-    const cleanContent = elementToModify.content.replace(/[^a-zA-Z0-9]/g, '');
-    const baseId = `${formattedDate}_${elementToModify.type}_${cleanContent}`;
-
-    let newGeneratedId = baseId;
-    let suffix = 0; // Start suffix from 0 for base, 1 for first duplicate, etc.
-
-    // Create a set of IDs from all *other* elements for efficient lookup
-    const existingIdsFromOtherElements = new Set();
-    updatedElements.forEach((el, idx) => {
-      if (idx !== elementIndex) {
-        existingIdsFromOtherElements.add(el.id);
-      }
+    const confirmed = await confirm({
+      title: 'Change Service Type',
+      message: 'Changing service type will reset the order of worship. Continue?',
+      variant: 'warning',
+      confirmText: 'Continue',
+      cancelText: 'Cancel'
     });
 
-    // Ensure newGeneratedId is unique among other elements
-    while (existingIdsFromOtherElements.has(newGeneratedId)) {
-      suffix++;
-      newGeneratedId = `${baseId}_${suffix}`;
+    if (confirmed) {
+      setSelectedType(service.id);
+      setIsCustomService(true);
+      setOrderOfWorship(service.order || service.template);
+      setShowCustomDropdown(false);
     }
+  };
 
-    elementToModify.id = newGeneratedId; // Assign the unique ID
-    updatedElements[elementIndex] = elementToModify; // Place the modified copied element back into the array
+  // Replace the existing custom service effect
+  useEffect(() => {
+    if (isCustomService && selectedType && !hasExistingContent) {
+      const customService = customServices.find(s => s.id === selectedType);
+      if (customService) {
+        setOrderOfWorship(customService.order || customService.template);
+      }
+    }
+  }, [isCustomService, selectedType, customServices, hasExistingContent]);
 
-    setElementDetails(prevDetails => {
-      const newElementDetails = { ...prevDetails };
-      if (oldId !== newGeneratedId) {
-        // Transfer details from oldId to newGeneratedId
-        newElementDetails[newGeneratedId] = prevDetails[oldId] || {};
-        delete newElementDetails[oldId]; // Remove oldId entry
+  // Add a new function to handle toggling to the editor view
+  const openOrderEditor = () => {
+    setCurrentStep('editor');
+  };  // Add a function to handle saving the order of worship and returning to main view
+  const saveOrderAndReturnToMain = () => {
+    // Parse the content into service elements
+    const usedIds = new Set();
+    
+    const parsedElements = parseServiceContent(orderOfWorship, serviceElementLines)
+      .map((element, index) => {
+        // Format date as MMDDYYYY
+        const formattedDate = date.replace(/\//g, '');
+        
+        // Clean the content for use in ID (remove spaces, special chars)
+        const cleanContent = element.content.replace(/[^a-zA-Z0-9]/g, '');
+        
+        // Create a stable ID that won't change between renders
+        const stableId = `${formattedDate}_${element.type}_${cleanContent}`;
+        
+        // Only use the stable ID if it's not a duplicate
+        if (!usedIds.has(stableId)) {
+          usedIds.add(stableId);
+          return {
+            ...element,
+            id: stableId
+          };
+        }
+        
+        // In the rare case of duplicate content, add an index suffix
+        const uniqueId = `${stableId}_${index}`;
+        usedIds.add(uniqueId);
+        
+        return {
+          ...element,
+          id: uniqueId
+        };
+      });
+      
+    setServiceElementLines(parsedElements);
+    
+    // Create a fresh details object to avoid referencing issues
+    const updatedDetails = {};
+    
+    // First copy over existing details for elements that are still present
+    parsedElements.forEach(element => {
+      if (elementDetails[element.id]) {
+        updatedDetails[element.id] = {...elementDetails[element.id]};
       } else {
-        // ID didn't change (e.g., type change resulted in the same ID, which was already unique)
-        // Ensure details are correctly associated, though they should be already.
-        newElementDetails[oldId] = prevDetails[oldId] || {};
+        updatedDetails[element.id] = {
+          reference: element.reference || '',
+          notes: '',
+          selection: element.selection || null
+        };
       }
-      return newElementDetails;
     });
-
+    
+    // Replace the entire element details object with the fresh copy
+    setElementDetails(updatedDetails);
+    
+    // Return to main view
+    setCurrentStep('main');
+  };  // Add a function to handle element type changes
+  const handleElementTypeChange = (elementIndex, newType) => {
+    const updatedElements = [...serviceElementLines];
+    const element = updatedElements[elementIndex];
+    const oldType = element.type;
+    
+    // If the type is changing, we need to regenerate the ID
+    if (element.type !== newType) {
+      // Update the element type
+      element.type = newType;
+      
+      // Create a new stable ID based on the date and content
+      const formattedDate = date.replace(/\//g, '');
+      const cleanContent = element.content.replace(/[^a-zA-Z0-9]/g, '');
+      const newId = `${formattedDate}_${newType}_${cleanContent}`;
+      
+      // We need to preserve any details that might exist for this element
+      const oldDetails = elementDetails[element.id] || {};
+      
+      // Update element with new ID
+      const oldId = element.id;
+      element.id = newId;
+      
+      // Update element details with the new ID
+      setElementDetails(prevDetails => {
+        const newDetails = {...prevDetails};
+        // Remove old id entry
+        delete newDetails[oldId];
+        // Add new id entry with preserved details
+        newDetails[newId] = oldDetails;
+        return newDetails;
+      });
+    } else {
+      // Just update the type if it's not changing (shouldn't happen but just in case)
+      element.type = newType;
+    }
+    
     setServiceElementLines(updatedElements);
   };
 
   // Add a function to update element details
   const updateElementDetail = (elementId, field, value) => {
     // This function ensures updates are isolated to the specific element only
-    console.log(`🔧 PastorServiceInput: Updating element ${elementId}, field ${field} with value "${value}"`);
-    console.log(`🔧 PastorServiceInput: Current elementDetails before update:`, elementDetails);
-    
     setElementDetails(prev => {
       // Create a new object to avoid reference issues
       const newDetails = { ...prev };
@@ -754,15 +709,12 @@ Postlude`
         [field]: value
       };
       
-      console.log(`🔧 PastorServiceInput: Updated elementDetails for ${elementId}:`, newDetails[elementId]);
-      console.log(`🔧 PastorServiceInput: Full new elementDetails:`, newDetails);
-      
       return newDetails;
     });
   };
 
   // Update the handleSave function to use serviceElementLines when available
-  const handleSave = () => {
+  const handleSave = async () => {
     if (orderOfWorship) {
       let elements = [];
       const currentLines = orderOfWorship.split('\n').map(line => line.trim()).filter(Boolean);
@@ -770,39 +722,21 @@ Postlude`
       // Get existing elements and their song selections
       const existingElements = serviceDetails?.[date]?.elements || [];
       
-      console.log('🔍 PastorServiceInput: Preparing save data...');
-      console.log('🔍 PastorServiceInput: serviceElementLines:', serviceElementLines?.length || 0);
-      console.log('🔍 PastorServiceInput: elementDetails AT SAVE TIME:', elementDetails);
-      console.log('🔍 PastorServiceInput: elementDetails JSON AT SAVE TIME:', JSON.stringify(elementDetails, null, 2));
-      
       // Use the serviceElementLines as they contain pastor-specified types
       elements = serviceElementLines.map(element => {
         // Get any additional details that have been entered
         const details = elementDetails[element.id] || {};
         
-        console.log(`🔍 PastorServiceInput: Processing element ${element.id}: element.reference="${element.reference}", details.reference="${details.reference}"`);
-        
-        const finalElement = {
+        return {
           id: element.id,
           type: element.type,
           content: element.content,
-          reference: details.reference !== undefined ? details.reference : (element.reference || ''),
+          reference: details.reference || element.reference || '',
           notes: details.notes || element.notes || '',
           selection: details.selection || element.selection,
           required: element.required
         };
-        
-        // Log readings specifically
-        if (element.type === 'reading') {
-          console.log(`📖 PastorServiceInput: Reading element - "${element.content}" -> reference: "${finalElement.reference}"`);
-        }
-        
-        return finalElement;
       });
-      
-      // Log final readings
-      const finalReadings = elements.filter(el => el.type === 'reading');
-      console.log('📖 PastorServiceInput: Final readings to save:', finalReadings.map(r => ({ content: r.content, reference: r.reference })));
 
       // Apply the same song and reading preservation logic as before
       if (isCustomService) {
@@ -819,27 +753,24 @@ Postlude`
       
       // Show warning if songs are being removed
       if (existingSongCount > 0 && newSongCount < existingSongCount) {
-        const confirmRemove = window.confirm(
-          `Warning: Your edit reduces the number of songs from ${existingSongCount} to ${newSongCount}. ` +
-          `This may remove song selections that have already been made by the worship team. Continue?`
-        );
+        const confirmRemove = await confirm({
+          title: 'Reducing Song Count',
+          message: `Song count will decrease from ${existingSongCount} to ${newSongCount}.`,
+          details: ['This may remove song selections already made by the worship team'],
+          variant: 'warning',
+          confirmText: 'Continue',
+          cancelText: 'Cancel'
+        });
         
         if (!confirmRemove) {
           return; // Cancel save if user doesn't confirm
         }
       }
-      
-      console.log('Final elements with details:', elements);
-
-      const saveData = {
+      onSave({
         type: selectedType,
         content: orderOfWorship,
         elements: elements
-      };
-      
-      console.log('🚀 PastorServiceInput: About to call onSave with data:', JSON.stringify(saveData, null, 2));
-      
-      onSave(saveData);
+      });
     }  };
 
   // Function to adjust layout sizes based on available space
@@ -868,7 +799,7 @@ Postlude`
       elementsListRef.current.style.height = `${Math.max(400, availableHeight)}px`;
     }
     
-    console.log(`Adjusted layout: window: ${windowHeight}, card: ${cardHeight}, available: ${availableHeight}, set: ${Math.max(400, availableHeight)}`);
+    
   };
   
   // Track window resize for optimal layout
@@ -886,82 +817,6 @@ Postlude`
       window.removeEventListener('resize', handleResize);
     };
   }, [isMobile]);
-
-  // Helper functions
-  const parseOrderOfWorship = (text, formattedDate) => {
-    // ...existing code...
-  };
-
-  // Function to handle order editor to main transition
-  const saveOrderAndReturnToMain = () => {
-    if (orderOfWorship.trim()) {
-      // Parse the order of worship text into structured elements
-      const formattedDate = date.replace(/\//g, '');
-      const parsedElements = parseOrderOfWorship(orderOfWorship, formattedDate);
-      
-      // Update the service element lines with stable IDs
-      const elementsWithStableIds = parsedElements.map((element, index) => {
-        const cleanContent = element.content.replace(/[^a-zA-Z0-9]/g, '');
-        const stableId = `${formattedDate}_${element.type}_${cleanContent}_${index}`;
-        
-        return {
-          ...element,
-          id: stableId
-        };
-      });
-      
-      setServiceElementLines(elementsWithStableIds);
-    }
-    
-    // Transition back to main step
-    setCurrentStep('main');
-  };
-
-  // Function to open the order editor
-  const openOrderEditor = () => {
-    // If we have existing service elements, convert them back to text format
-    if (serviceElementLines.length > 0) {
-      const textContent = serviceElementLines.map(element => element.content).join('\n');
-      setOrderOfWorship(textContent);
-    }
-    
-    // Transition to editor step
-    setCurrentStep('editor');
-  };
-
-  // Function to handle custom service selection
-  const handleCustomServiceSelection = (service) => {
-    console.log('Custom service selected:', service);
-    
-    // Update the selected type to the custom service ID
-    setSelectedType(service.id);
-    
-    // Mark this as a custom service
-    setIsCustomService(true);
-    
-    // Close the custom dropdown
-    setShowCustomDropdown(false);
-    
-    // Load the custom service template/order into the order of worship
-    const serviceContent = service.order || service.template || service.elements?.map(el => el.content).join('\n') || '';
-    setOrderOfWorship(serviceContent);
-    
-    // Reset existing content flag since we're loading a template
-    setHasExistingContent(false);
-    
-    // Parse the content into service element lines and update the display
-    const parsedElements = parseServiceContent(serviceContent);
-    setServiceElementLines(parsedElements);
-    
-    // Reset element details since we're changing service type
-    setElementDetails({});
-    
-    console.log('Custom service state updated:', {
-      selectedType: service.id,
-      isCustomService: true,
-      orderOfWorship: serviceContent.substring(0, 50) + '...'
-    });
-  };
 
   // Helper function for rendering the editor view
   const renderEditorView = () => (
@@ -1006,9 +861,17 @@ Postlude`
             <div className="flex gap-2">
               <button
                 className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded border text-gray-700"
-                onClick={() => {
+                onClick={async () => {
                   // Reset to default template
-                  if (window.confirm('Reset to default template? This will replace your current content.')) {
+                  const confirmed = await confirm({
+                    title: 'Reset to Template',
+                    message: 'Reset to default template? This will replace your current content.',
+                    variant: 'warning',
+                    confirmText: 'Reset',
+                    cancelText: 'Cancel'
+                  });
+
+                  if (confirmed) {
                     const defaultContent = getServiceTemplates()[selectedType];
                     setOrderOfWorship(defaultContent);
                   }
@@ -1034,7 +897,8 @@ Postlude`
           </div>
         </div>
       </div>
-        <div className={`p-4 border-t bg-[#FFD700] bg-opacity-10 flex justify-between gap-3 ${isMobile ? 'safe-area-bottom' : ''}`}>
+      
+      <div className={`p-4 border-t bg-[#FFD700] bg-opacity-10 flex justify-between gap-3 ${isMobile ? 'safe-area-bottom' : ''}`}>
         <button
           onClick={() => setCurrentStep('main')}
           className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-100"
@@ -1048,8 +912,7 @@ Postlude`
           <Save className="w-4 h-4 mr-1" />
           Save & Continue
         </button>
-      </div>
-    </>
+      </div>    </>
   );
   
   // Helper function for rendering service element detail fields
@@ -1067,8 +930,27 @@ Postlude`
       return null;
       case 'song_hymn':
       return (
-        <div className="text-gray-500 text-sm italic">
-          Song will be selected by worship team
+        <div className="text-blue-500 text-sm">
+          {element.selection?.title ? (
+            <div className="flex justify-between items-center">
+              <div>
+                {element.selection.type === 'hymn' ? (
+                  <span>{element.selection.title} #{element.selection.number || ''} {
+                    element.selection.hymnal ? `(${element.selection.hymnal.charAt(0).toUpperCase() + element.selection.hymnal.slice(1)})` : '(Hymnal)'
+                  }</span>
+                ) : (
+                  <span>{element.selection.title} {element.selection.author ? `- ${element.selection.author}` : ''}</span>
+                )}
+              </div>
+              <div className="text-xs text-gray-500">
+                Will be selected by worship team
+              </div>
+            </div>
+          ) : (
+            <div className="italic text-gray-500">
+              Song will be selected by worship team
+            </div>
+          )}
         </div>
       );
       
@@ -1178,9 +1060,17 @@ Postlude`
                       <button
                         onClick={async (e) => {
                           e.stopPropagation();
-                          if (confirm(`Delete ${service.name}?`)) {
+                          const confirmed = await confirm({
+                            title: 'Delete Custom Service',
+                            message: `Delete ${service.name}?`,
+                            variant: 'danger',
+                            confirmText: 'Delete',
+                            cancelText: 'Cancel'
+                          });
+
+                          if (confirmed) {
                             try {
-                              await fetch('/api/custom-services', {
+                              await fetchWithTimeout('/api/custom-services', {
                                 method: 'DELETE',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ id: service.id })
@@ -1242,20 +1132,25 @@ Postlude`
               >
                 Create Order of Worship
               </button>
-            </div>          ) : (
+            </div>
+          ) : (
             <div className="border rounded overflow-hidden" ref={elementsListRef}>
               <div className="bg-gray-50 px-3 py-2 border-b">
                 <div className="flex justify-between items-center">
                   <span className="font-medium text-sm">Service Elements</span>
                   <span className="text-xs text-gray-500">{serviceElementLines.length} items</span>
-                </div>
-              </div>              <div className="divide-y overflow-y-auto" style={{ maxHeight: "calc(100vh - 250px)", minHeight: "500px" }}>
-                {serviceElementLines.map((element, index) => {
-                  // Use the element's existing stable ID, or create one with index for uniqueness
-                  const elementId = element.id || `${date.replace(/\//g, '')}_${element.type}_${element.content.replace(/[^a-zA-Z0-9]/g, '')}_${index}`;
-                  
-                  return (
-                    <div key={elementId} className="py-2 px-2 hover:bg-gray-50">
+                </div>              </div>                <div className="divide-y overflow-y-auto" style={{ maxHeight: "calc(100vh - 250px)", minHeight: "500px" }}>                  {serviceElementLines.map((element, index) => {                    // Create a stable, predictable ID based on date and content
+                    if (!element.id) {
+                      // Format date as MMDDYYYY
+                      const formattedDate = date.replace(/\//g, '');
+                      // Clean the content for use in ID (remove spaces, special chars)
+                      const cleanContent = element.content.replace(/[^a-zA-Z0-9]/g, '');
+                      // Create a stable ID that won't change between renders
+                      element.id = `${formattedDate}_${element.type}_${cleanContent}`;
+                    }
+                    
+                    return (
+                    <div key={element.id} className="py-2 px-2 hover:bg-gray-50">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="font-medium text-sm flex items-center space-x-2">
@@ -1263,8 +1158,8 @@ Postlude`
                             {(element.type === 'reading' || element.type === 'message') && (
                               <input
                                 type="text"
-                                value={(elementDetails[elementId] || {}).reference || ''}
-                                onChange={(e) => updateElementDetail(elementId, 'reference', e.target.value)}
+                                value={(elementDetails[element.id] || {}).reference || ''}
+                                onChange={(e) => updateElementDetail(element.id, 'reference', e.target.value)}
                                 className="border-gray-200 focus:ring-[#6B8E23] focus:border-[#6B8E23] rounded-sm text-sm ml-2 w-64"
                                 placeholder={element.type === 'reading' ? 
                                   "Enter scripture reference (e.g. John 3:16-21)" : 
@@ -1281,7 +1176,8 @@ Postlude`
                             style={{
                               backgroundColor: 
                                 element.type === 'song_hymn' ? '#f0f9e8' :
-                                element.type === 'reading' ? '#f0f0f9' :                                element.type === 'message' ? '#f9f0e8' :
+                                element.type === 'reading' ? '#f0f0f9' :
+                                element.type === 'message' ? '#f9f0e8' :
                                 element.type === 'liturgical_song' ? '#e8f0f9' :
                                 '#f9f9f9'
                             }}
@@ -1292,21 +1188,19 @@ Postlude`
                             <option value="reading">Reading</option>
                             <option value="message">Message/Sermon</option>
                           </select>
-                        </div>                        <div> 
-                          {(element.type === 'song_hymn' || element.type === 'liturgical_song') && (
-                            <div className="mt-1 pl-2">
-                              {renderElementDetailFields(element, index)}
-                            </div>
-                          )}
+                        </div>                      </div>
+                      
+                      {(element.type === 'song_hymn' || element.type === 'liturgical_song') && (
+                        <div className="mt-1 pl-2">
+                          {renderElementDetailFields(element, index)}
                         </div>
-                      </div>
+                      )}
                     </div>
-                  );
-                })}
+                  )})}
+                </div>
+                {/* Icon legend removed to declutter the interface */}
               </div>
-              {/* Icon legend removed to declutter the interface */}
-            </div>
-          )}
+            )}
         </div>
       </div>
       <div className={`p-4 border-t bg-[#FFD700] bg-opacity-10 flex justify-end gap-3 ${isMobile ? 'safe-area-bottom' : ''}`}>
@@ -1319,7 +1213,8 @@ Postlude`
         <button
           onClick={handleSave}
           className="px-4 py-2 bg-[#6B8E23] text-white rounded hover:bg-[#556B2F] flex items-center"
-          disabled={serviceElementLines.length === 0}        >
+          disabled={serviceElementLines.length === 0}
+        >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
@@ -1329,7 +1224,6 @@ Postlude`
     </>
   );
 
-  // Main component return
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[200]">
       <Card 
@@ -1355,9 +1249,8 @@ Postlude`
           setCustomServices={setCustomServices}
           onSave={async (serviceData) => {
             try {
-              console.log('Saving custom service:', serviceData);
               const method = editingService ? 'PUT' : 'POST';
-              const response = await fetch('/api/custom-services', {
+              const response = await fetchWithTimeout('/api/custom-services', {
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(serviceData),
@@ -1365,10 +1258,7 @@ Postlude`
 
               if (response.ok) {
                 const savedService = await response.json();
-                console.log('Service saved successfully:', savedService);
-
-                // First update the custom services list
-                const updatedServices = await fetch('/api/custom-services').then(res => res.json());
+                const updatedServices = await fetchWithTimeout('/api/custom-services').then(res => res.json());
                 setCustomServices(updatedServices);
 
                 // Then batch the state updates to prevent race conditions
@@ -1394,6 +1284,7 @@ Postlude`
           }}
         />
       )}
+      <ConfirmDialog />
     </div>
   );
 };
