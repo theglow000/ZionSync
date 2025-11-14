@@ -9,7 +9,5 @@
     "functional": [],
     "validation": []
   },
-  "recommendations": [
-    "Code quality is excellent - no issues found"
-  ]
+  "recommendations": ["Code quality is excellent - no issues found"]
 }

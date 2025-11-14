@@ -15,6 +15,7 @@
 ## 📊 Current Status (Updated: July 9, 2025)
 
 ### ✅ COMPLETED (Phase 0 - Investigation & Proof of Concept)
+
 - [x] **Problem Investigation & Testing**
   - Confirmed orphaned songs are lost when pastor reduces slots
   - Created comprehensive test suite (`test-pastor-song-reduction.js`, `test-enhanced-orphan-handling.js`, `test-direct-orphan-logic.js`)
@@ -29,6 +30,7 @@
   - **Minor Issue**: Orphan tracking metadata integration (1 failing test)
 
 ### 🔄 IMMEDIATE NEXT ACTIONS (Next 2-3 Days)
+
 1. **Fix Backend Tracking Issue** - Debug orphan metadata save problem
 2. **Create Missing API Endpoints** - Orphan recovery/dismiss endpoints
 3. **Start Core UI Development** - Begin OrphanWarningModal component
@@ -38,18 +40,21 @@
 ## 🏗️ Implementation Phases
 
 ### **Phase 1: Critical Protection (Weeks 1-2) 🚨 HIGH PRIORITY**
-*Goal: Prevent data loss with essential warnings*
+
+_Goal: Prevent data loss with essential warnings_
 
 #### **Backend Completion (2-3 days)**
+
 - [ ] **Fix Tracking Metadata Integration**
   - Debug the orphan tracking issue in `test-enhanced-orphan-handling.js`
   - Ensure orphan tracking properly saves to service document
   - Achieve 100% backend test success rate
 
 - [ ] **Add Missing API Endpoints**
+
   ```javascript
   GET /api/orphaned-songs?date={date}    // List orphaned songs
-  POST /api/orphaned-songs/recover       // Recover orphans to slots  
+  POST /api/orphaned-songs/recover       // Recover orphans to slots
   DELETE /api/orphaned-songs/dismiss     // Dismiss orphans permanently
   ```
 
@@ -59,7 +64,9 @@
   - Return orphan summary data
 
 #### **Core UI Components (1 week)**
+
 - [ ] **Pastor Warning Modal** (`src/components/orphan/OrphanWarningModal.jsx`) - Priority 1
+
   ```jsx
   // Features:
   // - Shows impact before service reduction
@@ -68,7 +75,8 @@
   // - Provides alternative reduction suggestions
   ```
 
-- [ ] **Worship Team Orphan Alert** (`src/components/orphan/OrphanAlert.jsx`) - Priority 2  
+- [ ] **Worship Team Orphan Alert** (`src/components/orphan/OrphanAlert.jsx`) - Priority 2
+
   ```jsx
   // Features:
   // - Prominent notification of orphaned songs
@@ -85,12 +93,14 @@
   ```
 
 #### **Integration & Testing (2-3 days)**
+
 - [ ] **Integration Test Suite**
   - Full pastor → worship team workflow
   - UI → backend → database integration
   - Cross-team notification flow verification
 
 **Phase 1 Success Criteria:**
+
 - ✅ No songs lost without explicit pastor confirmation
 - ✅ All orphaned songs backed up for recovery
 - ✅ Pastor receives clear warning before creating orphans
@@ -99,10 +109,13 @@
 ---
 
 ### **Phase 2: Enhanced Recovery (Weeks 3-5) 📈 HIGH PRIORITY**
-*Goal: Comprehensive recovery and reassignment tools*
+
+_Goal: Comprehensive recovery and reassignment tools_
 
 #### **Advanced Pastor Features**
+
 - [ ] **Smart Reassignment Interface** (`src/components/orphan/SongReassignmentModal.jsx`)
+
   ```jsx
   // Drag-and-drop orphan recovery
   // Smart slot suggestions
@@ -119,12 +132,14 @@
   ```
 
 #### **Enhanced Worship Team Features**
+
 - [ ] **Song History Panel** (`src/components/orphan/SongHistoryPanel.jsx`)
   - Current songs vs recently removed
   - Recovery recommendations
   - Request restoration feature
 
 #### **Cross-Team Communication**
+
 - [ ] **Real-time Notifications** (`src/components/orphan/NotificationSystem.jsx`)
   - WebSocket or polling-based updates
   - Cross-team messaging
@@ -137,6 +152,7 @@
   - Communication thread with pastor
 
 **Phase 2 Success Criteria:**
+
 - ✅ Pastor can reassign orphaned songs to new positions
 - ✅ Worship team can request restoration of song positions
 - ✅ Complete audit trail of all orphaning events
@@ -145,9 +161,11 @@
 ---
 
 ### **Phase 3: Advanced Features & UX (Weeks 6-8) 📊 MEDIUM PRIORITY**
-*Goal: Optimize workflow and provide advanced management*
+
+_Goal: Optimize workflow and provide advanced management_
 
 #### **Intelligent Automation**
+
 - [ ] **Smart Recovery Algorithm**
   - Analyze song types and service context
   - Suggest optimal slot reassignments
@@ -160,12 +178,14 @@
   - Conflict resolution for complex scenarios
 
 #### **Advanced UI/UX**
+
 - [ ] **Drag-and-Drop Reassignment** - Visual song position management
 - [ ] **Bulk Operations** - Restore/reassign multiple songs at once
 - [ ] **Advanced Filtering** - Search through orphan history
 - [ ] **Undo/Redo System** - Revert recent structural changes
 
 #### **Analytics & Reporting**
+
 - [ ] **Orphan Analytics Dashboard**
   - Orphan frequency by pastor/date
   - Recovery success rates
@@ -173,6 +193,7 @@
   - Team response time metrics
 
 **Phase 3 Success Criteria:**
+
 - ✅ Streamlined workflow with minimal friction
 - ✅ Advanced users can leverage automation features
 - ✅ Data-driven insights for workflow optimization
@@ -180,9 +201,11 @@
 ---
 
 ### **Phase 4: Mobile & Accessibility (Weeks 9-10) 📱 MEDIUM PRIORITY**
-*Goal: Mobile optimization and inclusive design*
+
+_Goal: Mobile optimization and inclusive design_
 
 #### **Mobile Optimization**
+
 - [ ] **Responsive Orphan Interfaces**
   - Mobile-first orphan alerts
   - Touch-friendly recovery tools
@@ -194,6 +217,7 @@
   - Mobile push notifications
 
 #### **Accessibility Compliance**
+
 - [ ] **WCAG 2.1 AA Compliance**
   - Screen reader optimization
   - Keyboard navigation
@@ -205,6 +229,7 @@
   - Audio notifications option
 
 **Phase 4 Success Criteria:**
+
 - ✅ Complete mobile parity with desktop features
 - ✅ WCAG 2.1 AA compliance achieved
 - ✅ Seamless experience across all devices
@@ -212,9 +237,11 @@
 ---
 
 ### **Phase 5: Advanced Integration (Weeks 11-13) 🔗 LOW PRIORITY**
-*Goal: Automation and external integrations*
+
+_Goal: Automation and external integrations_
 
 #### **Automation Features**
+
 - [ ] **Intelligent Auto-Recovery**
   - Rule-based orphan recovery
   - Machine learning preferences
@@ -226,6 +253,7 @@
   - Alternative suggestion engine
 
 #### **Integration Enhancements**
+
 - [ ] **External Calendar Integration**
   - Liturgical calendar awareness
   - Special event considerations
@@ -237,6 +265,7 @@
   - Thematic grouping
 
 **Phase 5 Success Criteria:**
+
 - ✅ Intelligent automation reduces manual work
 - ✅ External integrations enhance functionality
 - ✅ System provides predictive insights
@@ -246,6 +275,7 @@
 ## 🧩 Technical Architecture
 
 ### **Database Schema**
+
 ```javascript
 // Enhanced serviceDetails collection
 {
@@ -275,7 +305,7 @@
 // New orphan_notifications collection
 {
   _id: ObjectId,
-  serviceDate: "8/1/25", 
+  serviceDate: "8/1/25",
   notificationType: "orphan_created|orphan_recovered",
   targetRole: "pastor|worship_team",
   message: "...",
@@ -286,6 +316,7 @@
 ```
 
 ### **API Endpoints**
+
 ```javascript
 // Enhanced existing endpoint
 POST /api/service-details
@@ -304,6 +335,7 @@ POST /api/orphan-notifications/mark-read
 ```
 
 ### **Frontend Architecture**
+
 ```
 src/components/orphan/
 ├── OrphanWarningModal.jsx       # Pastor warning before reduction
@@ -332,12 +364,14 @@ src/utils/
 ## 🧪 Testing Strategy
 
 ### **Phase 1 Testing**
+
 - [ ] **Fix failing orphan tracking test** - Immediate priority
 - [ ] **Unit tests for new components** - OrphanWarningModal, OrphanAlert
 - [ ] **Integration tests** - Full pastor → worship team workflow
 - [ ] **Cross-browser compatibility** - Chrome, Firefox, Safari, Edge
 
 ### **Comprehensive Testing (All Phases)**
+
 - [ ] **Unit Tests**: Component behavior and orphan logic validation
 - [ ] **Integration Tests**: End-to-end orphan scenarios and cross-team workflows
 - [ ] **Performance Tests**: Large service handling and concurrent operations
@@ -349,6 +383,7 @@ src/utils/
 ## 📋 Detailed Task Breakdown (Phase 1 Focus)
 
 ### **Backend Tasks (Week 1)**
+
 ```
 □ Debug orphan tracking metadata save issue (Day 1)
 □ Create /api/orphaned-songs GET endpoint (Day 1-2)
@@ -359,6 +394,7 @@ src/utils/
 ```
 
 ### **Frontend Tasks (Week 2)**
+
 ```
 □ Create OrphanWarningModal component (Day 1-2)
 □ Integrate modal into service editing flow (Day 2-3)
@@ -369,6 +405,7 @@ src/utils/
 ```
 
 ### **Testing Tasks (Week 2)**
+
 ```
 □ Fix failing orphan tracking test (Day 1)
 □ Create end-to-end integration test (Day 3)
@@ -382,18 +419,21 @@ src/utils/
 ## 🎯 Success Metrics
 
 ### **Technical Metrics**
+
 - [ ] **Data Protection**: Zero orphaned song data loss
 - [ ] **Performance**: < 2 second orphan detection time
 - [ ] **Reliability**: 99.9% orphan backup success rate
 - [ ] **Responsiveness**: < 500ms notification delivery time
 
 ### **User Experience Metrics**
+
 - [ ] **User Satisfaction**: 95% satisfaction with orphan handling
-- [ ] **Efficiency**: < 30 second average recovery time  
+- [ ] **Efficiency**: < 30 second average recovery time
 - [ ] **Success Rate**: 90% successful first-attempt recovery
 - [ ] **Clarity**: Zero confused user reports
 
 ### **Communication Metrics**
+
 - [ ] **Notification Delivery**: 100% orphan event notifications delivered
 - [ ] **Response Time**: < 5 minute average response to orphan alerts
 - [ ] **Resolution Rate**: 95% successful cross-team resolution
@@ -404,27 +444,30 @@ src/utils/
 ## 🚨 Risk Assessment & Mitigation
 
 ### **High-Risk Items**
+
 1. **Tracking Metadata Bug** (Current Issue)
-   - *Risk*: Could block UI development
-   - *Mitigation*: Debug immediately, create workaround if needed
-   - *Timeline*: Fix within 1 day
+   - _Risk_: Could block UI development
+   - _Mitigation_: Debug immediately, create workaround if needed
+   - _Timeline_: Fix within 1 day
 
 2. **Performance Impact**
-   - *Risk*: Orphan detection slows service editing
-   - *Mitigation*: Async processing, query optimization
-   - *Timeline*: Monitor and optimize in Phase 1
+   - _Risk_: Orphan detection slows service editing
+   - _Mitigation_: Async processing, query optimization
+   - _Timeline_: Monitor and optimize in Phase 1
 
 3. **User Adoption Resistance**
-   - *Risk*: Teams may ignore warnings
-   - *Mitigation*: Non-dismissible warnings for critical cases, user training
-   - *Timeline*: Address in Phase 2 with smart thresholds
+   - _Risk_: Teams may ignore warnings
+   - _Mitigation_: Non-dismissible warnings for critical cases, user training
+   - _Timeline_: Address in Phase 2 with smart thresholds
 
 ### **Medium-Risk Items**
+
 1. **UI Integration Complexity** - Start simple, iterate gradually
 2. **Cross-Team Communication Overhead** - Smart notification filtering
 3. **Mobile Touch Interface** - Extensive mobile testing required
 
 ### **Contingency Plans**
+
 - **If backend issues persist**: Implement UI with mock data, iterate
 - **If UI complexity grows**: Reduce Phase 1 scope to core functionality
 - **If testing reveals UX issues**: Pivot to simpler notification approach
@@ -434,14 +477,16 @@ src/utils/
 ## 📈 Resource Requirements
 
 ### **Development Time**
+
 - **Phase 1 (Critical)**: 1-2 weeks
-- **Phase 2 (Core UI)**: 2-3 weeks  
+- **Phase 2 (Core UI)**: 2-3 weeks
 - **Phase 3 (Advanced)**: 2-3 weeks
 - **Phase 4 (Mobile)**: 1-2 weeks
 - **Phase 5 (Integration)**: 2-3 weeks
 - **Total**: 8-13 weeks
 
 ### **Technical Requirements**
+
 - Database access for endpoint development
 - Frontend development environment
 - Cross-browser testing tools
@@ -449,6 +494,7 @@ src/utils/
 - Real-time notification infrastructure
 
 ### **Support Requirements**
+
 - Pastor availability for workflow validation
 - Worship team feedback on UI designs
 - Technical review of backend changes
@@ -459,21 +505,25 @@ src/utils/
 ## 📞 Communication Plan
 
 ### **Daily Updates** (During Active Development)
+
 - Progress on current tasks and any blockers
 - Test results and quality metrics
 - User feedback integration
 
 ### **Weekly Stakeholder Updates**
+
 - Sprint progress and completed milestones
 - User testing feedback from pastor and worship teams
 - Timeline adjustments and priority shifts
 
 ### **Phase Demonstrations**
+
 - **Phase 1 Demo**: Basic warning and backup functionality
 - **Phase 2 Demo**: Recovery and communication features
 - **Phase 3 Demo**: Advanced automation and mobile optimization
 
 ### **Go-Live Strategy**
+
 - **Soft Launch**: Limited pilot testing (2 weeks)
 - **Feedback Collection**: User experience surveys and interviews
 - **Issue Resolution**: Bug fixes and minor enhancements
@@ -484,6 +534,7 @@ src/utils/
 ## ✅ Acceptance Criteria Summary
 
 ### **Phase 1 (Critical Protection)**
+
 - [ ] Pastor receives clear warning before orphaning songs
 - [ ] All orphaned songs are backed up and recoverable
 - [ ] Worship team is notified when songs are orphaned
@@ -491,12 +542,14 @@ src/utils/
 - [ ] 100% backend test success rate achieved
 
 ### **Phase 2 (Enhanced Recovery)**
+
 - [ ] Pastor can reassign orphaned songs to new positions
 - [ ] Worship team can view history of song changes
 - [ ] Cross-team communication system functions reliably
 - [ ] Recovery dashboard shows all available orphaned songs
 
 ### **Long-term (Phases 3-5)**
+
 - [ ] Mobile parity with desktop functionality
 - [ ] Intelligent automation provides valuable suggestions
 - [ ] Analytics provide actionable insights
@@ -506,7 +559,7 @@ src/utils/
 
 ## 🔄 Next Actions (Immediate - Next 48 Hours)
 
-1. **Fix Backend Tracking Issue** 
+1. **Fix Backend Tracking Issue**
    - Debug orphan metadata save problem in `test-enhanced-orphan-handling.js`
    - Target: Achieve 100% backend test success (currently 83%)
 
@@ -531,4 +584,4 @@ src/utils/
 **Owner**: Development Team  
 **Stakeholders**: Pastor, Worship Team, Technical Team
 
-*This is a living document that will be updated as implementation progresses and requirements evolve.*
+_This is a living document that will be updated as implementation progresses and requirements evolve._

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { X as XIcon, Calendar, AlertCircle } from 'lucide-react';
-import { LoadingSpinner, EmptyState } from '../shared';
-import { fetchWithTimeout } from '../../lib/api-utils';
+import React, { useState, useEffect } from "react";
+import { X as XIcon, Calendar, AlertCircle } from "lucide-react";
+import { LoadingSpinner, EmptyState } from "../shared";
+import { fetchWithTimeout } from "../../lib/api-utils";
 
 const QuickAddModal = ({ isOpen, onClose, song }) => {
   const [upcomingServices, setUpcomingServices] = useState([]);
@@ -9,7 +9,7 @@ const QuickAddModal = ({ isOpen, onClose, song }) => {
   const [songSlots, setSongSlots] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
   const [error, setError] = useState(null);
   const [selectedPosition, setSelectedPosition] = useState(null);
 
@@ -19,26 +19,26 @@ const QuickAddModal = ({ isOpen, onClose, song }) => {
       // Reset state before fetching new data
       setSelectedService(null);
       setSongSlots([]);
-      setMessage('');
+      setMessage("");
       setError(null);
-      
+
       // Then fetch services
       fetchUpcomingServices();
     }
-    
+
     // When modal closes, reset state as before
     if (!isOpen) {
       setSelectedService(null);
       setSongSlots([]);
-      setMessage('');
+      setMessage("");
       setError(null);
     }
   }, [isOpen, song]);
-  
+
   // Wrapped onClose to reset state
   const handleClose = () => {
     setSelectedService(null);
-    setMessage('');
+    setMessage("");
     onClose();
   };
 
@@ -47,68 +47,80 @@ const QuickAddModal = ({ isOpen, onClose, song }) => {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       // Fetch upcoming services with their full details
-      const response = await fetchWithTimeout('/api/upcoming-services?limit=8');
-      
+      const response = await fetchWithTimeout("/api/upcoming-services?limit=8");
+
       if (!response.ok) {
         throw new Error(`Error ${response.status}: Unable to load services`);
       }
-      
+
       // Handle different response structures
       const responseData = await response.json();
-      const services = Array.isArray(responseData) ? responseData :
-                      Array.isArray(responseData.value) ? responseData.value : [];
-      
+      const services = Array.isArray(responseData)
+        ? responseData
+        : Array.isArray(responseData.value)
+          ? responseData.value
+          : [];
+
       // Process the services data
-      const enhancedServices = services.map(service => {
+      const enhancedServices = services.map((service) => {
         // Identify song positions that need to be filled
-        const songPositions = service.elements
-          ?.filter(element => element.type === 'song_hymn')
-          .map((element, index) => {
-            // Extract label from content
-            const label = element.content?.split(':')[0]?.trim() || `Song ${index + 1}`;
-            
-            // Check if this position already has a song
-            const hasSelection = !!element.selection;
-            
-            return {
-              id: `song_${index}`,
-              label,
-              hasSelection,
-              selectionDetails: element.selection ? {
-                title: element.selection.title,
-                type: element.selection.type,
-                number: element.selection.number,
-                hymnal: element.selection.hymnal,
-                author: element.selection.author
-              } : null
-            };
-          }) || [];
-        
+        const songPositions =
+          service.elements
+            ?.filter((element) => element.type === "song_hymn")
+            .map((element, index) => {
+              // Extract label from content
+              const label =
+                element.content?.split(":")[0]?.trim() || `Song ${index + 1}`;
+
+              // Check if this position already has a song
+              const hasSelection = !!element.selection;
+
+              return {
+                id: `song_${index}`,
+                label,
+                hasSelection,
+                selectionDetails: element.selection
+                  ? {
+                      title: element.selection.title,
+                      type: element.selection.type,
+                      number: element.selection.number,
+                      hymnal: element.selection.hymnal,
+                      author: element.selection.author,
+                    }
+                  : null,
+              };
+            }) || [];
+
         // Get service type display name
-        let serviceTypeDisplay = 'Sunday Service';
+        let serviceTypeDisplay = "Sunday Service";
         if (service.type) {
-          serviceTypeDisplay = service.type === 'communion' ? 'Communion' :
-                              service.type === 'communion_potluck' ? 'Communion & Potluck' :
-                              service.type === 'no_communion' ? 'No Communion' : 'Custom Service';
+          serviceTypeDisplay =
+            service.type === "communion"
+              ? "Communion"
+              : service.type === "communion_potluck"
+                ? "Communion & Potluck"
+                : service.type === "no_communion"
+                  ? "No Communion"
+                  : "Custom Service";
         }
-        
+
         return {
           ...service,
           songPositions,
-          serviceTypeDisplay
+          serviceTypeDisplay,
         };
       });
-      
+
       if (enhancedServices.length === 0) {
-        setError('No upcoming services found. Please create a service first.');
+        setError("No upcoming services found. Please create a service first.");
       } else {
         setUpcomingServices(enhancedServices);
       }
     } catch (err) {
-      console.error('Failed to fetch upcoming services:', err);
-      setError('Failed to load upcoming services. Please try again later.');
+      console.error("Failed to fetch upcoming services:", err);
+      setError("Failed to load upcoming services. Please try again later.");
     } finally {
       setIsLoading(false);
     }
@@ -123,16 +135,16 @@ const QuickAddModal = ({ isOpen, onClose, song }) => {
   // Add song to the selected slot
   const addSongToSlot = async (position) => {
     if (!selectedService || !position) return;
-    
+
     try {
       setIsAdding(true);
       setError(null);
-      
+
       // Use the working API endpoint and correct parameter structure
-      const response = await fetchWithTimeout('/api/reference-songs/import', {
-        method: 'POST',
+      const response = await fetchWithTimeout("/api/reference-songs/import", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           referenceSongId: song._id,
@@ -141,28 +153,30 @@ const QuickAddModal = ({ isOpen, onClose, song }) => {
           songData: {
             type: song.type,
             title: song.title,
-            number: song.number || '',
-            hymnal: song.hymnal || '',
-            author: song.author || '',
-            youtube: song.youtubeLink || '',
-            notes: song.notes || ''
-          }
+            number: song.number || "",
+            hymnal: song.hymnal || "",
+            author: song.author || "",
+            youtube: song.youtubeLink || "",
+            notes: song.notes || "",
+          },
         }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('Error adding song to service:', errorData);
-        throw new Error(errorData.message || 'Failed to add song to service');
+        console.error("Error adding song to service:", errorData);
+        throw new Error(errorData.message || "Failed to add song to service");
       }
-      
-      setMessage(`"${song.title}" successfully added to ${selectedService.title}`);
+
+      setMessage(
+        `"${song.title}" successfully added to ${selectedService.title}`,
+      );
       setTimeout(() => {
         handleClose();
       }, 1500);
     } catch (err) {
-      console.error('Error adding song to service:', err);
-      setError('Failed to add song to service. Please try again.');
+      console.error("Error adding song to service:", err);
+      setError("Failed to add song to service. Please try again.");
     } finally {
       setIsAdding(false);
     }
@@ -191,7 +205,7 @@ const QuickAddModal = ({ isOpen, onClose, song }) => {
               <AlertCircle className="text-red-500 w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-red-700 font-medium">{error}</p>
-                <button 
+                <button
                   onClick={fetchUpcomingServices}
                   className="mt-2 bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded text-sm"
                 >
@@ -225,7 +239,7 @@ const QuickAddModal = ({ isOpen, onClose, song }) => {
                       Change
                     </button>
                   </div>
-                  
+
                   <p className="mb-2 font-medium">Select position:</p>
                   <div className="space-y-2 max-h-60 overflow-y-auto">
                     {songSlots.map((slot) => (
@@ -234,7 +248,7 @@ const QuickAddModal = ({ isOpen, onClose, song }) => {
                         onClick={() => addSongToSlot(slot.id)}
                         disabled={isAdding}
                         className={`w-full text-left p-2 border rounded hover:bg-gray-50 ${
-                          slot.hasSelection ? 'bg-gray-100' : ''
+                          slot.hasSelection ? "bg-gray-100" : ""
                         }`}
                       >
                         <div className="flex justify-between">
@@ -274,12 +288,17 @@ const QuickAddModal = ({ isOpen, onClose, song }) => {
                         >
                           <div className="flex justify-between items-center">
                             <div className="flex-1 min-w-0">
-                              <div className="font-medium truncate">{service.title}</div>
+                              <div className="font-medium truncate">
+                                {service.title}
+                              </div>
                               <div className="text-xs text-gray-500">
-                                {new Date(service.date).toLocaleDateString()} • {service.serviceTypeDisplay}
+                                {new Date(service.date).toLocaleDateString()} •{" "}
+                                {service.serviceTypeDisplay}
                               </div>
                             </div>
-                            <div className="text-purple-600 text-sm ml-2">Select</div>
+                            <div className="text-purple-600 text-sm ml-2">
+                              Select
+                            </div>
                           </div>
                         </div>
                       ))

@@ -1,10 +1,16 @@
-'use client'
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { X, Calendar, AlertTriangle, Check, RefreshCw } from 'lucide-react';
-import { fetchWithTimeout } from '../../lib/api-utils';
+import React, { useState, useEffect } from "react";
+import { X, Calendar, AlertTriangle, Check, RefreshCw } from "lucide-react";
+import { fetchWithTimeout } from "../../lib/api-utils";
 
-const GenerateServicesModal = ({ isOpen, onClose, selectedYear, onSuccess, existingServices }) => {
+const GenerateServicesModal = ({
+  isOpen,
+  onClose,
+  selectedYear,
+  onSuccess,
+  existingServices,
+}) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
@@ -33,22 +39,26 @@ const GenerateServicesModal = ({ isOpen, onClose, selectedYear, onSuccess, exist
       // Simulate progress for better UX
       setProgress(10);
 
-      const response = await fetchWithTimeout('/api/service-calendar/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetchWithTimeout(
+        "/api/service-calendar/generate",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            year: selectedYear,
+            overwrite: overwrite,
+          }),
         },
-        body: JSON.stringify({
-          year: selectedYear,
-          overwrite: overwrite
-        }),
-      }, 30000); // 30 second timeout for generation
+        30000,
+      ); // 30 second timeout for generation
 
       setProgress(90);
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate services');
+        throw new Error(errorData.error || "Failed to generate services");
       }
 
       const data = await response.json();
@@ -60,9 +70,8 @@ const GenerateServicesModal = ({ isOpen, onClose, selectedYear, onSuccess, exist
       setTimeout(() => {
         onSuccess();
       }, 2000);
-
     } catch (err) {
-      console.error('Error generating services:', err);
+      console.error("Error generating services:", err);
       setError(err.message);
       setProgress(0);
     } finally {
@@ -104,7 +113,8 @@ const GenerateServicesModal = ({ isOpen, onClose, selectedYear, onSuccess, exist
                 Success!
               </h3>
               <p className="text-gray-600 mb-6">
-                Successfully generated {generatedData?.metadata?.totalServices} services for {selectedYear}
+                Successfully generated {generatedData?.metadata?.totalServices}{" "}
+                services for {selectedYear}
               </p>
               {generatedData?.metadata && (
                 <div className="grid grid-cols-3 gap-4 mb-6 max-w-md mx-auto">
@@ -163,14 +173,18 @@ const GenerateServicesModal = ({ isOpen, onClose, selectedYear, onSuccess, exist
               {existingServices > 0 && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
                   <div className="flex items-start gap-3">
-                    <AlertTriangle className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
+                    <AlertTriangle
+                      className="text-yellow-600 flex-shrink-0 mt-0.5"
+                      size={20}
+                    />
                     <div>
                       <h4 className="font-semibold text-yellow-900 mb-1">
                         Services Already Exist
                       </h4>
                       <p className="text-sm text-yellow-700 mb-3">
-                        {existingServices} services found for {selectedYear}. 
-                        Choose whether to keep existing services or overwrite them.
+                        {existingServices} services found for {selectedYear}.
+                        Choose whether to keep existing services or overwrite
+                        them.
                       </p>
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
@@ -195,37 +209,69 @@ const GenerateServicesModal = ({ isOpen, onClose, selectedYear, onSuccess, exist
                   </h3>
                   <ul className="space-y-2 text-sm text-gray-600">
                     <li className="flex items-start gap-2">
-                      <Check className="text-green-600 flex-shrink-0 mt-0.5" size={16} />
-                      <span>All 52 Sundays of the year with proper liturgical seasons</span>
+                      <Check
+                        className="text-green-600 flex-shrink-0 mt-0.5"
+                        size={16}
+                      />
+                      <span>
+                        All 52 Sundays of the year with proper liturgical
+                        seasons
+                      </span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <Check className="text-green-600 flex-shrink-0 mt-0.5" size={16} />
-                      <span>Special weekday services (Ash Wednesday, Maundy Thursday, Good Friday, etc.)</span>
+                      <Check
+                        className="text-green-600 flex-shrink-0 mt-0.5"
+                        size={16}
+                      />
+                      <span>
+                        Special weekday services (Ash Wednesday, Maundy
+                        Thursday, Good Friday, etc.)
+                      </span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <Check className="text-green-600 flex-shrink-0 mt-0.5" size={16} />
-                      <span>5 midweek Lenten services (Wednesdays during Lent)</span>
+                      <Check
+                        className="text-green-600 flex-shrink-0 mt-0.5"
+                        size={16}
+                      />
+                      <span>
+                        5 midweek Lenten services (Wednesdays during Lent)
+                      </span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <Check className="text-green-600 flex-shrink-0 mt-0.5" size={16} />
+                      <Check
+                        className="text-green-600 flex-shrink-0 mt-0.5"
+                        size={16}
+                      />
                       <span>Thanksgiving Eve and Christmas Eve services</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <Check className="text-green-600 flex-shrink-0 mt-0.5" size={16} />
-                      <span>Automatic liturgical season and color assignments</span>
+                      <Check
+                        className="text-green-600 flex-shrink-0 mt-0.5"
+                        size={16}
+                      />
+                      <span>
+                        Automatic liturgical season and color assignments
+                      </span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <Check className="text-green-600 flex-shrink-0 mt-0.5" size={16} />
-                      <span>Special day detection (Easter, Pentecost, Reformation, etc.)</span>
+                      <Check
+                        className="text-green-600 flex-shrink-0 mt-0.5"
+                        size={16}
+                      />
+                      <span>
+                        Special day detection (Easter, Pentecost, Reformation,
+                        etc.)
+                      </span>
                     </li>
                   </ul>
                 </div>
 
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <p className="text-sm text-blue-800">
-                    <strong>Note:</strong> Expected to generate approximately 63 services 
-                    (52 Sundays + 11 special weekdays). Generation uses the Computus algorithm 
-                    to calculate Easter and all moveable feasts accurately.
+                    <strong>Note:</strong> Expected to generate approximately 63
+                    services (52 Sundays + 11 special weekdays). Generation uses
+                    the Computus algorithm to calculate Easter and all moveable
+                    feasts accurately.
                   </p>
                 </div>
               </div>
@@ -233,7 +279,10 @@ const GenerateServicesModal = ({ isOpen, onClose, selectedYear, onSuccess, exist
               {error && (
                 <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
                   <div className="flex items-start gap-3">
-                    <AlertTriangle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
+                    <AlertTriangle
+                      className="text-red-600 flex-shrink-0 mt-0.5"
+                      size={20}
+                    />
                     <div>
                       <h4 className="font-semibold text-red-900 mb-1">Error</h4>
                       <p className="text-sm text-red-700">{error}</p>

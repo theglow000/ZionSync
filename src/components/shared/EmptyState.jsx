@@ -1,11 +1,11 @@
-import React from 'react';
+import React from "react";
 
 /**
  * EmptyState Component
- * 
+ *
  * A reusable component for displaying empty state messages consistently across the app.
  * Shows an icon, title, descriptive message, and optional action button.
- * 
+ *
  * @param {Object} props - Component props
  * @param {React.ComponentType} props.icon - Lucide icon component to display
  * @param {string} props.title - Main heading text
@@ -15,7 +15,7 @@ import React from 'react';
  * @param {string} [props.className] - Additional CSS classes
  * @param {string} [props.iconColor] - Icon color (default: 'text-gray-400')
  * @param {string} [props.size] - Size variant: 'sm', 'md', 'lg' (default: 'md')
- * 
+ *
  * @example
  * <EmptyState
  *   icon={Search}
@@ -31,33 +31,33 @@ const EmptyState = ({
   message,
   action,
   actionText,
-  className = '',
-  iconColor = 'text-gray-400',
-  size = 'md'
+  className = "",
+  iconColor = "text-gray-400",
+  size = "md",
 }) => {
   // Size configurations
   const sizeConfig = {
     sm: {
-      container: 'py-6',
-      icon: 'w-10 h-10',
-      title: 'text-base',
-      message: 'text-xs',
-      button: 'px-3 py-1.5 text-xs'
+      container: "py-6",
+      icon: "w-10 h-10",
+      title: "text-base",
+      message: "text-xs",
+      button: "px-3 py-1.5 text-xs",
     },
     md: {
-      container: 'py-8',
-      icon: 'w-12 h-12',
-      title: 'text-lg',
-      message: 'text-sm',
-      button: 'px-4 py-2 text-sm'
+      container: "py-8",
+      icon: "w-12 h-12",
+      title: "text-lg",
+      message: "text-sm",
+      button: "px-4 py-2 text-sm",
     },
     lg: {
-      container: 'py-12',
-      icon: 'w-16 h-16',
-      title: 'text-xl',
-      message: 'text-base',
-      button: 'px-5 py-2.5 text-base'
-    }
+      container: "py-12",
+      icon: "w-16 h-16",
+      title: "text-xl",
+      message: "text-base",
+      button: "px-5 py-2.5 text-base",
+    },
   };
 
   const config = sizeConfig[size] || sizeConfig.md;

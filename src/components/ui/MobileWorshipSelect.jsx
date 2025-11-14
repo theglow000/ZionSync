@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, UserCircle } from 'lucide-react';
+import React from "react";
+import { X, UserCircle } from "lucide-react";
 
 const MobileWorshipSelect = ({
   showSelector,
@@ -9,16 +9,17 @@ const MobileWorshipSelect = ({
   setCurrentUser,
 }) => {
   // Filter users similar to the desktop view
-  const filteredUsers = availableUsers.filter(user => (
-    // Only show individual users and worship leader
-    (user.role === 'leader' || (!user.name.includes('&') && !user.role)) &&
-    // Exclude special groups
-    user.role !== 'special' &&
-    user.role !== 'pastor' &&
-    // Exclude specific groups by name
-    !user.name.includes('Confirmation') &&
-    !user.name.includes('Sunday School')
-  ));
+  const filteredUsers = availableUsers.filter(
+    (user) =>
+      // Only show individual users and worship leader
+      (user.role === "leader" || (!user.name.includes("&") && !user.role)) &&
+      // Exclude special groups
+      user.role !== "special" &&
+      user.role !== "pastor" &&
+      // Exclude specific groups by name
+      !user.name.includes("Confirmation") &&
+      !user.name.includes("Sunday School"),
+  );
 
   return (
     showSelector && (
@@ -34,27 +35,27 @@ const MobileWorshipSelect = ({
             </button>
           </div>
           <div className="space-y-2 max-h-80 overflow-y-auto">
-            {filteredUsers.map(user => (
+            {filteredUsers.map((user) => (
               <button
                 key={user.name}
                 onClick={() => {
                   setCurrentUser({
                     name: user.name,
                     role: user.role,
-                    color: 'bg-purple-700 bg-opacity-20'
+                    color: "bg-purple-700 bg-opacity-20",
                   });
                   setShowSelector(false);
                 }}
                 className={`w-full p-3 text-left rounded-lg transition-colors ${
                   currentUser?.name === user.name
-                    ? 'bg-purple-700 text-white'
-                    : 'bg-white text-gray-900 border border-gray-200 hover:bg-purple-50'
+                    ? "bg-purple-700 text-white"
+                    : "bg-white text-gray-900 border border-gray-200 hover:bg-purple-50"
                 }`}
               >
                 <div className="flex items-center">
                   <UserCircle className="w-5 h-5 mr-2" />
                   <span>{user.name}</span>
-                  {user.role === 'leader' && (
+                  {user.role === "leader" && (
                     <span className="text-xs ml-2 px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
                       Leader
                     </span>

@@ -18,11 +18,13 @@ ZionSync is a Next.js 15 application built with MongoDB that streamlines church 
 ## Quick Start
 
 ### Prerequisites
-- Node.js 18+ 
+
+- Node.js 18+
 - MongoDB database
 - Modern web browser
 
 ### Installation
+
 ```bash
 # Clone the repository
 git clone [repository-url]
@@ -39,6 +41,7 @@ npm run dev
 ```
 
 ### First Use
+
 1. Navigate to `http://localhost:3000`
 2. Select your team from the splash screen
 3. Add your name to the team roster
@@ -47,16 +50,19 @@ npm run dev
 ## Team Workflows
 
 ### Presentation Team
+
 - Create and manage service details
 - Assign volunteer roles
 - Coordinate with Pastor for service elements
 
-### Worship Team  
+### Worship Team
+
 - Select songs based on service themes
 - Schedule worship team members
 - Track song usage and analytics
 
 ### Audio/Video Team
+
 - Assign AV operators to services
 - Monitor service completion status
 - Manage technical requirements
@@ -64,8 +70,9 @@ npm run dev
 ## Documentation
 
 For detailed development information, see the `GuidingDocs/` folder:
+
 - **Architecture Overview**: System design and technology stack
-- **API Reference**: Complete endpoint documentation  
+- **API Reference**: Complete endpoint documentation
 - **Component Library**: UI component specifications
 - **Database Schema**: MongoDB collection definitions
 - **Liturgical Calendar**: Season detection and theming system

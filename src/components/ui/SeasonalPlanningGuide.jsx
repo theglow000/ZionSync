@@ -1,35 +1,45 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { LITURGICAL_THEMES, getSeasonThemes, getMusicalGuidance, getPracticalTips } from '../../data/liturgical-themes.js';
-import { getCurrentSeason, getNextLiturgicalSeason, getSeasonDateRange, getSeasonProgressPercentage } from '../../lib/LiturgicalCalendarService.js';
-import { validateDate } from '../../lib/liturgical-validation.js';
-import { ChevronDown, Music, Calendar, Tag, AlertTriangle } from 'lucide-react';
-import { Button } from '../ui/button';
-import { format } from 'date-fns';
+import React, { useState, useEffect } from "react";
+import {
+  LITURGICAL_THEMES,
+  getSeasonThemes,
+  getMusicalGuidance,
+  getPracticalTips,
+} from "../../data/liturgical-themes.js";
+import {
+  getCurrentSeason,
+  getNextLiturgicalSeason,
+  getSeasonDateRange,
+  getSeasonProgressPercentage,
+} from "../../lib/LiturgicalCalendarService.js";
+import { validateDate } from "../../lib/liturgical-validation.js";
+import { ChevronDown, Music, Calendar, Tag, AlertTriangle } from "lucide-react";
+import { Button } from "../ui/button";
+import { format } from "date-fns";
 
 // Add this color mapping function at the top of the file, after imports
 const getSeasonColor = (seasonId) => {
   // Use the standardized liturgical colors from the ReferenceSongPanel
   const seasonColors = {
-    'ADVENT': '#4b0082',      // Purple/Indigo
-    'CHRISTMAS': '#b8860b',   // Darkgoldenrod (instead of white for better visibility)
-    'EPIPHANY': '#006400',    // Dark Green
-    'LENT': '#800080',        // Purple
-    'HOLY_WEEK': '#8b0000',   // Dark Red
-    'TRIDUUM': '#8b0000',     // Dark Red (same as Holy Week)
-    'EASTER': '#ffd700',      // Gold
-    'PENTECOST': '#FF4500',   // Red
-    'ORDINARY_TIME': '#008000' // Green
+    ADVENT: "#4b0082", // Purple/Indigo
+    CHRISTMAS: "#b8860b", // Darkgoldenrod (instead of white for better visibility)
+    EPIPHANY: "#006400", // Dark Green
+    LENT: "#800080", // Purple
+    HOLY_WEEK: "#8b0000", // Dark Red
+    TRIDUUM: "#8b0000", // Dark Red (same as Holy Week)
+    EASTER: "#ffd700", // Gold
+    PENTECOST: "#FF4500", // Red
+    ORDINARY_TIME: "#008000", // Green
   };
-  
-  return seasonColors[seasonId] || seasonColors['ORDINARY_TIME'];
+
+  return seasonColors[seasonId] || seasonColors["ORDINARY_TIME"];
 };
 
 // Select Dropdown Component with improved positioning
 const SelectDropdown = ({ value, onChange, options, currentSeasonId }) => {
   const [isOpen, setIsOpen] = useState(false);
-  
+
   const toggleDropdown = () => {
     setIsOpen(!isOpen);
   };
@@ -39,7 +49,7 @@ const SelectDropdown = ({ value, onChange, options, currentSeasonId }) => {
     setIsOpen(false);
   };
 
-  const selected = options.find(opt => opt.id === value) || options[0];
+  const selected = options.find((opt) => opt.id === value) || options[0];
 
   return (
     <div className="relative">
@@ -63,13 +73,13 @@ const SelectDropdown = ({ value, onChange, options, currentSeasonId }) => {
       </button>
 
       {isOpen && (
-        <div 
+        <div
           className="fixed z-50 mt-1 w-[220px] max-h-[400px] overflow-y-auto bg-white border rounded-md shadow-lg"
           style={{
-            top: 'auto',
-            right: 'auto',
-            left: window.innerWidth <= 768 ? '50%' : 'auto',
-            transform: window.innerWidth <= 768 ? 'translateX(-50%)' : 'none'
+            top: "auto",
+            right: "auto",
+            left: window.innerWidth <= 768 ? "50%" : "auto",
+            transform: window.innerWidth <= 768 ? "translateX(-50%)" : "none",
           }}
         >
           <div className="py-1">
@@ -89,7 +99,9 @@ const SelectDropdown = ({ value, onChange, options, currentSeasonId }) => {
                     <CheckIcon className="h-4 w-4 ml-2 text-green-500" />
                   )}
                   {option.id === currentSeasonId && (
-                    <span className="ml-2 text-xs text-gray-500">(Current)</span>
+                    <span className="ml-2 text-xs text-gray-500">
+                      (Current)
+                    </span>
                   )}
                 </div>
               </button>
@@ -109,13 +121,18 @@ const CheckIcon = ({ className }) => (
     viewBox="0 0 24 24"
     stroke="currentColor"
   >
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M5 13l4 4L19 7"
+    />
   </svg>
 );
 
 const SeasonalPlanningGuide = () => {
-  const [currentSeasonId, setCurrentSeasonId] = useState('ORDINARY_TIME');
-  const [selectedSeasonId, setSelectedSeasonId] = useState('ORDINARY_TIME'); // Initialize with a default value instead of null
+  const [currentSeasonId, setCurrentSeasonId] = useState("ORDINARY_TIME");
+  const [selectedSeasonId, setSelectedSeasonId] = useState("ORDINARY_TIME"); // Initialize with a default value instead of null
   const [nextSeasonId, setNextSeasonId] = useState(null);
   const [seasonProgress, setSeasonProgress] = useState({
     percentage: 0,
@@ -123,29 +140,33 @@ const SeasonalPlanningGuide = () => {
     daysElapsed: 0,
     totalDays: 0,
     startDate: null,
-    endDate: null
+    endDate: null,
   });
 
   useEffect(() => {
     try {
       const today = new Date();
-      
+
       // Validate date before calling liturgical service
       validateDate(today);
-      
+
       const season = getCurrentSeason(today);
       setCurrentSeasonId(season);
       setSelectedSeasonId(season); // Still set it to match current season on init
     } catch (error) {
-      console.error('Error initializing seasonal planning guide:', error.message);
+      console.error(
+        "Error initializing seasonal planning guide:",
+        error.message,
+      );
       // Fallback to ordinary time if validation fails
-      setCurrentSeasonId('ORDINARY_TIME');
-      setSelectedSeasonId('ORDINARY_TIME');
+      setCurrentSeasonId("ORDINARY_TIME");
+      setSelectedSeasonId("ORDINARY_TIME");
     }
   }, []);
 
   const activeSeasonId = selectedSeasonId || currentSeasonId;
-  const seasonData = LITURGICAL_THEMES[activeSeasonId] || LITURGICAL_THEMES.ORDINARY_TIME;
+  const seasonData =
+    LITURGICAL_THEMES[activeSeasonId] || LITURGICAL_THEMES.ORDINARY_TIME;
   const themeData = getSeasonThemes(activeSeasonId);
   const musicalData = getMusicalGuidance(activeSeasonId);
   const practicalTips = getPracticalTips(activeSeasonId);
@@ -161,16 +182,24 @@ const SeasonalPlanningGuide = () => {
         console.error("Error getting next liturgical season:", error);
       }
     }
-    
+
     // Calculate dates for whichever season is actively selected
     const seasonToDisplay = selectedSeasonId || currentSeasonId;
     try {
       const { startDate, endDate } = getSeasonDateRange(seasonToDisplay, today);
       if (startDate && endDate) {
         const msPerDay = 1000 * 60 * 60 * 24;
-        const totalDays = Math.round((endDate.getTime() - startDate.getTime()) / msPerDay);
-        const daysElapsed = Math.max(0, Math.round((today.getTime() - startDate.getTime()) / msPerDay));
-        const daysRemaining = Math.max(0, Math.round((endDate.getTime() - today.getTime()) / msPerDay));
+        const totalDays = Math.round(
+          (endDate.getTime() - startDate.getTime()) / msPerDay,
+        );
+        const daysElapsed = Math.max(
+          0,
+          Math.round((today.getTime() - startDate.getTime()) / msPerDay),
+        );
+        const daysRemaining = Math.max(
+          0,
+          Math.round((endDate.getTime() - today.getTime()) / msPerDay),
+        );
         const progress = getSeasonProgressPercentage(seasonToDisplay, today);
         setSeasonProgress({
           percentage: progress,
@@ -178,7 +207,7 @@ const SeasonalPlanningGuide = () => {
           daysElapsed,
           totalDays,
           startDate,
-          endDate
+          endDate,
         });
       }
     } catch (error) {
@@ -194,24 +223,29 @@ const SeasonalPlanningGuide = () => {
     .map(([id, season]) => ({
       id,
       name: season.name,
-      color: season.color
+      color: season.color,
     }))
-    .filter(season => season.id !== 'UNKNOWN' && season.id !== 'PENTECOST')
+    .filter((season) => season.id !== "UNKNOWN" && season.id !== "PENTECOST")
     .sort((a, b) => {
       // Put current season first
       if (a.id === currentSeasonId) return -1;
       if (b.id === currentSeasonId) return 1;
-      
+
       // For remaining seasons, follow liturgical calendar order from current season forward
       const liturgicalOrder = [
-        'ADVENT', 'CHRISTMAS', 'EPIPHANY', 
-        'LENT', 'HOLY_WEEK', 'TRIDUUM', 'EASTER', 
-        'ORDINARY_TIME'
+        "ADVENT",
+        "CHRISTMAS",
+        "EPIPHANY",
+        "LENT",
+        "HOLY_WEEK",
+        "TRIDUUM",
+        "EASTER",
+        "ORDINARY_TIME",
       ];
-      
+
       // Find index of current season
       const currentIndex = liturgicalOrder.indexOf(currentSeasonId);
-      
+
       // Get relative position from current season (considering circular nature)
       const getRelativePosition = (seasonId) => {
         const seasonIndex = liturgicalOrder.indexOf(seasonId);
@@ -222,7 +256,7 @@ const SeasonalPlanningGuide = () => {
         // If season comes before current in the cycle (wrap around)
         return liturgicalOrder.length + seasonIndex - currentIndex;
       };
-      
+
       // Compare based on relative position from current season
       return getRelativePosition(a.id) - getRelativePosition(b.id);
     });
@@ -247,14 +281,12 @@ const SeasonalPlanningGuide = () => {
       )}
 
       {/* Improved Header with season selector and description */}
-      <div 
-        className="rounded-lg overflow-hidden mb-6 shadow-md"
-      >
+      <div className="rounded-lg overflow-hidden mb-6 shadow-md">
         <div
           className="px-6 py-4"
           style={{
             backgroundColor: `${getSeasonColor(activeSeasonId)}20`,
-            borderTop: `6px solid ${getSeasonColor(activeSeasonId)}`
+            borderTop: `6px solid ${getSeasonColor(activeSeasonId)}`,
           }}
         >
           <div className="flex justify-between items-start">
@@ -262,16 +294,19 @@ const SeasonalPlanningGuide = () => {
               <h1 className="text-2xl font-bold flex items-center">
                 <span>{seasonData.name}</span>
                 {activeSeasonId === currentSeasonId && (
-                  <span className="ml-2 text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-800">Current Season</span>
+                  <span className="ml-2 text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-800">
+                    Current Season
+                  </span>
                 )}
               </h1>
 
               {seasonProgress.startDate && (
                 <div className="text-sm text-gray-600 mt-1 font-medium">
-                  {format(seasonProgress.startDate, 'MMM d')} – {format(seasonProgress.endDate, 'MMM d, yyyy')}
+                  {format(seasonProgress.startDate, "MMM d")} –{" "}
+                  {format(seasonProgress.endDate, "MMM d, yyyy")}
                 </div>
               )}
-              
+
               {/* Integrated season description */}
               <p className="text-sm text-gray-700 mt-3 leading-relaxed">
                 {seasonData.description}
@@ -293,7 +328,7 @@ const SeasonalPlanningGuide = () => {
         {activeSeasonId === currentSeasonId && nextSeasonId && (
           <div
             className="px-6 py-3 border-t flex items-center justify-between"
-            style={{ backgroundColor: 'rgba(255, 255, 255, 0.9)' }}
+            style={{ backgroundColor: "rgba(255, 255, 255, 0.9)" }}
           >
             <div className="flex items-center">
               <div className="flex items-center mr-3">
@@ -301,11 +336,17 @@ const SeasonalPlanningGuide = () => {
                   className="w-3 h-3 rounded-full mr-2"
                   style={{ backgroundColor: getSeasonColor(nextSeasonId) }}
                 ></div>
-                <span className="font-medium text-sm">{LITURGICAL_THEMES[nextSeasonId]?.name}</span>
+                <span className="font-medium text-sm">
+                  {LITURGICAL_THEMES[nextSeasonId]?.name}
+                </span>
               </div>
 
               <span className="text-sm text-gray-600">
-                begins in <span className="font-medium">{seasonProgress.daysRemaining}</span> days
+                begins in{" "}
+                <span className="font-medium">
+                  {seasonProgress.daysRemaining}
+                </span>{" "}
+                days
               </span>
             </div>
 
@@ -363,19 +404,25 @@ const SeasonalPlanningGuide = () => {
               <span>Music Planning Guidance</span>
             </h3>
           </div>
-          
+
           <div className="p-4">
-            <h4 className="text-xs font-semibold uppercase text-gray-500 mb-3">Key Elements to Include</h4>
+            <h4 className="text-xs font-semibold uppercase text-gray-500 mb-3">
+              Key Elements to Include
+            </h4>
             <ul className="space-y-2 mb-6">
               {musicalData?.keyElements.map((element, i) => (
                 <li key={i} className="text-sm flex items-start">
                   <span className="text-purple-600 mr-2 mt-0.5 text-lg">•</span>
-                  <span className="text-gray-800 leading-relaxed">{element}</span>
+                  <span className="text-gray-800 leading-relaxed">
+                    {element}
+                  </span>
                 </li>
               ))}
             </ul>
 
-            <h4 className="text-xs font-semibold uppercase text-gray-500 mb-3">Practical Implementation</h4>
+            <h4 className="text-xs font-semibold uppercase text-gray-500 mb-3">
+              Practical Implementation
+            </h4>
             <ul className="space-y-2">
               {practicalTips?.map((tip, i) => (
                 <li key={i} className="text-sm flex items-start">
@@ -395,9 +442,11 @@ const SeasonalPlanningGuide = () => {
               <span>Theological Themes</span>
             </h3>
           </div>
-          
+
           <div className="p-4">
-            <h4 className="text-xs font-semibold uppercase text-gray-500 mb-3">Primary Themes</h4>
+            <h4 className="text-xs font-semibold uppercase text-gray-500 mb-3">
+              Primary Themes
+            </h4>
             <ul className="space-y-2 mb-6">
               {themeData?.primaryThemes.map((theme, i) => (
                 <li key={i} className="text-sm flex items-start">
@@ -407,7 +456,9 @@ const SeasonalPlanningGuide = () => {
               ))}
             </ul>
 
-            <h4 className="text-xs font-semibold uppercase text-gray-500 mb-3">Secondary Themes</h4>
+            <h4 className="text-xs font-semibold uppercase text-gray-500 mb-3">
+              Secondary Themes
+            </h4>
             <ul className="space-y-2 mb-6">
               {themeData?.secondaryThemes.map((theme, i) => (
                 <li key={i} className="text-sm flex items-start">
@@ -419,10 +470,15 @@ const SeasonalPlanningGuide = () => {
 
             {themeData?.scriptureThemes?.length > 0 && (
               <div>
-                <h4 className="text-xs font-semibold uppercase text-gray-500 mb-3">Key Scripture References</h4>
+                <h4 className="text-xs font-semibold uppercase text-gray-500 mb-3">
+                  Key Scripture References
+                </h4>
                 <div className="grid grid-cols-3 gap-2">
                   {themeData?.scriptureThemes.map((item, i) => (
-                    <div key={i} className="text-sm bg-gray-50 px-2 py-1 rounded border border-gray-100 text-center">
+                    <div
+                      key={i}
+                      className="text-sm bg-gray-50 px-2 py-1 rounded border border-gray-100 text-center"
+                    >
                       {item.reference}
                     </div>
                   ))}
@@ -432,17 +488,23 @@ const SeasonalPlanningGuide = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Improved progress bar with better visual presentation */}
       {activeSeasonId === currentSeasonId && seasonProgress.startDate && (
         <div className="bg-white border border-gray-200 rounded-md p-4 shadow-sm">
           <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
             <div className="flex items-center">
               <Calendar className="h-4 w-4 mr-2" />
-              <span className="font-medium">Season Progress: <span className="text-blue-600">{Math.round(seasonProgress.percentage)}%</span></span>
+              <span className="font-medium">
+                Season Progress:{" "}
+                <span className="text-blue-600">
+                  {Math.round(seasonProgress.percentage)}%
+                </span>
+              </span>
             </div>
             <div className="bg-gray-100 px-3 py-1 rounded-full text-xs font-medium">
-              {seasonProgress.daysRemaining} days remaining ({seasonProgress.daysElapsed} elapsed)
+              {seasonProgress.daysRemaining} days remaining (
+              {seasonProgress.daysElapsed} elapsed)
             </div>
           </div>
 
@@ -451,19 +513,24 @@ const SeasonalPlanningGuide = () => {
               className="h-full rounded-full transition-all duration-500 ease-in-out"
               style={{
                 width: `${seasonProgress.percentage}%`,
-                backgroundColor: getSeasonColor(seasonData.id || activeSeasonId)
+                backgroundColor: getSeasonColor(
+                  seasonData.id || activeSeasonId,
+                ),
               }}
             ></div>
           </div>
-          
+
           <div className="flex justify-between text-xs mt-2 text-gray-500">
             <div className="flex items-center">
               <div className="w-2 h-2 rounded-full mr-1 bg-gray-400"></div>
-              <span>Start: {format(seasonProgress.startDate, 'MMM d')}</span>
+              <span>Start: {format(seasonProgress.startDate, "MMM d")}</span>
             </div>
             <div className="flex items-center">
-              <div className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: seasonData.color }}></div>
-              <span>End: {format(seasonProgress.endDate, 'MMM d')}</span>
+              <div
+                className="w-2 h-2 rounded-full mr-1"
+                style={{ backgroundColor: seasonData.color }}
+              ></div>
+              <span>End: {format(seasonProgress.endDate, "MMM d")}</span>
             </div>
           </div>
         </div>

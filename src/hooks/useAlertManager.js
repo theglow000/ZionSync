@@ -1,10 +1,10 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { ALERT_DURATION } from '../lib/constants';
+import { useState, useCallback, useRef, useEffect } from "react";
+import { ALERT_DURATION } from "../lib/constants";
 
 /**
  * Custom hook for managing alert/notification state across components
  * Provides consistent alert behavior with auto-dismiss and position management
- * 
+ *
  * @returns {Object} Alert state and management functions
  * @property {boolean} showAlert - Whether alert is currently visible
  * @property {string} alertMessage - Current alert message text
@@ -16,7 +16,7 @@ import { ALERT_DURATION } from '../lib/constants';
  */
 export const useAlertManager = () => {
   const [showAlert, setShowAlert] = useState(false);
-  const [alertMessage, setAlertMessage] = useState('');
+  const [alertMessage, setAlertMessage] = useState("");
   const [alertPosition, setAlertPosition] = useState({ x: 0, y: 0 });
   const timeoutRef = useRef(null);
 
@@ -35,24 +35,27 @@ export const useAlertManager = () => {
    * @param {number} duration - Duration in ms (default from ALERT_DURATION constant)
    * @param {Object} position - Optional position {x, y} for alert
    */
-  const showAlertWithTimeout = useCallback((message, duration = ALERT_DURATION, position = null) => {
-    // Clear any existing timeout
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
+  const showAlertWithTimeout = useCallback(
+    (message, duration = ALERT_DURATION, position = null) => {
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
 
-    setAlertMessage(message);
-    if (position) {
-      setAlertPosition(position);
-    }
-    setShowAlert(true);
+      setAlertMessage(message);
+      if (position) {
+        setAlertPosition(position);
+      }
+      setShowAlert(true);
 
-    // Auto-dismiss after duration
-    timeoutRef.current = setTimeout(() => {
-      setShowAlert(false);
-      timeoutRef.current = null;
-    }, duration);
-  }, []);
+      // Auto-dismiss after duration
+      timeoutRef.current = setTimeout(() => {
+        setShowAlert(false);
+        timeoutRef.current = null;
+      }, duration);
+    },
+    [],
+  );
 
   /**
    * Manually hide the alert (keeps message for potential re-show)
@@ -74,7 +77,7 @@ export const useAlertManager = () => {
       timeoutRef.current = null;
     }
     setShowAlert(false);
-    setAlertMessage('');
+    setAlertMessage("");
   }, []);
 
   return {

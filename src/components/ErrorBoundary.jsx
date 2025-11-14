@@ -1,12 +1,12 @@
-import React from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import React from "react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 
 /**
  * ErrorBoundary Component
- * 
+ *
  * Catches JavaScript errors anywhere in the child component tree,
  * logs the errors, and displays a fallback UI instead of crashing.
- * 
+ *
  * @example
  * <ErrorBoundary>
  *   <YourComponent />
@@ -15,10 +15,10 @@ import { AlertTriangle, RefreshCw } from 'lucide-react';
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { 
-      hasError: false, 
+    this.state = {
+      hasError: false,
       error: null,
-      errorInfo: null
+      errorInfo: null,
     };
   }
 
@@ -29,14 +29,14 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     // Log the error to console for debugging
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
-    
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
+
     // You can also log the error to an error reporting service here
     // logErrorToService(error, errorInfo);
-    
+
     this.setState({
       error,
-      errorInfo
+      errorInfo,
     });
   }
 
@@ -48,7 +48,7 @@ class ErrorBoundary extends React.Component {
     this.setState({
       hasError: false,
       error: null,
-      errorInfo: null
+      errorInfo: null,
     });
   };
 
@@ -71,12 +71,12 @@ class ErrorBoundary extends React.Component {
 
             {/* Error Message */}
             <p className="text-gray-600 mb-6">
-              The application encountered an unexpected error. 
-              Please try reloading the page.
+              The application encountered an unexpected error. Please try
+              reloading the page.
             </p>
 
             {/* Error Details (Development Only) */}
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {process.env.NODE_ENV === "development" && this.state.error && (
               <details className="mb-6 text-left">
                 <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700 mb-2">
                   Show Error Details
@@ -105,7 +105,7 @@ class ErrorBoundary extends React.Component {
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Reload Page
               </button>
-              
+
               <button
                 onClick={this.handleReset}
                 className="inline-flex items-center justify-center px-6 py-2.5 bg-gray-200 text-gray-700 rounded-lg 

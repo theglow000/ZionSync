@@ -1,21 +1,21 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback } from "react";
 
 /**
  * Custom hook for polling/repeatedly executing a function at a specified interval
  * Automatically handles cleanup and supports pause/resume functionality
- * 
+ *
  * @param {Function} callback - Function to execute on each interval
  * @param {number} interval - Polling interval in milliseconds
  * @param {Object} options - Configuration options
  * @param {boolean} options.enabled - Whether polling is enabled (default: true)
  * @param {boolean} options.immediate - Whether to execute callback immediately on mount (default: true)
  * @param {Array} options.dependencies - Array of dependencies that trigger polling restart (default: [])
- * 
+ *
  * @returns {Object} Object containing:
  *   - start: Function to manually start polling
  *   - stop: Function to manually stop polling
  *   - isActive: Boolean indicating if polling is currently active
- * 
+ *
  * @example
  * const { start, stop, isActive } = usePolling(
  *   async () => {
@@ -30,16 +30,8 @@ import { useEffect, useRef, useCallback } from 'react';
  *   }
  * );
  */
-export const usePolling = (
-  callback,
-  interval,
-  options = {}
-) => {
-  const {
-    enabled = true,
-    immediate = true,
-    dependencies = []
-  } = options;
+export const usePolling = (callback, interval, options = {}) => {
+  const { enabled = true, immediate = true, dependencies = [] } = options;
 
   const intervalRef = useRef(null);
   const callbackRef = useRef(callback);
@@ -91,7 +83,7 @@ export const usePolling = (
   return {
     start,
     stop,
-    isActive: isActiveRef.current
+    isActive: isActiveRef.current,
   };
 };
 

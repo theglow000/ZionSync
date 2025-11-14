@@ -3,6 +3,7 @@
 # ZionSync Troubleshooting Guide
 
 ## Overview
+
 This guide provides solutions to common issues encountered when developing, running, or using ZionSync. Issues are organized by category for quick resolution.
 
 ## Development Issues
@@ -10,11 +11,13 @@ This guide provides solutions to common issues encountered when developing, runn
 ### MongoDB Connection Problems
 
 **Problem**: Application fails to connect to MongoDB database
+
 ```
 Error: MongoServerError: Authentication failed
 ```
 
 **Investigation Steps**:
+
 ```powershell
 # Check MongoDB connection string format
 echo $env:MONGODB_URI
@@ -27,6 +30,7 @@ ls .env.local
 ```
 
 **Common Solutions**:
+
 - Verify MongoDB connection string in `.env.local`
 - Ensure database user has proper permissions
 - Check network connectivity to MongoDB instance
@@ -35,11 +39,13 @@ ls .env.local
 ### Build/Compilation Errors
 
 **Problem**: Next.js build fails with import/export errors
+
 ```
 Error: Cannot use import statement outside a module
 ```
 
 **Investigation Steps**:
+
 ```powershell
 # Check package.json module configuration
 Get-Content package.json | Select-String '"type"'
@@ -49,6 +55,7 @@ grep -r "import.*from.*\." src/
 ```
 
 **Solutions**:
+
 - Ensure `"type": "module"` is set in package.json
 - Add `.js` extensions to local file imports
 - Check for mixed CommonJS/ESM usage
@@ -58,6 +65,7 @@ grep -r "import.*from.*\." src/
 **Problem**: Components not displaying correctly or throwing React errors
 
 **Investigation Steps**:
+
 ```powershell
 # Check browser console for errors
 # Verify component imports
@@ -68,6 +76,7 @@ npm ls
 ```
 
 **Solutions**:
+
 - Verify all component imports use correct paths with `@/` alias
 - Ensure all required props are passed to components
 - Check for missing key props in mapped components
@@ -80,11 +89,13 @@ npm ls
 **Problem**: Services don't appear or show outdated information
 
 **Investigation Steps**:
+
 - Check browser network tab for failed API requests
 - Verify database collections have expected data
 - Test API endpoints directly: `GET /api/service-details`
 
 **Solutions**:
+
 - Clear browser cache and localStorage
 - Verify date format matches expected M/D/YY pattern
 - Check MongoDB collection names match schema documentation
@@ -95,11 +106,13 @@ npm ls
 **Problem**: Songs not appearing in search or duplicates not detected
 
 **Investigation Steps**:
+
 - Test song search API: `GET /api/songs?search=term`
 - Check song collection data structure
 - Verify SongMatcher algorithm is functioning
 
 **Solutions**:
+
 - Rebuild song search index if needed
 - Check string similarity thresholds in SongMatcher
 - Verify song data has required fields (title, artist, etc.)
@@ -110,12 +123,14 @@ npm ls
 **Problem**: Wrong seasonal colors or themes displayed
 
 **Investigation Steps**:
+
 ```powershell
 # Test liturgical calculation for specific date
 node -e "const service = require('./src/lib/LiturgicalCalendarService.js'); console.log(service.getCurrentSeason('6/29/25'));"
 ```
 
 **Solutions**:
+
 - Verify date format matches service expectations
 - Check Easter calculation algorithm for current year
 - Confirm seasonal date ranges in LiturgicalSeasons.js
@@ -128,11 +143,13 @@ node -e "const service = require('./src/lib/LiturgicalCalendarService.js'); cons
 **Problem**: Interface doesn't work properly on mobile devices
 
 **Investigation Steps**:
+
 - Test with Chrome DevTools device emulation
 - Check useResponsive hook implementation
 - Verify Tailwind responsive classes are applied
 
 **Solutions**:
+
 - Ensure mobile breakpoints use appropriate Tailwind classes
 - Check touch event handling for mobile interactions
 - Verify viewport meta tag is properly configured
@@ -143,6 +160,7 @@ node -e "const service = require('./src/lib/LiturgicalCalendarService.js'); cons
 **Problem**: Application loads slowly or feels unresponsive
 
 **Investigation Steps**:
+
 ```powershell
 # Check bundle size
 npm run build
@@ -153,6 +171,7 @@ npm run analyze  # if bundle analyzer is configured
 ```
 
 **Solutions**:
+
 - Implement code splitting for large components
 - Optimize MongoDB queries with proper indexing
 - Use React.memo for expensive components
@@ -166,6 +185,7 @@ npm run analyze  # if bundle analyzer is configured
 **Problem**: Teams see inconsistent or outdated service information
 
 **Solutions**:
+
 - Implement proper data refresh mechanisms
 - Check API caching strategies
 - Verify real-time update mechanisms
@@ -176,6 +196,7 @@ npm run analyze  # if bundle analyzer is configured
 **Problem**: Team members can't access their designated sections
 
 **Solutions**:
+
 - Verify team assignment logic
 - Check user role validation
 - Ensure proper team-based data filtering
@@ -186,6 +207,7 @@ npm run analyze  # if bundle analyzer is configured
 ### Critical Service Day Issues
 
 **High Priority Steps**:
+
 1. Check if core API endpoints respond: `/api/service-details`
 2. Verify database connectivity
 3. Test basic team workflows (add service, select songs, assign AV)
@@ -194,6 +216,7 @@ npm run analyze  # if bundle analyzer is configured
 ### Database Recovery
 
 **If MongoDB data is corrupted**:
+
 1. Stop the application
 2. Restore from most recent backup
 3. Verify data integrity with test queries
@@ -221,7 +244,9 @@ npm run analyze  # if bundle analyzer is configured
    - Recent changes or updates made
 
 ### Debug Mode
+
 Enable verbose logging by setting environment variable:
+
 ```powershell
 $env:DEBUG = "zionsync:*"
 npm run dev

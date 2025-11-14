@@ -1,9 +1,11 @@
 # Testing Strategy Guide
 
 ## Overview
+
 ZionSync implements a comprehensive, multi-layered testing strategy designed to ensure reliability, performance, and liturgical accuracy across all system components. The testing approach prioritizes component stability, API reliability, and user workflow validation.
 
 ## Table of Contents
+
 - [Testing Architecture](#testing-architecture)
 - [Configuration & Setup](#configuration--setup)
 - [Unit Testing Patterns](#unit-testing-patterns)
@@ -20,6 +22,7 @@ ZionSync implements a comprehensive, multi-layered testing strategy designed to 
 ## Testing Architecture
 
 ### Testing Pyramid
+
 ZionSync follows a well-balanced testing pyramid that emphasizes different types of tests:
 
 ```
@@ -47,6 +50,7 @@ ZionSync follows a well-balanced testing pyramid that emphasizes different types
 ```
 
 ### Test Categories
+
 1. **Unit Tests**: 70% - Fast, isolated component and function testing
 2. **Integration Tests**: 20% - API routes, database operations, service coordination
 3. **End-to-End Tests**: 10% - Complete user workflows and cross-team scenarios
@@ -54,59 +58,65 @@ ZionSync follows a well-balanced testing pyramid that emphasizes different types
 ## Configuration & Setup
 
 ### Jest Configuration
+
 **File**: `jest.config.js`
 
 ```javascript
 module.exports = {
-  testEnvironment: 'jest-environment-jsdom',
+  testEnvironment: "jest-environment-jsdom",
   transform: {
-    '^.+\\.jsx?$': ['babel-jest', { configFile: './babel.config.jest.json' }]
+    "^.+\\.jsx?$": ["babel-jest", { configFile: "./babel.config.jest.json" }],
   },
-  moduleFileExtensions: ['js', 'jsx', 'json'],
-  testMatch: [
-    '**/?(*.)+(spec|test).[jt]s?(x)'
-  ],
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  moduleFileExtensions: ["js", "jsx", "json"],
+  testMatch: ["**/?(*.)+(spec|test).[jt]s?(x)"],
+  setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
   moduleNameMapper: {
     // Handle CSS imports (with CSS modules)
-    '^.+\\.module\\.(css|sass|scss)$': 'identity-obj-proxy',
-    
+    "^.+\\.module\\.(css|sass|scss)$": "identity-obj-proxy",
+
     // Handle CSS imports (without CSS modules)
-    '^.+\\.(css|sass|scss)$': '<rootDir>/__mocks__/styleMock.js',
-    
+    "^.+\\.(css|sass|scss)$": "<rootDir>/__mocks__/styleMock.js",
+
     // Handle image imports
-    '^.+\\.(jpg|jpeg|png|gif|webp|avif|svg)$': '<rootDir>/__mocks__/fileMock.js',
-    
+    "^.+\\.(jpg|jpeg|png|gif|webp|avif|svg)$":
+      "<rootDir>/__mocks__/fileMock.js",
+
     // Handle module aliases
-    '^@/(.*)$': '<rootDir>/src/$1'
-  }
+    "^@/(.*)$": "<rootDir>/src/$1",
+  },
 };
 ```
 
 ### Babel Configuration
+
 **File**: `babel.config.jest.json`
 
 ```json
 {
   "presets": [
-    ["@babel/preset-env", {
-      "targets": {
-        "node": "current"
+    [
+      "@babel/preset-env",
+      {
+        "targets": {
+          "node": "current"
+        }
       }
-    }],
+    ],
     "@babel/preset-react"
   ]
 }
 ```
 
 ### Test Setup
+
 **File**: `jest.setup.js`
 
 ```javascript
-import '@testing-library/jest-dom';
+import "@testing-library/jest-dom";
 ```
 
 ### Dependencies
+
 **Package.json** testing dependencies:
 
 ```json
@@ -127,32 +137,34 @@ import '@testing-library/jest-dom';
 ## Unit Testing Patterns
 
 ### Component Testing
+
 ZionSync uses React Testing Library for component testing with focus on user interactions and accessibility.
 
 #### Basic Component Test Structure
-```javascript
-import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import '@testing-library/jest-dom';
-import { act } from 'react';
-import Component from './Component';
 
-describe('Component Name', () => {
+```javascript
+import React from "react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import { act } from "react";
+import Component from "./Component";
+
+describe("Component Name", () => {
   beforeEach(() => {
     // Reset mocks and state
     jest.clearAllMocks();
   });
 
-  test('renders correctly with props', () => {
+  test("renders correctly with props", () => {
     render(<Component prop="value" />);
-    expect(screen.getByText('Expected Text')).toBeInTheDocument();
+    expect(screen.getByText("Expected Text")).toBeInTheDocument();
   });
 
-  test('handles user interactions', async () => {
+  test("handles user interactions", async () => {
     render(<Component onAction={mockAction} />);
-    
-    fireEvent.click(screen.getByRole('button'));
-    
+
+    fireEvent.click(screen.getByRole("button"));
+
     await waitFor(() => {
       expect(mockAction).toHaveBeenCalled();
     });
@@ -161,129 +173,141 @@ describe('Component Name', () => {
 ```
 
 #### QuickAddModal Test Example
+
 **File**: `src/components/ui/QuickAddModal.test.jsx`
 
 ```javascript
-describe('QuickAddModal Component', () => {
+describe("QuickAddModal Component", () => {
   beforeEach(() => {
     fetch.mockClear();
     confirm.mockClear();
-    
+
     // Mock successful responses for API calls
     fetch.mockImplementation((url) => {
-      if (url.includes('/api/services/upcoming')) {
+      if (url.includes("/api/services/upcoming")) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ services: mockUpcomingServices })
+          json: () => Promise.resolve({ services: mockUpcomingServices }),
         });
       }
       // Additional URL handlers...
     });
   });
 
-  test('loads upcoming services on open', async () => {
-    const mockSong = { 
-      _id: 'song1', 
-      title: 'Test Song', 
-      type: 'hymn'
+  test("loads upcoming services on open", async () => {
+    const mockSong = {
+      _id: "song1",
+      title: "Test Song",
+      type: "hymn",
     };
-    
+
     await act(async () => {
       render(
-        <QuickAddModal 
-          isOpen={true}
-          onClose={() => {}}
-          song={mockSong}
-        />
+        <QuickAddModal isOpen={true} onClose={() => {}} song={mockSong} />,
       );
     });
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith('/api/services/upcoming', expect.any(Object));
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/services/upcoming",
+        expect.any(Object),
+      );
     });
-    
-    const serviceElements = await screen.findAllByText('Sunday Service');
+
+    const serviceElements = await screen.findAllByText("Sunday Service");
     expect(serviceElements.length).toBeGreaterThan(0);
   });
 });
 ```
 
 ### Library Testing
+
 Testing business logic and algorithms with comprehensive test cases.
 
 #### SongSuggestionEngine Test Example
+
 **File**: `src/lib/SongSuggestionEngine.test.js`
 
 ```javascript
-describe('SongSuggestionEngine', () => {
+describe("SongSuggestionEngine", () => {
   let engine;
-  
+
   const mockSongs = [
-    { _id: 'song1', title: 'Amazing Grace', type: 'hymn', seasonalTags: ['Lent', 'Easter'] },
-    { _id: 'song2', title: 'How Great Thou Art', type: 'hymn', seasonalTags: ['Pentecost', 'Ordinary'] }
+    {
+      _id: "song1",
+      title: "Amazing Grace",
+      type: "hymn",
+      seasonalTags: ["Lent", "Easter"],
+    },
+    {
+      _id: "song2",
+      title: "How Great Thou Art",
+      type: "hymn",
+      seasonalTags: ["Pentecost", "Ordinary"],
+    },
   ];
-  
+
   const mockUsageData = {
-    serviceSongs: [
-      { songTitle: 'Amazing Grace', date: '2023-12-25' }
-    ],
+    serviceSongs: [{ songTitle: "Amazing Grace", date: "2023-12-25" }],
     frequency: [
-      { title: 'Amazing Grace', count: 5, lastUsed: new Date('2023-12-25') }
-    ]
+      { title: "Amazing Grace", count: 5, lastUsed: new Date("2023-12-25") },
+    ],
   };
 
   beforeEach(() => {
     engine = new SongSuggestionEngine();
     getLiturgicalInfo.mockClear();
-    getLiturgicalInfo.mockReturnValue({ 
-      season: 'Easter',
-      color: '#FFFFFF',
-      seasonName: 'Easter'
+    getLiturgicalInfo.mockReturnValue({
+      season: "Easter",
+      color: "#FFFFFF",
+      seasonName: "Easter",
     });
-    
+
     // Mock internal methods if needed
-    engine.balanceSongTypes = jest.fn(songs => songs);
-    engine.applyVarietyAlgorithm = jest.fn(songs => songs);
+    engine.balanceSongTypes = jest.fn((songs) => songs);
+    engine.applyVarietyAlgorithm = jest.fn((songs) => songs);
   });
 
-  test('returns unused songs first', async () => {
-    const result = await engine.getSuggestions({ 
-      allSongs: mockSongs, 
+  test("returns unused songs first", async () => {
+    const result = await engine.getSuggestions({
+      allSongs: mockSongs,
       usageData: mockUsageData,
-      type: 'all',
-      limit: 10
+      type: "all",
+      limit: 10,
     });
-    
+
     expect(result.length).toBeGreaterThan(0);
-    
+
     // Verify unused songs are prioritized
-    const unusedSong = result.find(s => s._id === 'song2');
+    const unusedSong = result.find((s) => s._id === "song2");
     expect(unusedSong).toBeDefined();
   });
 });
 ```
 
 ### Liturgical Accuracy Testing
+
 Critical testing for date calculations and seasonal determinations.
 
 #### LiturgicalCalendarService Test Example
+
 **File**: `src/lib/LiturgicalCalendarService.test.js`
 
 ```javascript
-describe('LiturgicalCalendarService', () => {
+describe("LiturgicalCalendarService", () => {
   beforeEach(() => {
     clearCache();
   });
 
-  describe('calculateEaster', () => {
-    test('calculates Easter 2024 correctly (leap year)', () => {
+  describe("calculateEaster", () => {
+    test("calculates Easter 2024 correctly (leap year)", () => {
       const easter2024 = calculateEaster(2024);
       expect(easter2024.getFullYear()).toBe(2024);
       expect(easter2024.getMonth()).toBe(2); // March
       expect(easter2024.getDate()).toBe(31); // March 31, 2024
     });
 
-    test('calculates Easter 2025 correctly', () => {
+    test("calculates Easter 2025 correctly", () => {
       const easter2025 = calculateEaster(2025);
       expect(easter2025.getFullYear()).toBe(2025);
       expect(easter2025.getMonth()).toBe(3); // April
@@ -291,15 +315,15 @@ describe('LiturgicalCalendarService', () => {
     });
   });
 
-  describe('getCurrentSeason', () => {
-    test('identifies Advent correctly', () => {
+  describe("getCurrentSeason", () => {
+    test("identifies Advent correctly", () => {
       const date = new Date(2025, 11, 1); // December 1, 2025
-      expect(getCurrentSeason(date)).toBe('ADVENT');
+      expect(getCurrentSeason(date)).toBe("ADVENT");
     });
 
-    test('identifies Christmas correctly', () => {
+    test("identifies Christmas correctly", () => {
       const date = new Date(2025, 11, 25); // December 25, 2025
-      expect(getCurrentSeason(date)).toBe('CHRISTMAS');
+      expect(getCurrentSeason(date)).toBe("CHRISTMAS");
     });
   });
 });
@@ -308,20 +332,22 @@ describe('LiturgicalCalendarService', () => {
 ## Integration Testing Approach
 
 ### Database Integration Testing
+
 Tests that verify service integration with MongoDB operations.
 
 #### LiturgicalCalendarService Integration Test
+
 **File**: `src/lib/LiturgicalCalendarService.integration.test.js`
 
 ```javascript
 // Service Details collection mock
 const mockServiceDetailsCollection = {
   findOne: jest.fn(),
-  updateOne: jest.fn()
+  updateOne: jest.fn(),
 };
 
 // Mock MongoDB client for integration testing
-jest.mock('@/lib/mongodb', () => {
+jest.mock("@/lib/mongodb", () => {
   const mockDb = {
     collection: jest.fn().mockImplementation((collectionName) => {
       if (collectionName === "serviceDetails") {
@@ -329,48 +355,53 @@ jest.mock('@/lib/mongodb', () => {
       }
       return {
         findOne: jest.fn(),
-        updateOne: jest.fn()
+        updateOne: jest.fn(),
       };
-    })
+    }),
   };
-  
+
   const mockClient = {
-    db: jest.fn().mockReturnValue(mockDb)
+    db: jest.fn().mockReturnValue(mockDb),
   };
-  
+
   return {
     __esModule: true,
     default: Promise.resolve(mockClient),
     _mockClient: mockClient,
-    _mockDb: mockDb
+    _mockDb: mockDb,
   };
 });
 
-describe('LiturgicalCalendarService Integration', () => {
+describe("LiturgicalCalendarService Integration", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
-  
-  test('enhances Christmas service with correct liturgical information', async () => {
+
+  test("enhances Christmas service with correct liturgical information", async () => {
     mockServiceDetailsCollection.findOne.mockResolvedValueOnce({
       date: "12/25/24",
       title: "Christmas Day Service",
-      elements: []
+      elements: [],
     });
-    
-    mockServiceDetailsCollection.updateOne.mockResolvedValueOnce({ modifiedCount: 1 });
-    
+
+    mockServiceDetailsCollection.updateOne.mockResolvedValueOnce({
+      modifiedCount: 1,
+    });
+
     const enhancedService = await enhanceServiceWithLiturgicalInfo("12/25/24");
-    
+
     // Verify database queries
-    expect(mockClient.db).toHaveBeenCalledWith('church');
-    expect(mockDb.collection).toHaveBeenCalledWith('serviceDetails');
-    
+    expect(mockClient.db).toHaveBeenCalledWith("church");
+    expect(mockDb.collection).toHaveBeenCalledWith("serviceDetails");
+
     // Verify liturgical enhancement
-    expect(enhancedService).toHaveProperty('liturgical');
-    expect(enhancedService.liturgical).toHaveProperty('season', 'CHRISTMAS');
-    expect(enhancedService.liturgical).toHaveProperty('color', '#D4AF37');
-    expect(enhancedService.liturgical).toHaveProperty('specialDay', 'CHRISTMAS_DAY');
+    expect(enhancedService).toHaveProperty("liturgical");
+    expect(enhancedService.liturgical).toHaveProperty("season", "CHRISTMAS");
+    expect(enhancedService.liturgical).toHaveProperty("color", "#D4AF37");
+    expect(enhancedService.liturgical).toHaveProperty(
+      "specialDay",
+      "CHRISTMAS_DAY",
+    );
   });
 });
 ```
@@ -378,24 +409,26 @@ describe('LiturgicalCalendarService Integration', () => {
 ## API Testing Strategy
 
 ### Next.js Route Testing
+
 Comprehensive testing of API endpoints with proper mocking and error handling.
 
 #### API Route Test Pattern
+
 **File**: `src/app/api/services/add-song/route.test.js`
 
 ```javascript
-import { POST } from './route';
-import { NextResponse } from 'next/server';
+import { POST } from "./route";
+import { NextResponse } from "next/server";
 
 // Mock Next.js dependencies
-jest.mock('next/server', () => ({
+jest.mock("next/server", () => ({
   NextResponse: {
-    json: jest.fn((data, options) => ({ data, options }))
-  }
+    json: jest.fn((data, options) => ({ data, options })),
+  },
 }));
 
 // MongoDB mock with factory function
-jest.mock('@/lib/mongodb.js', () => {
+jest.mock("@/lib/mongodb.js", () => {
   const mockDb = {
     collection: jest.fn().mockImplementation((collectionName) => {
       if (collectionName === "songs") {
@@ -406,101 +439,102 @@ jest.mock('@/lib/mongodb.js', () => {
                 _id: "123",
                 title: "Amazing Grace",
                 lyrics: "Amazing grace, how sweet the sound",
-                type: "hymn"
+                type: "hymn",
               });
             }
             return Promise.resolve(null);
-          })
+          }),
         };
       }
       // Additional collection handlers...
-    })
+    }),
   };
-  
+
   const mockClient = {
-    db: jest.fn().mockReturnValue(mockDb)
+    db: jest.fn().mockReturnValue(mockDb),
   };
-  
+
   return {
     __esModule: true,
     default: Promise.resolve(mockClient),
     _mockClient: mockClient,
-    _mockDb: mockDb
+    _mockDb: mockDb,
   };
 });
 
 // Console mocking for cleaner test output
-jest.spyOn(console, 'log').mockImplementation(() => {});
-jest.spyOn(console, 'error').mockImplementation(() => {});
+jest.spyOn(console, "log").mockImplementation(() => {});
+jest.spyOn(console, "error").mockImplementation(() => {});
 
-describe('POST /api/services/add-song', () => {
+describe("POST /api/services/add-song", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  test('adds a song to a service successfully', async () => {
+  test("adds a song to a service successfully", async () => {
     const mockRequest = {
       json: jest.fn().mockResolvedValue({
         songId: "123",
         serviceDate: "3/15/25",
         position: "opening",
-        notes: "Play in G"
-      })
+        notes: "Play in G",
+      }),
     };
 
     const response = await POST(mockRequest);
-    
+
     // Verify database queries
-    expect(mockClient.db).toHaveBeenCalledWith('church');
-    expect(mockDb.collection).toHaveBeenCalledWith('songs');
-    expect(mockDb.collection).toHaveBeenCalledWith('service_details');
-    
+    expect(mockClient.db).toHaveBeenCalledWith("church");
+    expect(mockDb.collection).toHaveBeenCalledWith("songs");
+    expect(mockDb.collection).toHaveBeenCalledWith("service_details");
+
     // Verify response
     expect(NextResponse.json).toHaveBeenCalled();
     expect(response).toBeDefined();
   });
 
-  test('returns 400 when required fields are missing', async () => {
+  test("returns 400 when required fields are missing", async () => {
     const mockRequest = {
       json: jest.fn().mockResolvedValue({
         songId: "123",
-        position: "opening"
+        position: "opening",
         // Missing serviceDate
-      })
+      }),
     };
 
     await POST(mockRequest);
 
     expect(NextResponse.json).toHaveBeenCalledWith(
-      { error: 'Missing required fields' },
-      { status: 400 }
+      { error: "Missing required fields" },
+      { status: 400 },
     );
   });
 
-  test('handles database errors gracefully', async () => {
+  test("handles database errors gracefully", async () => {
     mockClient.db.mockImplementationOnce(() => {
-      throw new Error('Database connection error');
+      throw new Error("Database connection error");
     });
 
     const mockRequest = {
       json: jest.fn().mockResolvedValue({
         songId: "123",
         serviceDate: "3/15/25",
-        position: "opening"
-      })
+        position: "opening",
+      }),
     };
 
     await POST(mockRequest);
 
     expect(NextResponse.json).toHaveBeenCalledWith(
       expect.objectContaining({ error: expect.any(String) }),
-      { status: 500 }
+      { status: 500 },
     );
   });
 });
 ```
 
 ### API Test Coverage
+
 Current API test coverage includes:
 
 - **Service Management**: `/api/services/add-song`, `/api/upcoming-services`
@@ -512,97 +546,99 @@ Current API test coverage includes:
 ## End-to-End Testing
 
 ### Workflow Testing
+
 Testing complete user journeys from start to finish.
 
 #### Quick Add Workflow E2E Test
+
 **File**: `src/tests/quickAddWorkflow.e2e.test.js`
 
 ```javascript
-describe('Quick Add Workflow E2E Test', () => {
+describe("Quick Add Workflow E2E Test", () => {
   const mockSongs = [
     {
-      _id: 'song1',
-      title: 'Amazing Grace',
-      type: 'hymn',
-      seasonalTags: ['Lent', 'Easter'],
+      _id: "song1",
+      title: "Amazing Grace",
+      type: "hymn",
+      seasonalTags: ["Lent", "Easter"],
       usageCount: 5,
-      lastUsed: '2023-12-01'
-    }
+      lastUsed: "2023-12-01",
+    },
   ];
 
   beforeEach(() => {
     fetch.mockClear();
     confirm.mockClear();
-    
+
     // Mock comprehensive API responses
     fetch.mockImplementation((url) => {
-      if (url === '/api/songs') {
+      if (url === "/api/songs") {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ songs: mockSongs })
+          json: () => Promise.resolve({ songs: mockSongs }),
         });
       }
-      
-      if (url === '/api/services/upcoming') {
+
+      if (url === "/api/services/upcoming") {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ services: mockUpcomingServices })
+          json: () => Promise.resolve({ services: mockUpcomingServices }),
         });
       }
-      
-      if (url.includes('quick-add')) {
+
+      if (url.includes("quick-add")) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ success: true })
+          json: () => Promise.resolve({ success: true }),
         });
       }
     });
   });
 
-  test('complete quick add workflow from song discovery to service addition', async () => {
+  test("complete quick add workflow from song discovery to service addition", async () => {
     // 1. Render SongRediscoveryPanel
     await act(async () => {
       render(<SongRediscoveryPanel />);
     });
 
     // 2. Verify songs are displayed
-    expect((await screen.findAllByText('Amazing Grace')).length).toBeGreaterThan(0);
+    expect(
+      (await screen.findAllByText("Amazing Grace")).length,
+    ).toBeGreaterThan(0);
 
     // 3. Render QuickAddModal for selected song
     const selectedSong = mockSongs[0];
-    
+
     await act(async () => {
       render(
-        <QuickAddModal 
-          isOpen={true}
-          onClose={() => {}}
-          song={selectedSong}
-        />
+        <QuickAddModal isOpen={true} onClose={() => {}} song={selectedSong} />,
       );
     });
 
     // 4. Wait for modal and services to load
     await waitFor(() => {
-      expect(screen.getByText(`Add "${selectedSong.title}" to a Service`)).toBeInTheDocument();
+      expect(
+        screen.getByText(`Add "${selectedSong.title}" to a Service`),
+      ).toBeInTheDocument();
     });
 
     // 5. Select a service
-    const serviceCard = screen.getByText('Sunday Worship');
-    
+    const serviceCard = screen.getByText("Sunday Worship");
+
     await act(async () => {
       fireEvent.click(serviceCard);
     });
 
     // 6. Select an empty position
-    const emptyPosition = await screen.findByText('Hymn of the Day');
-    
+    const emptyPosition = await screen.findByText("Hymn of the Day");
+
     await act(async () => {
       fireEvent.click(emptyPosition);
     });
 
     // 7. Verify success
     await waitFor(() => {
-      expect(screen.getByText('Song added successfully!')).toBeInTheDocument();
+      expect(screen.getByText("Song added successfully!")).toBeInTheDocument();
     });
   });
 });
@@ -611,42 +647,44 @@ describe('Quick Add Workflow E2E Test', () => {
 ## Performance Testing
 
 ### Algorithm Performance Testing
+
 Testing performance characteristics under various load conditions.
 
 #### SongSuggestionEngine Performance Test
+
 **File**: `src/lib/SongSuggestionEngine.performance.test.js`
 
 ```javascript
-describe('SongSuggestionEngine Performance', () => {
+describe("SongSuggestionEngine Performance", () => {
   // Store performance measurements
   const measurements = {};
-  
+
   // Helper to measure execution time
   const measurePerformance = async (name, fn) => {
     const start = performance.now();
     const result = await fn();
     const end = performance.now();
     const duration = end - start;
-    
+
     if (!measurements[name]) {
       measurements[name] = [];
     }
     measurements[name].push(duration);
-    
+
     return { result, duration };
   };
 
   // Test with increasing song counts
   test.each([
-    [100, 0.3],   // 100 songs, 30% with usage data
-    [500, 0.3],   // 500 songs, 30% with usage data
-    [1000, 0.3],  // 1000 songs, 30% with usage data
-    [2000, 0.3],  // 2000 songs, 30% with usage data
-  ])('scales with %i songs', async (songCount, usageFrequency) => {
+    [100, 0.3], // 100 songs, 30% with usage data
+    [500, 0.3], // 500 songs, 30% with usage data
+    [1000, 0.3], // 1000 songs, 30% with usage data
+    [2000, 0.3], // 2000 songs, 30% with usage data
+  ])("scales with %i songs", async (songCount, usageFrequency) => {
     // Generate test data
     const songs = generateSongs(songCount);
     const usageData = generateUsageData(songs, usageFrequency);
-    
+
     // Measure performance
     const { duration } = await measurePerformance(
       `scale-${songCount}`,
@@ -654,70 +692,73 @@ describe('SongSuggestionEngine Performance', () => {
         return await songSuggestionEngine.getSuggestions({
           allSongs: songs,
           usageData,
-          currentDate: new Date().toLocaleDateString('en-US'),
-          seasonId: 'Ordinary',
-          type: 'all',
+          currentDate: new Date().toLocaleDateString("en-US"),
+          seasonId: "Ordinary",
+          type: "all",
           limit: 10,
-          forceRefresh: true
+          forceRefresh: true,
         });
-      }
+      },
     );
-    
+
     // Performance expectations
     expect(duration).toBeLessThan(1000); // Should complete in less than 1 second
   });
 
   // Test caching effectiveness
-  test('caching mechanism improves performance', async () => {
+  test("caching mechanism improves performance", async () => {
     const songCount = 1000;
     const songs = generateSongs(songCount);
     const usageData = generateUsageData(songs, 0.3);
-    
+
     // First call - cold cache
     const { duration: coldDuration } = await measurePerformance(
-      'cache-cold',
+      "cache-cold",
       async () => {
         return await songSuggestionEngine.getSuggestions({
           allSongs: songs,
           usageData,
-          type: 'all',
+          type: "all",
           limit: 10,
-          forceRefresh: true
+          forceRefresh: true,
         });
-      }
+      },
     );
-    
+
     // Second call - warm cache
     const { duration: cachedDuration } = await measurePerformance(
-      'cache-warm',
+      "cache-warm",
       async () => {
         return await songSuggestionEngine.getSuggestions({
           allSongs: songs,
           usageData,
-          type: 'all',
+          type: "all",
           limit: 10,
-          forceRefresh: false
+          forceRefresh: false,
         });
-      }
+      },
     );
-    
+
     // Cache should provide performance improvement
     expect(cachedDuration).toBeLessThanOrEqual(coldDuration);
   });
 
   // Output performance results
   afterAll(() => {
-    console.log('\n--- 🚀 SongSuggestionEngine Performance Results ---');
-    
+    console.log("\n--- 🚀 SongSuggestionEngine Performance Results ---");
+
     Object.entries(measurements).forEach(([name, durations]) => {
       const avg = durations.reduce((a, b) => a + b, 0) / durations.length;
-      console.log(`${name}: ${avg.toFixed(2)}ms (average of ${durations.length} runs)`);
+      console.log(
+        `${name}: ${avg.toFixed(2)}ms (average of ${durations.length} runs)`,
+      );
     });
   });
 });
 ```
 
 ### Performance Benchmarks
+
 - **Song Suggestions**: < 1000ms for 2000+ songs
 - **Liturgical Calculations**: < 100ms for any date
 - **Database Queries**: < 500ms for typical operations
@@ -726,20 +767,25 @@ describe('SongSuggestionEngine Performance', () => {
 ## Mocking Strategies
 
 ### Asset Mocking
+
 **File**: `__mocks__/fileMock.js`
+
 ```javascript
-module.exports = 'test-file-stub';
+module.exports = "test-file-stub";
 ```
 
 **File**: `__mocks__/styleMock.js`
+
 ```javascript
 module.exports = {};
 ```
 
 ### Icon Mocking
+
 **File**: `__mocks__/lucide-react.js`
+
 ```javascript
-const mockIcon = () => 'IconSVG';
+const mockIcon = () => "IconSVG";
 
 export const Search = mockIcon;
 export const RefreshCw = mockIcon;
@@ -752,6 +798,7 @@ export default mockIcon;
 ```
 
 ### Global Mocks
+
 ```javascript
 // Fetch API mocking
 global.fetch = jest.fn();
@@ -760,36 +807,37 @@ global.fetch = jest.fn();
 global.confirm = jest.fn(() => true);
 
 // Console suppression for cleaner test output
-jest.spyOn(console, 'log').mockImplementation(() => {});
-jest.spyOn(console, 'error').mockImplementation(() => {});
+jest.spyOn(console, "log").mockImplementation(() => {});
+jest.spyOn(console, "error").mockImplementation(() => {});
 ```
 
 ### MongoDB Mocking Pattern
+
 ```javascript
-jest.mock('@/lib/mongodb', () => {
+jest.mock("@/lib/mongodb", () => {
   const mockDb = {
     collection: jest.fn().mockImplementation((collectionName) => {
       // Collection-specific mocking logic
       return {
         find: jest.fn().mockReturnValue({
-          toArray: jest.fn().mockResolvedValue([])
+          toArray: jest.fn().mockResolvedValue([]),
         }),
         findOne: jest.fn().mockResolvedValue(null),
         updateOne: jest.fn().mockResolvedValue({ modifiedCount: 1 }),
-        insertOne: jest.fn().mockResolvedValue({ insertedId: "new123" })
+        insertOne: jest.fn().mockResolvedValue({ insertedId: "new123" }),
       };
-    })
+    }),
   };
-  
+
   const mockClient = {
-    db: jest.fn().mockReturnValue(mockDb)
+    db: jest.fn().mockReturnValue(mockDb),
   };
-  
+
   return {
     __esModule: true,
     default: Promise.resolve(mockClient),
     _mockClient: mockClient,
-    _mockDb: mockDb
+    _mockDb: mockDb,
   };
 });
 ```
@@ -797,12 +845,14 @@ jest.mock('@/lib/mongodb', () => {
 ## Test Organization
 
 ### File Naming Convention
+
 - **Unit Tests**: `Component.test.jsx`, `function.test.js`
 - **Integration Tests**: `Service.integration.test.js`
 - **Performance Tests**: `Algorithm.performance.test.js`
 - **E2E Tests**: `workflow.e2e.test.js`
 
 ### Directory Structure
+
 ```
 src/
 ├── components/
@@ -823,26 +873,27 @@ src/
 ```
 
 ### Test Suite Organization
+
 ```javascript
-describe('ComponentName', () => {
+describe("ComponentName", () => {
   // Setup and mocks
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('rendering', () => {
-    test('renders with default props', () => {});
-    test('renders with custom props', () => {});
+  describe("rendering", () => {
+    test("renders with default props", () => {});
+    test("renders with custom props", () => {});
   });
 
-  describe('user interactions', () => {
-    test('handles click events', () => {});
-    test('handles form submission', () => {});
+  describe("user interactions", () => {
+    test("handles click events", () => {});
+    test("handles form submission", () => {});
   });
 
-  describe('edge cases', () => {
-    test('handles loading state', () => {});
-    test('handles error state', () => {});
+  describe("edge cases", () => {
+    test("handles loading state", () => {});
+    test("handles error state", () => {});
   });
 });
 ```
@@ -850,7 +901,9 @@ describe('ComponentName', () => {
 ## Running Tests
 
 ### Test Scripts
+
 **Package.json** scripts:
+
 ```json
 {
   "scripts": {
@@ -863,6 +916,7 @@ describe('ComponentName', () => {
 ```
 
 ### Command Line Usage
+
 ```bash
 # Run all tests
 npm test
@@ -889,6 +943,7 @@ npm test -- --verbose
 ### Test Execution Modes
 
 #### Development Mode
+
 ```bash
 # Interactive watch mode with file watching
 npm run test:watch
@@ -898,12 +953,14 @@ npm run test:coverage
 ```
 
 #### CI/CD Mode
+
 ```bash
 # Non-interactive mode for continuous integration
 npm run test:ci
 ```
 
 ### Test Filtering
+
 ```bash
 # Run only unit tests
 npm test -- --testPathPattern="\\.test\\.(js|jsx)$"
@@ -921,13 +978,16 @@ npm test -- --testPathPattern="\\.e2e\\.test\\.(js|jsx)$"
 ## Coverage & Quality Metrics
 
 ### Coverage Targets
+
 - **Overall Coverage**: > 85%
 - **Function Coverage**: > 90%
 - **Branch Coverage**: > 80%
 - **Line Coverage**: > 85%
 
 ### Critical Path Coverage
+
 **Require 100% coverage for:**
+
 - Liturgical date calculations
 - Song suggestion algorithms
 - Database operations
@@ -935,34 +995,37 @@ npm test -- --testPathPattern="\\.e2e\\.test\\.(js|jsx)$"
 - Authentication flows
 
 ### Coverage Configuration
+
 ```javascript
 // jest.config.js coverage settings
 module.exports = {
   collectCoverageFrom: [
-    'src/**/*.{js,jsx}',
-    '!src/**/*.test.{js,jsx}',
-    '!src/**/*.stories.{js,jsx}',
-    '!src/test-*.js'
+    "src/**/*.{js,jsx}",
+    "!src/**/*.test.{js,jsx}",
+    "!src/**/*.stories.{js,jsx}",
+    "!src/test-*.js",
   ],
   coverageThreshold: {
     global: {
       branches: 80,
       functions: 90,
       lines: 85,
-      statements: 85
+      statements: 85,
     },
-    './src/lib/': {
+    "./src/lib/": {
       branches: 90,
       functions: 95,
       lines: 90,
-      statements: 90
-    }
-  }
+      statements: 90,
+    },
+  },
 };
 ```
 
 ### Quality Gates
+
 **Automated quality checks:**
+
 - All tests must pass
 - Coverage thresholds must be met
 - No console errors in test output
@@ -974,9 +1037,10 @@ module.exports = {
 ### Common Test Issues
 
 #### Test Timeout Issues
+
 ```javascript
 // Increase timeout for slow operations
-test('slow operation', async () => {
+test("slow operation", async () => {
   // Test implementation
 }, 10000); // 10 second timeout
 
@@ -985,6 +1049,7 @@ jest.setTimeout(10000);
 ```
 
 #### Mock Issues
+
 ```javascript
 // Clear mocks between tests
 beforeEach(() => {
@@ -998,16 +1063,17 @@ beforeEach(() => {
 ```
 
 #### Async Testing Issues
+
 ```javascript
 // Proper async/await usage
-test('async operation', async () => {
+test("async operation", async () => {
   const result = await asyncFunction();
   expect(result).toBe(expected);
 });
 
 // waitFor for DOM updates
 await waitFor(() => {
-  expect(screen.getByText('Updated text')).toBeInTheDocument();
+  expect(screen.getByText("Updated text")).toBeInTheDocument();
 });
 
 // act wrapper for state updates
@@ -1017,6 +1083,7 @@ await act(async () => {
 ```
 
 #### Memory Leaks
+
 ```javascript
 // Proper cleanup in tests
 afterEach(() => {
@@ -1035,6 +1102,7 @@ afterEach(() => {
 ```
 
 ### Debugging Tests
+
 ```bash
 # Debug specific test
 node --inspect-brk node_modules/.bin/jest --runInBand Component.test.js
@@ -1047,6 +1115,7 @@ npm test -- --testNamePattern="specific test name"
 ```
 
 ### Performance Debugging
+
 ```javascript
 // Add performance measurements
 const start = performance.now();
@@ -1056,10 +1125,11 @@ console.log(`Test took ${end - start} milliseconds`);
 
 // Profile memory usage
 const memUsage = process.memoryUsage();
-console.log('Memory usage:', memUsage);
+console.log("Memory usage:", memUsage);
 ```
 
 ### CI/CD Integration
+
 ```yaml
 # Example GitHub Actions workflow
 name: Tests
@@ -1071,7 +1141,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
-          node-version: '18'
+          node-version: "18"
       - run: npm ci
       - run: npm run test:ci
       - uses: codecov/codecov-action@v1
@@ -1110,4 +1180,4 @@ jobs:
 
 ---
 
-*This testing strategy guide provides comprehensive coverage of ZionSync's testing approach. For specific implementation details, refer to the existing test files and the broader development documentation.*
+_This testing strategy guide provides comprehensive coverage of ZionSync's testing approach. For specific implementation details, refer to the existing test files and the broader development documentation._

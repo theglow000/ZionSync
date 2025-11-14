@@ -1,6 +1,7 @@
 # Service Calendar API Documentation
 
 ## Overview
+
 API endpoints for managing algorithmically-generated church service dates. Replaces hardcoded DATES_2025 array with database-driven service generation.
 
 ---
@@ -8,13 +9,16 @@ API endpoints for managing algorithmically-generated church service dates. Repla
 ## Endpoints
 
 ### 1. GET /api/service-calendar
+
 **Fetch services for a specific year**
 
 **Query Parameters:**
+
 - `year` (required): Year to fetch (2024-2100)
 - `includeInactive` (optional): Include overridden/inactive services (default: false)
 
 **Success Response (200):**
+
 ```json
 {
   "year": 2025,
@@ -52,6 +56,7 @@ API endpoints for managing algorithmically-generated church service dates. Repla
 ```
 
 **Error Responses:**
+
 - `400`: Invalid year parameter
 - `404`: Year not found (needs generation)
 - `500`: Server error
@@ -59,9 +64,11 @@ API endpoints for managing algorithmically-generated church service dates. Repla
 ---
 
 ### 2. POST /api/service-calendar/generate
+
 **Generate services for a new year**
 
 **Request Body:**
+
 ```json
 {
   "year": 2025,
@@ -70,6 +77,7 @@ API endpoints for managing algorithmically-generated church service dates. Repla
 ```
 
 **Success Response (201):**
+
 ```json
 {
   "success": true,
@@ -92,6 +100,7 @@ API endpoints for managing algorithmically-generated church service dates. Repla
 ```
 
 **Error Responses:**
+
 - `400`: Invalid year
 - `409`: Year already exists (set overwrite=true to replace)
 - `500`: Generation failed or validation errors
@@ -99,12 +108,15 @@ API endpoints for managing algorithmically-generated church service dates. Repla
 ---
 
 ### 3. GET /api/service-calendar/validate
+
 **Validate stored services against algorithm**
 
 **Query Parameters:**
+
 - `year` (required): Year to validate (2024-2100)
 
 **Success Response (200):**
+
 ```json
 {
   "year": 2025,
@@ -131,6 +143,7 @@ API endpoints for managing algorithmically-generated church service dates. Repla
 ```
 
 **Issue Types:**
+
 - `SERVICE_COUNT_MISMATCH`: Different number of services
 - `MISSING_SERVICE`: Service in algorithm but not in database
 - `EXTRA_SERVICE`: Service in database but not in algorithm
@@ -139,6 +152,7 @@ API endpoints for managing algorithmically-generated church service dates. Repla
 - `KEY_DATE_MISMATCH`: Key date (Easter, etc.) doesn't match
 
 **Error Responses:**
+
 - `400`: Invalid year
 - `404`: Year not found
 - `500`: Validation failed
@@ -146,9 +160,11 @@ API endpoints for managing algorithmically-generated church service dates. Repla
 ---
 
 ### 4. PATCH /api/service-calendar/override
+
 **Admin override for individual services**
 
 **Request Body:**
+
 ```json
 {
   "year": 2025,
@@ -165,12 +181,14 @@ API endpoints for managing algorithmically-generated church service dates. Repla
 ```
 
 **Allowed Override Fields:**
+
 - `seasonName`: Custom season display name
 - `seasonColor`: Custom liturgical color (hex code)
 - `specialDayName`: Custom special day name
 - `isActive`: Enable/disable service
 
 **Success Response (200):**
+
 ```json
 {
   "success": true,
@@ -194,12 +212,14 @@ API endpoints for managing algorithmically-generated church service dates. Repla
 ```
 
 **Error Responses:**
+
 - `400`: Missing required fields, invalid override fields, or invalid year
 - `404`: Year or service not found
 - `500`: Update failed
 
 **Audit Trail:**
 Every override automatically tracks:
+
 - `isOverridden`: true
 - `overrideReason`: Why the override was made
 - `overriddenBy`: User ID who made the change
@@ -210,47 +230,51 @@ Every override automatically tracks:
 ## Usage Examples
 
 ### Fetching Services for 2025
+
 ```javascript
-const response = await fetch('/api/service-calendar?year=2025');
+const response = await fetch("/api/service-calendar?year=2025");
 const data = await response.json();
 console.log(`Found ${data.services.length} services for 2025`);
 ```
 
 ### Generating Services for 2026
+
 ```javascript
-const response = await fetch('/api/service-calendar/generate', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ year: 2026, overwrite: false })
+const response = await fetch("/api/service-calendar/generate", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ year: 2026, overwrite: false }),
 });
 const data = await response.json();
 console.log(data.message);
 ```
 
 ### Validating Existing Services
+
 ```javascript
-const response = await fetch('/api/service-calendar/validate?year=2025');
+const response = await fetch("/api/service-calendar/validate?year=2025");
 const data = await response.json();
 if (!data.valid) {
-  console.error('Validation issues:', data.issues);
+  console.error("Validation issues:", data.issues);
 }
 ```
 
 ### Overriding a Service
+
 ```javascript
-const response = await fetch('/api/service-calendar/override', {
-  method: 'PATCH',
-  headers: { 'Content-Type': 'application/json' },
+const response = await fetch("/api/service-calendar/override", {
+  method: "PATCH",
+  headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
     year: 2025,
-    dateString: '12/25/25',
-    overrides: { specialDayName: 'Christmas Day Service' },
-    reason: 'Custom naming for bulletin',
-    userId: 'pastor@zion.org'
-  })
+    dateString: "12/25/25",
+    overrides: { specialDayName: "Christmas Day Service" },
+    reason: "Custom naming for bulletin",
+    userId: "pastor@zion.org",
+  }),
 });
 const data = await response.json();
-console.log('Override applied:', data.service);
+console.log("Override applied:", data.service);
 ```
 
 ---
@@ -258,29 +282,35 @@ console.log('Override applied:', data.service);
 ## Migration Path
 
 ### Step 1: Generate 2025 Services
+
 ```bash
 POST /api/service-calendar/generate
 { "year": 2025 }
 ```
 
 ### Step 2: Validate Against Pastor's Schedule
+
 ```bash
 GET /api/service-calendar/validate?year=2025
 ```
 
 ### Step 3: Update Frontend to Use New API
+
 Replace:
+
 ```javascript
-import { DATES_2025 } from '@/lib/constants';
+import { DATES_2025 } from "@/lib/constants";
 ```
 
 With:
+
 ```javascript
-const response = await fetch('/api/service-calendar?year=2025');
+const response = await fetch("/api/service-calendar?year=2025");
 const { services } = await response.json();
 ```
 
 ### Step 4: Generate Future Years
+
 ```bash
 POST /api/service-calendar/generate { "year": 2026 }
 POST /api/service-calendar/generate { "year": 2027 }
@@ -291,6 +321,7 @@ POST /api/service-calendar/generate { "year": 2027 }
 ## Algorithm Details
 
 **Services Generated:**
+
 - 52 Sundays per year
 - Ash Wednesday
 - 5 Midweek Lenten services (Wednesdays)
@@ -303,6 +334,7 @@ POST /api/service-calendar/generate { "year": 2027 }
 **Total: ~63 services per year**
 
 **Liturgical Accuracy:**
+
 - ✅ Computus algorithm for Easter calculation
 - ✅ All special days calculated relative to Easter
 - ✅ LCMC Lutheran traditions (All Saints first Sunday of November)

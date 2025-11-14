@@ -1,12 +1,26 @@
-'use client';
+"use client";
 
 // Update the import to include Cross
-import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Check, Calendar, BookOpen, MessageSquare, Music, Music2, Cross, Trash2, UserCircle, CheckCircle, Pencil } from 'lucide-react';
-import UserSelectionModal from './UserSelectionModal';
-import { useConfirm } from '../../hooks/useConfirm';
+import React, { useState } from "react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Check,
+  Calendar,
+  BookOpen,
+  MessageSquare,
+  Music,
+  Music2,
+  Cross,
+  Trash2,
+  UserCircle,
+  CheckCircle,
+  Pencil,
+} from "lucide-react";
+import UserSelectionModal from "./UserSelectionModal";
+import { useConfirm } from "../../hooks/useConfirm";
 
-const MobileServiceCard = ({ 
+const MobileServiceCard = ({
   item,
   signups,
   completed,
@@ -26,19 +40,19 @@ const MobileServiceCard = ({
   setAlertPosition,
   customServices,
   onEditService,
-  onDeleteService
+  onDeleteService,
 }) => {
   // Remove currentUser prop if it's not being used anymore
   const [expanded, setExpanded] = useState(false);
   const [showUserSelection, setShowUserSelection] = useState(false);
-  
+
   // Use confirm dialog hook
   const { confirm, ConfirmDialog } = useConfirm();
-  
+
   // Extract properties from item
   const { date, title, day } = item;
   const isCompleted = completed[date];
-  
+
   // Check if there's a user assigned to this date
   const assignedUser = signups[date];
 
@@ -46,7 +60,9 @@ const MobileServiceCard = ({
   const isDateSelected = selectedDates.includes(date);
 
   // Check for order of worship and songs
-  const hasOrderOfWorship = checkForOrderOfWorship ? checkForOrderOfWorship(date) : false;
+  const hasOrderOfWorship = checkForOrderOfWorship
+    ? checkForOrderOfWorship(date)
+    : false;
   const hasSongs = checkForSelectedSongs ? checkForSelectedSongs(date) : false;
 
   const handleExpandToggle = () => {
@@ -98,16 +114,16 @@ const MobileServiceCard = ({
   // Handle delete service button click
   const handleDeleteService = async (e) => {
     e.stopPropagation(); // Prevent card expansion
-    
+
     // Confirm before deletion
     const confirmed = await confirm({
-      title: 'Delete Service Details',
-      message: 'This action cannot be undone.',
-      variant: 'danger',
-      confirmText: 'Delete',
-      cancelText: 'Cancel'
+      title: "Delete Service Details",
+      message: "This action cannot be undone.",
+      variant: "danger",
+      confirmText: "Delete",
+      cancelText: "Cancel",
     });
-    
+
     if (confirmed) {
       if (onDeleteService) {
         onDeleteService(date);
@@ -123,36 +139,41 @@ const MobileServiceCard = ({
 
   // Add this helper function near the top of the file
   const isSongElementFullyLoaded = (element) => {
-    if (element.type !== 'song_hymn') return true;
-    
+    if (element.type !== "song_hymn") return true;
+
     // If it has selection with title, it's fully loaded
     if (element.selection?.title) return true;
-    
+
     // If the content includes only a label with colon and nothing more,
     // or it shows the placeholder text for Awaiting Song Selection,
     // then it needs worship team selection
-    const contentParts = element.content?.split(':') || [];
+    const contentParts = element.content?.split(":") || [];
     if (contentParts.length > 1) {
-      const textAfterColon = contentParts.slice(1).join(':').trim();
-      if (textAfterColon === '' || textAfterColon === ' <Awaiting Song Selection>') {
-        return 'needs-selection';
+      const textAfterColon = contentParts.slice(1).join(":").trim();
+      if (
+        textAfterColon === "" ||
+        textAfterColon === " <Awaiting Song Selection>"
+      ) {
+        return "needs-selection";
       }
       // If there's some content after colon but no selection, it might be mid-loading
       if (textAfterColon && !element.selection?.title) {
         return false; // Still loading
       }
     }
-    
+
     return true; // Default to fully loaded if we can't determine
   };
 
   return (
-    <div className={`
+    <div
+      className={`
       mb-4 rounded-lg overflow-hidden shadow-md
-      ${isCompleted ? 'bg-gray-100' : 'bg-white'}
-    `}>
+      ${isCompleted ? "bg-gray-100" : "bg-white"}
+    `}
+    >
       {/* User Selection Modal */}
-      <UserSelectionModal 
+      <UserSelectionModal
         showModal={showUserSelection}
         onClose={() => setShowUserSelection(false)}
         availableUsers={availableUsers}
@@ -163,7 +184,7 @@ const MobileServiceCard = ({
       />
 
       {/* Card Header - Always visible */}
-      <div 
+      <div
         className="flex items-center p-4 cursor-pointer"
         onClick={handleExpandToggle}
       >
@@ -174,17 +195,15 @@ const MobileServiceCard = ({
             <span className="text-sm font-medium text-gray-700 mr-2 w-[60px] flex-shrink-0">
               {date}
             </span>
-            <span className="font-medium text-black truncate">
-              {title}
-            </span>
+            <span className="font-medium text-black truncate">{title}</span>
           </div>
-          
+
           {/* Day and Assignment */}
           <div className="flex items-center mt-1">
             <span className="text-xs text-gray-500 w-[80px] flex-shrink-0">
               {day}
             </span>
-            
+
             {assignedUser ? (
               <div className="flex items-center overflow-hidden max-w-[calc(100%-85px)]">
                 <UserCircle className="w-3 h-3 text-[#6B8E23] mr-1 flex-shrink-0" />
@@ -197,7 +216,7 @@ const MobileServiceCard = ({
             )}
           </div>
         </div>
-        
+
         {/* Status Indicators */}
         <div className="flex items-center ml-2">
           <div className="flex space-x-1 mr-3">
@@ -217,7 +236,7 @@ const MobileServiceCard = ({
               </div>
             )}
           </div>
-          
+
           {/* Expand/Collapse */}
           <div className="w-6 h-6 flex items-center justify-center">
             {expanded ? (
@@ -228,7 +247,7 @@ const MobileServiceCard = ({
           </div>
         </div>
       </div>
-      
+
       {/* Expanded Content */}
       {expanded && (
         <div className="border-t border-gray-200">
@@ -240,9 +259,11 @@ const MobileServiceCard = ({
                 <button
                   onClick={openUserSelection}
                   disabled={isCompleted}
-                  className={`px-3 py-1 text-sm rounded-lg flex items-center ${isCompleted ? 
-                    'bg-gray-300 text-gray-700' : 
-                    'bg-[#6B8E23] text-white hover:bg-[#556B2F]'}`}
+                  className={`px-3 py-1 text-sm rounded-lg flex items-center ${
+                    isCompleted
+                      ? "bg-gray-300 text-gray-700"
+                      : "bg-[#6B8E23] text-white hover:bg-[#556B2F]"
+                  }`}
                 >
                   <UserCircle className="w-4 h-4 mr-1" />
                   Assign User
@@ -264,7 +285,7 @@ const MobileServiceCard = ({
                 </div>
               )}
             </div>
-            
+
             {/* Calendar Selection - Only show when assigned */}
             {assignedUser && (
               <div className="flex items-center mr-3 ml-2">
@@ -277,14 +298,15 @@ const MobileServiceCard = ({
                 <span className="text-sm text-black ml-1">Calendar</span>
               </div>
             )}
-            
+
             {/* Completed Checkbox */}
             <div className="flex items-center ml-auto">
               <button
                 onClick={handleCompleted}
-                className={`w-6 h-6 rounded border ${isCompleted
-                  ? 'bg-[#6B8E23] border-[#556B2F]'
-                  : 'bg-white border-gray-300'
+                className={`w-6 h-6 rounded border ${
+                  isCompleted
+                    ? "bg-[#6B8E23] border-[#556B2F]"
+                    : "bg-white border-gray-300"
                 } flex items-center justify-center`}
               >
                 {isCompleted && <Check className="w-4 h-4 text-white" />}
@@ -297,72 +319,116 @@ const MobileServiceCard = ({
           <div className="p-3">
             {/* Service Type Header */}
             <div className="flex items-center gap-2 mb-2">
-              <h3 className="text-sm font-medium text-[#6B8E23]">Order of Worship</h3>
+              <h3 className="text-sm font-medium text-[#6B8E23]">
+                Order of Worship
+              </h3>
               {serviceDetails[date]?.type && (
                 <span className="px-2 py-0.5 text-xs bg-gray-200 text-gray-800 rounded">
-                  {serviceDetails[date]?.type === 'communion' ? 'Communion' :
-                   serviceDetails[date]?.type === 'no_communion' ? 'No Communion' :
-                   serviceDetails[date]?.type === 'communion_potluck' ? 'Communion with Potluck' :
-                   customServices?.find(s => s.id === serviceDetails[date]?.type)?.name || 'Not Set'}
+                  {serviceDetails[date]?.type === "communion"
+                    ? "Communion"
+                    : serviceDetails[date]?.type === "no_communion"
+                      ? "No Communion"
+                      : serviceDetails[date]?.type === "communion_potluck"
+                        ? "Communion with Potluck"
+                        : customServices?.find(
+                            (s) => s.id === serviceDetails[date]?.type,
+                          )?.name || "Not Set"}
                 </span>
               )}
             </div>
-            
+
             {/* Service Elements */}
             <div className="space-y-0">
               {serviceDetails[date]?.elements?.map((element, index) => (
-                <div key={index} className="flex items-start gap-1 text-sm border-b border-gray-50 last:border-b-0 py-0.5">
-                  <div className={`p-0.5 mt-0.5 rounded flex-shrink-0 ${element.type === 'song_hymn' ? 'bg-blue-50 text-blue-600' :
-                    element.type === 'reading' ? 'bg-green-50 text-green-600' :
-                    element.type === 'message' ? 'bg-purple-50 text-purple-600' :
-                    element.type === 'liturgical_song' ? 'bg-amber-50 text-amber-600' :
-                    'bg-gray-50 text-gray-600'}`}
+                <div
+                  key={index}
+                  className="flex items-start gap-1 text-sm border-b border-gray-50 last:border-b-0 py-0.5"
+                >
+                  <div
+                    className={`p-0.5 mt-0.5 rounded flex-shrink-0 ${
+                      element.type === "song_hymn"
+                        ? "bg-blue-50 text-blue-600"
+                        : element.type === "reading"
+                          ? "bg-green-50 text-green-600"
+                          : element.type === "message"
+                            ? "bg-purple-50 text-purple-600"
+                            : element.type === "liturgical_song"
+                              ? "bg-amber-50 text-amber-600"
+                              : "bg-gray-50 text-gray-600"
+                    }`}
                   >
-                    {element.type === 'song_hymn' ? <Music className="w-3 h-3" /> :
-                     element.type === 'reading' ? <BookOpen className="w-3 h-3" /> :
-                     element.type === 'message' ? <MessageSquare className="w-3 h-3" /> :
-                     element.type === 'liturgical_song' ? <Music2 className="w-3 h-3" /> :
-                     <Cross className="w-3 h-3" />}
+                    {element.type === "song_hymn" ? (
+                      <Music className="w-3 h-3" />
+                    ) : element.type === "reading" ? (
+                      <BookOpen className="w-3 h-3" />
+                    ) : element.type === "message" ? (
+                      <MessageSquare className="w-3 h-3" />
+                    ) : element.type === "liturgical_song" ? (
+                      <Music2 className="w-3 h-3" />
+                    ) : (
+                      <Cross className="w-3 h-3" />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    {element.type === 'song_hymn' && isSongElementFullyLoaded(element) === false ? (
+                    {element.type === "song_hymn" &&
+                    isSongElementFullyLoaded(element) === false ? (
                       <>
-                        <span className="font-bold">{element.content?.split(':')?.[0]}</span>:
-                        <span className="ml-1 italic text-gray-400">Loading...</span>
+                        <span className="font-bold">
+                          {element.content?.split(":")?.[0]}
+                        </span>
+                        :
+                        <span className="ml-1 italic text-gray-400">
+                          Loading...
+                        </span>
                       </>
-                    ) : element.type === 'song_hymn' && isSongElementFullyLoaded(element) === 'needs-selection' ? (
+                    ) : element.type === "song_hymn" &&
+                      isSongElementFullyLoaded(element) ===
+                        "needs-selection" ? (
                       <>
-                        <span className="font-bold">{element.content?.split(':')?.[0]}</span>:
-                        <span className="ml-1 italic text-amber-600">Waiting for Worship Team song selection</span>
+                        <span className="font-bold">
+                          {element.content?.split(":")?.[0]}
+                        </span>
+                        :
+                        <span className="ml-1 italic text-amber-600">
+                          Waiting for Worship Team song selection
+                        </span>
                       </>
                     ) : (
                       <span className="text-sm text-black inline">
-                        {element.content?.includes(':') ? (
+                        {element.content?.includes(":") ? (
                           <>
-                            <span className="font-bold">{element.content.split(':')[0]}</span>:
-                            <span>{element.content.split(':').slice(1).join(':')}</span>
+                            <span className="font-bold">
+                              {element.content.split(":")[0]}
+                            </span>
+                            :
+                            <span>
+                              {element.content.split(":").slice(1).join(":")}
+                            </span>
                           </>
                         ) : (
                           element.content
                         )}
-                        {element.selection && (element.type === 'song_hymn' || element.type === 'song_contemporary') && (
-                          <span className="text-blue-600 font-medium ml-1 text-xs inline">
-                            {/* ...existing selection code... */}
-                          </span>
-                        )}
+                        {element.selection &&
+                          (element.type === "song_hymn" ||
+                            element.type === "song_contemporary") && (
+                            <span className="text-blue-600 font-medium ml-1 text-xs inline">
+                              {/* ...existing selection code... */}
+                            </span>
+                          )}
                       </span>
                     )}
                   </div>
                 </div>
               ))}
-              
-              {(!serviceDetails[date]?.elements || serviceDetails[date]?.elements.length === 0) && (
+
+              {(!serviceDetails[date]?.elements ||
+                serviceDetails[date]?.elements.length === 0) && (
                 <div className="text-black italic py-1 text-sm">
                   No service details available yet.
                 </div>
               )}
             </div>
-            
+
             {/* Bottom Action Buttons */}
             <div className="flex justify-between mt-3 pt-2 border-t border-gray-100">
               <button
@@ -371,7 +437,7 @@ const MobileServiceCard = ({
               >
                 Pastor Edit
               </button>
-              
+
               <button
                 onClick={handleDeleteService}
                 className="px-2 py-1 text-xs text-red-600 border border-red-600 rounded hover:bg-red-50"
@@ -382,7 +448,7 @@ const MobileServiceCard = ({
           </div>
         </div>
       )}
-      
+
       {/* Confirmation Dialog */}
       <ConfirmDialog />
     </div>

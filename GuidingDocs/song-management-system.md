@@ -1,9 +1,11 @@
 # Song Management System Guide
 
 ## Overview
+
 ZionSync's song management system is a comprehensive solution for managing the church's music library, tracking usage patterns, and facilitating song discovery. The system integrates multiple data sources, provides intelligent duplicate detection, and offers advanced analytics to optimize worship planning.
 
 ## Table of Contents
+
 - [System Architecture](#system-architecture)
 - [Database Schema](#database-schema)
 - [Usage Tracking & Analytics](#usage-tracking--analytics)
@@ -19,6 +21,7 @@ ZionSync's song management system is a comprehensive solution for managing the c
 ## System Architecture
 
 ### Core Components
+
 The song management system consists of several interconnected components:
 
 ```
@@ -44,6 +47,7 @@ The song management system consists of several interconnected components:
 ```
 
 ### Data Flow
+
 1. **Song Entry**: Songs entered via Quick-Add Modal or bulk import
 2. **Validation**: Duplicate detection and data validation
 3. **Storage**: Stored in songs collection with metadata
@@ -56,6 +60,7 @@ The song management system consists of several interconnected components:
 ### Primary Collections
 
 #### Songs Collection
+
 ```javascript
 {
   _id: ObjectId,
@@ -72,7 +77,7 @@ The song management system consists of several interconnected components:
   created: Date,          // Date record was created
   lastUpdated: Date,      // Date of last modification
   usageCount: Number,     // Total times this song has been used (for analytics efficiency)
-  
+
   // Optional fields (added by system processes)
   seasonalTags: [String],        // Auto-generated seasonal tags
   seasonalTagsConfidence: Number, // Confidence score for tags (0-1)
@@ -81,6 +86,7 @@ The song management system consists of several interconnected components:
 ```
 
 **Schema Notes:**
+
 - The `songs` collection uses a simplified hymnal-focused schema
 - `type` distinguishes between hymnal songs and contemporary music
 - `hymnal` and `number` are used for traditional hymnal references
@@ -90,6 +96,7 @@ The song management system consists of several interconnected components:
 - External links provide access to additional resources
 
 #### Reference Songs Collection
+
 ```javascript
 {
   _id: ObjectId,
@@ -106,12 +113,14 @@ The song management system consists of several interconnected components:
 ```
 
 **Schema Notes:**
+
 - Reference songs are used for importing and matching against the main song database
 - Contains metadata for seasonal and liturgical categorization
 - Supports both hymnal references and contemporary song data
 - Used by import processes and suggestion algorithms
 
 #### Service Songs Collection
+
 ```javascript
 {
   _id: ObjectId,
@@ -127,6 +136,7 @@ The song management system consists of several interconnected components:
 ```
 
 #### Song Usage Collection
+
 ```javascript
 {
   _id: ObjectId,
@@ -144,37 +154,41 @@ The song management system consists of several interconnected components:
 ```
 
 **Schema Notes:**
+
 - Uses a nested structure with a `uses` array for multiple usage records
 - Song title and type are denormalized for query performance
 - Each usage record captures when, where, and who recorded the usage
 - `songData` contains cached song information to reduce joins
 
 ### Related Collections
+
 - **services**: Contains service information referenced by usage tracking
 - **teams**: Team information for usage analytics
 - **liturgical_calendar**: Seasonal context for song selection
 
-*For complete schema details, see [Database Schema Guide](./database-schema.md)*
+_For complete schema details, see [Database Schema Guide](./database-schema.md)_
 
 ## Usage Tracking & Analytics
 
 ### SongUsageAnalyzer
+
 **File**: `src/lib/SongUsageAnalyzer.js`
 
 The `SongUsageAnalyzer` provides comprehensive analytics for song usage patterns:
 
 #### Core Functionality
+
 ```javascript
 class SongUsageAnalyzer {
   // Analyze usage patterns for songs with rotation metrics
   static async analyzeSongUsagePatterns(options = {})
-  
-  // Update rotation status for all songs based on usage patterns  
+
+  // Update rotation status for all songs based on usage patterns
   static async updateSongRotationStatus()
-  
+
   // Get songs currently in learning phase (consecutive usage)
   static async getLearningPhraseSongs()
-  
+
   // Get songs actively in rotation
   static async getActiveRotationSongs()
 }
@@ -183,17 +197,19 @@ class SongUsageAnalyzer {
 #### Key Methods
 
 ##### Usage Pattern Analysis
+
 ```javascript
 // Analyzes song usage patterns with rotation metrics
 const patterns = await SongUsageAnalyzer.analyzeSongUsagePatterns({
-  consecutiveThreshold: 2,    // Services in a row = learning
-  recentServicesWindow: 6,    // Recent services to consider  
-  inRotationThreshold: 3      // Uses in window = in rotation
+  consecutiveThreshold: 2, // Services in a row = learning
+  recentServicesWindow: 6, // Recent services to consider
+  inRotationThreshold: 3, // Uses in window = in rotation
 });
 // Returns: Array of songs with isLearning, isInRotation, rotationScore
 ```
 
 ##### Rotation Status Updates
+
 ```javascript
 // Updates all songs with current rotation status
 const updateResult = await SongUsageAnalyzer.updateSongRotationStatus();
@@ -201,6 +217,7 @@ const updateResult = await SongUsageAnalyzer.updateSongRotationStatus();
 ```
 
 ##### Learning Phase Detection
+
 ```javascript
 // Get songs currently being learned (consecutive usage)
 const learningSongs = await SongUsageAnalyzer.getLearningPhraseSongs();
@@ -208,6 +225,7 @@ const learningSongs = await SongUsageAnalyzer.getLearningPhraseSongs();
 ```
 
 ##### Active Rotation Tracking
+
 ```javascript
 // Get songs currently in active rotation
 const activeSongs = await SongUsageAnalyzer.getActiveRotationSongs();
@@ -215,9 +233,11 @@ const activeSongs = await SongUsageAnalyzer.getActiveRotationSongs();
 ```
 
 ### Specialized Analytics APIs
+
 **Architecture**: Purpose-built endpoints for specific analytics needs
 
 #### Available Analytics Endpoints
+
 - `GET /api/song-usage/suggestions` - Intelligent song recommendations based on usage patterns
 - `GET /api/song-usage/congregation-comfort` - Congregation familiarity analysis by comfort level
 - `GET /api/song-usage/seasonal-type-distribution` - Distribution analysis by season and song type
@@ -230,6 +250,7 @@ const activeSongs = await SongUsageAnalyzer.getActiveRotationSongs();
 **Design Philosophy**: Rather than generic analytics endpoints, the system provides specialized endpoints that serve specific worship planning needs with optimized data structures.
 
 #### Song Suggestions Response Example
+
 ```javascript
 // GET /api/song-usage/suggestions?season=advent&limit=5
 {
@@ -237,7 +258,7 @@ const activeSongs = await SongUsageAnalyzer.getActiveRotationSongs();
     {
       title: "O Come, O Come, Emmanuel",
       type: "hymn",
-      hymnal: "cranberry", 
+      hymnal: "cranberry",
       number: "116",
       lastUsed: "2024-10-15T00:00:00.000Z",
       monthsSinceLastUse: 3,
@@ -256,13 +277,14 @@ const activeSongs = await SongUsageAnalyzer.getActiveRotationSongs();
 }
 ```
 
-#### Congregation Comfort Analysis Example  
+#### Congregation Comfort Analysis Example
+
 ```javascript
 // GET /api/song-usage/congregation-comfort
 {
   distribution: {
     high: 45,      // Songs congregation knows well
-    learning: 12,  // Songs being learned  
+    learning: 12,  // Songs being learned
     low: 8         // Unfamiliar songs
   },
   groups: {
@@ -283,6 +305,7 @@ const activeSongs = await SongUsageAnalyzer.getActiveRotationSongs();
 ## External Integrations
 
 ### Integration Architecture
+
 ZionSync integrates with multiple external song databases and services:
 
 ```
@@ -308,14 +331,17 @@ ZionSync integrates with multiple external song databases and services:
 ```
 
 ### Hymnary Integration
+
 **Source**: Traditional hymns and historical song data
 
 #### Features
+
 - **Metadata Enrichment**: Historical context, themes, seasonal associations
 - **Liturgical Mapping**: Automatic season and theme tagging
 - **Bulk Import**: Seasonal song collections
 
 #### Implementation
+
 ```javascript
 // Hymnary data structure
 const hymnaryData = {
@@ -326,19 +352,22 @@ const hymnaryData = {
   themes: ["grace", "redemption", "testimony"],
   seasons: ["ordinary-time", "lent"],
   liturgicalUses: ["confession", "assurance"],
-  hymnals: ["Methodist", "Presbyterian", "Lutheran"]
+  hymnals: ["Methodist", "Presbyterian", "Lutheran"],
 };
 ```
 
 ### SongSelect Integration
+
 **Source**: CCLI's SongSelect service for contemporary Christian music
 
 #### Features
+
 - **Licensing Data**: CCLI numbers and usage rights
 - **Contemporary Catalog**: Modern worship songs
 - **Lyric Synchronization**: Official lyrics and chord charts
 
 #### Implementation
+
 ```javascript
 // SongSelect integration points
 const songSelectData = {
@@ -348,19 +377,22 @@ const songSelectData = {
   copyright: "2016 Integrity Music Europe",
   themes: ["faith", "trust", "miracles"],
   key: "Bb",
-  tempo: "Medium"
+  tempo: "Medium",
 };
 ```
 
 ### YouTube Integration
+
 **Source**: Video content and media validation
 
 #### Features
+
 - **Media Links**: Associated video content
 - **Validation**: Automatic link verification
 - **Metadata Extraction**: Video titles, descriptions, duration
 
 #### Implementation
+
 ```javascript
 // YouTube data integration
 const youtubeData = {
@@ -369,11 +401,12 @@ const youtubeData = {
   duration: "PT4M32S",
   channelName: "Worship Together",
   validatedAt: new Date(),
-  isAvailable: true
+  isAvailable: true,
 };
 ```
 
 ### Import Scripts
+
 **File**: `src/scripts/import-seasonal-songs.js`
 
 Automated import of seasonal song collections:
@@ -382,11 +415,11 @@ Automated import of seasonal song collections:
 // Import seasonal songs from external sources
 const importSeasonal = async (season, source) => {
   const songs = await fetchFromSource(source, { season });
-  
+
   for (const song of songs) {
     // Duplicate detection
     const existing = await detectDuplicate(song);
-    
+
     if (!existing) {
       // Create reference song for review
       await createReferenceSong(song, source);
@@ -401,11 +434,13 @@ const importSeasonal = async (season, source) => {
 ## Quick-Add Functionality
 
 ### QuickAddModal Component
+
 **File**: `src/components/ui/QuickAddModal.jsx`
 
 The Quick-Add functionality provides rapid song entry with real-time validation and duplicate detection.
 
 #### Features
+
 - **Real-time Search**: Instant search across local and external databases
 - **Duplicate Prevention**: Live duplicate detection as user types
 - **Smart Suggestions**: Context-aware song suggestions
@@ -413,48 +448,44 @@ The Quick-Add functionality provides rapid song entry with real-time validation 
 - **External Lookup**: Automatic metadata enrichment
 
 #### Component Structure
+
 ```jsx
 const QuickAddModal = ({ isOpen, onClose, serviceId, onSongAdded }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [duplicateWarnings, setDuplicateWarnings] = useState([]);
   const [isValidating, setIsValidating] = useState(false);
-  
+
   // Real-time search and validation
   useEffect(() => {
     if (searchTerm.length > 2) {
       debounceSearch(searchTerm);
     }
   }, [searchTerm]);
-  
+
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <SearchInput 
+      <SearchInput
         value={searchTerm}
         onChange={setSearchTerm}
         placeholder="Search songs or enter new song title..."
       />
-      
-      <SuggestionsList 
-        suggestions={suggestions}
-        onSelect={handleSongSelect}
-      />
-      
-      <DuplicateWarnings 
+
+      <SuggestionsList suggestions={suggestions} onSelect={handleSongSelect} />
+
+      <DuplicateWarnings
         warnings={duplicateWarnings}
         onResolve={handleDuplicateResolve}
       />
-      
-      <QuickAddForm 
-        onSubmit={handleQuickAdd}
-        isValidating={isValidating}
-      />
+
+      <QuickAddForm onSubmit={handleQuickAdd} isValidating={isValidating} />
     </Modal>
   );
 };
 ```
 
 #### Quick-Add Workflow
+
 1. **Initial Search**: User enters song title or search term
 2. **Real-time Suggestions**: System provides matching suggestions from:
    - Local song database
@@ -468,6 +499,7 @@ const QuickAddModal = ({ isOpen, onClose, serviceId, onSongAdded }) => {
 6. **Addition**: Song added to service or general database
 
 ### Reference Songs Import API
+
 **Endpoint**: `/api/reference-songs/import`
 
 Handles bulk import and processing of reference songs:
@@ -499,22 +531,24 @@ Handles bulk import and processing of reference songs:
 ## Duplicate Detection & Merging
 
 ### SongMatcher Component
+
 **File**: `src/lib/SongMatcher.js`
 
 The `SongMatcher` provides sophisticated duplicate detection and merging capabilities:
 
 #### Core Functionality
+
 ```javascript
 class SongMatcher {
   // Find potential duplicates
   async findPotentialDuplicates(song, options = {})
-  
+
   // Calculate similarity score
   calculateSimilarity(song1, song2)
-  
+
   // Merge songs
   async mergeSongs(primarySongId, duplicateSongIds, options = {})
-  
+
   // Validate merge operation
   validateMerge(primarySong, duplicates)
 }
@@ -523,59 +557,62 @@ class SongMatcher {
 #### Matching Algorithms
 
 ##### Title Matching
+
 ```javascript
 // Fuzzy string matching for song titles
 const titleSimilarity = (title1, title2) => {
   // Normalize titles (remove articles, punctuation)
   const normalized1 = normalizeTitle(title1);
   const normalized2 = normalizeTitle(title2);
-  
+
   // Calculate Levenshtein distance
   const distance = levenshteinDistance(normalized1, normalized2);
-  
+
   // Return similarity score (0-1)
-  return 1 - (distance / Math.max(normalized1.length, normalized2.length));
+  return 1 - distance / Math.max(normalized1.length, normalized2.length);
 };
 ```
 
 ##### Multi-field Matching
+
 ```javascript
 // Comprehensive matching across multiple fields
 const calculateSimilarity = (song1, song2) => {
   const weights = {
-    title: 0.4,      // Title similarity weight
-    artist: 0.3,     // Artist similarity weight
-    ccli: 0.2,       // CCLI exact match bonus
-    duration: 0.1    // Duration similarity
+    title: 0.4, // Title similarity weight
+    artist: 0.3, // Artist similarity weight
+    ccli: 0.2, // CCLI exact match bonus
+    duration: 0.1, // Duration similarity
   };
-  
+
   let totalScore = 0;
   let totalWeight = 0;
-  
+
   // Title comparison
   if (song1.title && song2.title) {
     totalScore += titleSimilarity(song1.title, song2.title) * weights.title;
     totalWeight += weights.title;
   }
-  
+
   // Artist comparison
   if (song1.artist && song2.artist) {
     totalScore += artistSimilarity(song1.artist, song2.artist) * weights.artist;
     totalWeight += weights.artist;
   }
-  
+
   // CCLI exact match
   if (song1.ccliNumber && song2.ccliNumber) {
     const ccliMatch = song1.ccliNumber === song2.ccliNumber ? 1.0 : 0.0;
     totalScore += ccliMatch * weights.ccli;
     totalWeight += weights.ccli;
   }
-  
+
   return totalWeight > 0 ? totalScore / totalWeight : 0;
 };
 ```
 
 #### Duplicate Detection Workflow
+
 1. **Pre-processing**: Normalize song data (titles, artist names)
 2. **Initial Screening**: Quick filters (CCLI matches, exact title matches)
 3. **Similarity Calculation**: Multi-field similarity scoring
@@ -584,6 +621,7 @@ const calculateSimilarity = (song1, song2) => {
 6. **Merge Processing**: Execute approved merges with data consolidation
 
 ### Song Merging API
+
 **Endpoint**: `/api/songs/merge`
 
 Handles the merging of duplicate songs:
@@ -605,6 +643,7 @@ Handles the merging of duplicate songs:
 ```
 
 #### Merge Process
+
 1. **Validation**: Verify songs exist and user permissions
 2. **Data Consolidation**: Merge metadata, preserving best data
 3. **Usage Transfer**: Update service_songs and song_usage references
@@ -613,6 +652,7 @@ Handles the merging of duplicate songs:
 6. **Notification**: Alert relevant teams of merge completion
 
 ### Duplicate Prevention
+
 Real-time duplicate prevention during song entry:
 
 ```javascript
@@ -620,16 +660,19 @@ Real-time duplicate prevention during song entry:
 const checkForDuplicates = debounce(async (songData) => {
   const matches = await SongMatcher.findPotentialDuplicates(songData, {
     threshold: 0.7,
-    includeInactive: false
+    includeInactive: false,
   });
-  
+
   if (matches.length > 0) {
-    setDuplicateWarnings(matches.map(match => ({
-      song: match.song,
-      similarity: match.similarity,
-      confidence: match.confidence,
-      suggestion: match.similarity > 0.9 ? 'likely_duplicate' : 'possible_duplicate'
-    })));
+    setDuplicateWarnings(
+      matches.map((match) => ({
+        song: match.song,
+        similarity: match.similarity,
+        confidence: match.confidence,
+        suggestion:
+          match.similarity > 0.9 ? "likely_duplicate" : "possible_duplicate",
+      })),
+    );
   }
 }, 300);
 ```
@@ -637,52 +680,51 @@ const checkForDuplicates = debounce(async (songData) => {
 ## Song Discovery & Rediscovery
 
 ### SongRediscoveryPanel Component
+
 **File**: `src/components/ui/SongRediscoveryPanel.jsx`
 
 The rediscovery system helps worship teams find underutilized songs and maintain variety in their repertoire.
 
 #### Features
+
 - **Underused Song Detection**: Identify songs not used recently
 - **Seasonal Recommendations**: Surface seasonally appropriate songs
 - **Variety Analysis**: Analyze style and theme diversity
 - **Smart Suggestions**: Context-aware song recommendations
 
 #### Component Structure
+
 ```jsx
 const SongRediscoveryPanel = ({ teamId, serviceDate, seasonContext }) => {
   const [rediscoveryData, setRediscoveryData] = useState(null);
   const [filters, setFilters] = useState({
-    timeframe: 'last-6-months',
-    minUsageGap: 90,        // Days since last use
+    timeframe: "last-6-months",
+    minUsageGap: 90, // Days since last use
     includeSeasons: true,
-    includeStyles: true
+    includeStyles: true,
   });
-  
+
   useEffect(() => {
     loadRediscoveryData();
   }, [teamId, filters]);
-  
+
   return (
     <Panel title="Song Rediscovery">
-      <FilterControls 
-        filters={filters}
-        onChange={setFilters}
-      />
-      
-      <RediscoveryCategories 
+      <FilterControls filters={filters} onChange={setFilters} />
+
+      <RediscoveryCategories
         data={rediscoveryData}
         onSongSelect={handleSongSelect}
       />
-      
-      <VarietyMetrics 
-        metrics={rediscoveryData?.varietyMetrics}
-      />
+
+      <VarietyMetrics metrics={rediscoveryData?.varietyMetrics} />
     </Panel>
   );
 };
 ```
 
 ### SongSuggestionEngine
+
 **File**: `src/lib/SongSuggestionEngine.js`
 
 Core algorithm engine for song recommendations and rediscovery:
@@ -690,6 +732,7 @@ Core algorithm engine for song recommendations and rediscovery:
 #### Key Methods
 
 ##### Underused Song Detection
+
 ```javascript
 // Find songs that haven't been used recently
 async findUnderusedSongs(teamId, options = {}) {
@@ -698,10 +741,10 @@ async findUnderusedSongs(teamId, options = {}) {
     seasonContext = null,
     maxResults = 20
   } = options;
-  
+
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - minDaysSinceUse);
-  
+
   const underusedSongs = await this.db.collection('songs').aggregate([
     {
       $lookup: {
@@ -716,7 +759,7 @@ async findUnderusedSongs(teamId, options = {}) {
         isActive: true,
         $or: [
           { 'usageHistory': { $size: 0 } },  // Never used
-          { 
+          {
             'usageHistory': {
               $not: {
                 $elemMatch: {
@@ -748,12 +791,13 @@ async findUnderusedSongs(teamId, options = {}) {
     { $sort: { daysSinceLastUse: -1 } },
     { $limit: maxResults }
   ]).toArray();
-  
+
   return underusedSongs;
 }
 ```
 
 ##### Seasonal Recommendations
+
 ```javascript
 // Get seasonally appropriate song suggestions
 async getSeasonalRecommendations(seasonContext, teamId, options = {}) {
@@ -762,90 +806,91 @@ async getSeasonalRecommendations(seasonContext, teamId, options = {}) {
     varietyBoost = true,
     maxResults = 15
   } = options;
-  
+
   // Base query for seasonal songs
   let query = {
     isActive: true,
     seasons: { $in: [seasonContext] }
   };
-  
+
   // Add underused filter if requested
   if (includeUnderused) {
     const recentUsage = await this.getRecentUsage(teamId, 60); // Last 60 days
     const recentSongIds = recentUsage.map(usage => usage.songId);
     query._id = { $nin: recentSongIds };
   }
-  
+
   let songs = await this.db.collection('songs')
     .find(query)
     .limit(maxResults * 2)  // Get extra for variety filtering
     .toArray();
-  
+
   // Apply variety boost if requested
   if (varietyBoost) {
     songs = this.applyVarietyFilter(songs, teamId);
   }
-  
+
   return songs.slice(0, maxResults);
 }
 ```
 
 ##### Variety Analysis
+
 ```javascript
 // Analyze variety in recent song selections
 async analyzeVariety(teamId, timeframe = 90) {
   const recentUsage = await this.getRecentUsage(teamId, timeframe);
-  
+
   // Group by various attributes
   const styleDistribution = {};
   const tempoDistribution = {};
   const themeDistribution = {};
   const keyDistribution = {};
-  
+
   for (const usage of recentUsage) {
     const song = await this.getSongById(usage.songId);
-    
+
     // Count styles
     if (song.style) {
       styleDistribution[song.style] = (styleDistribution[song.style] || 0) + 1;
     }
-    
+
     // Count tempos
     if (song.tempo) {
       tempoDistribution[song.tempo] = (tempoDistribution[song.tempo] || 0) + 1;
     }
-    
+
     // Count themes
     if (song.themes) {
       song.themes.forEach(theme => {
         themeDistribution[theme] = (themeDistribution[theme] || 0) + 1;
       });
     }
-    
+
     // Count keys
     if (song.key) {
       keyDistribution[song.key] = (keyDistribution[song.key] || 0) + 1;
     }
   }
-  
+
   // Calculate variety scores (higher = more diverse)
   const calculateVarietyScore = (distribution) => {
     const values = Object.values(distribution);
     const total = values.reduce((sum, count) => sum + count, 0);
     const uniqueItems = Object.keys(distribution).length;
-    
+
     if (uniqueItems <= 1) return 0;
-    
+
     // Calculate entropy-based score
     const entropy = values.reduce((entropy, count) => {
       const probability = count / total;
       return entropy - (probability * Math.log2(probability));
     }, 0);
-    
+
     const maxEntropy = Math.log2(uniqueItems);
     return entropy / maxEntropy;  // Normalize to 0-1
   };
-  
+
   return {
     styleVariety: calculateVarietyScore(styleDistribution),
     tempoVariety: calculateVarietyScore(tempoDistribution),
@@ -870,50 +915,65 @@ async analyzeVariety(teamId, timeframe = 90) {
 ### Rediscovery Algorithms
 
 #### Usage Gap Analysis
+
 ```javascript
 // Identify songs with significant usage gaps
 const identifyUsageGaps = async (teamId, analysisWindow = 365) => {
-  const usageData = await SongUsageAnalyzer.getDetailedUsage(teamId, analysisWindow);
-  
-  const gapAnalysis = usageData.map(song => {
+  const usageData = await SongUsageAnalyzer.getDetailedUsage(
+    teamId,
+    analysisWindow,
+  );
+
+  const gapAnalysis = usageData.map((song) => {
     const usageDates = song.usageHistory
-      .map(usage => new Date(usage.date))
+      .map((usage) => new Date(usage.date))
       .sort((a, b) => a - b);
-    
+
     let maxGap = 0;
     let currentGap = 0;
     let gapDetails = [];
-    
+
     for (let i = 1; i < usageDates.length; i++) {
-      const gap = Math.floor((usageDates[i] - usageDates[i-1]) / (1000 * 60 * 60 * 24));
-      
+      const gap = Math.floor(
+        (usageDates[i] - usageDates[i - 1]) / (1000 * 60 * 60 * 24),
+      );
+
       if (gap > maxGap) {
         maxGap = gap;
       }
-      
-      if (gap > 60) {  // Significant gap threshold
+
+      if (gap > 60) {
+        // Significant gap threshold
         gapDetails.push({
-          startDate: usageDates[i-1],
+          startDate: usageDates[i - 1],
           endDate: usageDates[i],
-          days: gap
+          days: gap,
         });
       }
     }
-    
+
     // Check gap since last use
-    const daysSinceLastUse = usageDates.length > 0 
-      ? Math.floor((new Date() - usageDates[usageDates.length - 1]) / (1000 * 60 * 60 * 24))
-      : 9999;
-    
+    const daysSinceLastUse =
+      usageDates.length > 0
+        ? Math.floor(
+            (new Date() - usageDates[usageDates.length - 1]) /
+              (1000 * 60 * 60 * 24),
+          )
+        : 9999;
+
     return {
       song,
       maxGap,
       daysSinceLastUse,
       significantGaps: gapDetails,
-      rediscoveryScore: calculateRediscoveryScore(maxGap, daysSinceLastUse, song.usageCount)
+      rediscoveryScore: calculateRediscoveryScore(
+        maxGap,
+        daysSinceLastUse,
+        song.usageCount,
+      ),
     };
   });
-  
+
   return gapAnalysis.sort((a, b) => b.rediscoveryScore - a.rediscoveryScore);
 };
 ```
@@ -921,11 +981,13 @@ const identifyUsageGaps = async (teamId, analysisWindow = 365) => {
 ## User Interface Components
 
 ### SongDatabase Component
+
 **File**: `src/components/ui/SongDatabase.jsx`
 
 Main interface for song management and database operations:
 
 #### Key Features
+
 - **Song List Management**: Paginated, searchable song list
 - **Filtering & Sorting**: Multi-field filtering and sorting options
 - **Bulk Operations**: Select and operate on multiple songs
@@ -933,35 +995,33 @@ Main interface for song management and database operations:
 - **Usage Analytics**: Integrated usage statistics display
 
 #### Component Structure
+
 ```jsx
 const SongDatabase = () => {
   const [songs, setSongs] = useState([]);
   const [filters, setFilters] = useState({
-    search: '',
-    style: 'all',
-    season: 'all',
-    usageRange: 'all'
+    search: "",
+    style: "all",
+    season: "all",
+    usageRange: "all",
   });
   const [selectedSongs, setSelectedSongs] = useState([]);
   const [sortConfig, setSortConfig] = useState({
-    field: 'title',
-    direction: 'asc'
+    field: "title",
+    direction: "asc",
   });
-  
+
   return (
     <div className="song-database">
-      <SongDatabaseHeader 
+      <SongDatabaseHeader
         onAddSong={handleAddSong}
         onImport={handleImport}
         totalCount={songs.length}
       />
-      
-      <SongFilters 
-        filters={filters}
-        onChange={setFilters}
-      />
-      
-      <SongTable 
+
+      <SongFilters filters={filters} onChange={setFilters} />
+
+      <SongTable
         songs={songs}
         sortConfig={sortConfig}
         onSort={setSortConfig}
@@ -969,8 +1029,8 @@ const SongDatabase = () => {
         onSelectionChange={setSelectedSongs}
         onSongAction={handleSongAction}
       />
-      
-      <BulkActions 
+
+      <BulkActions
         selectedSongs={selectedSongs}
         onBulkAction={handleBulkAction}
       />
@@ -980,11 +1040,13 @@ const SongDatabase = () => {
 ```
 
 ### ServiceSongSelector Component
+
 **File**: `src/components/ui/ServiceSongSelector.jsx`
 
 Song selection interface for service planning:
 
 #### Features
+
 - **Context-Aware Suggestions**: Suggestions based on service type and season
 - **Usage Validation**: Warnings for overused songs
 - **Quick Preview**: Song details and history preview
@@ -996,29 +1058,29 @@ const ServiceSongSelector = ({ serviceId, serviceDate, seasonContext }) => {
   const [selectedSongs, setSelectedSongs] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [usageWarnings, setUsageWarnings] = useState([]);
-  
+
   return (
     <div className="service-song-selector">
-      <SuggestionPanel 
+      <SuggestionPanel
         suggestions={suggestions}
         seasonContext={seasonContext}
         onSongAdd={handleSongAdd}
       />
-      
-      <SongSearchAndFilter 
+
+      <SongSearchAndFilter
         songs={availableSongs}
         filters={searchFilters}
         onFilterChange={setSearchFilters}
       />
-      
-      <SelectedSongsList 
+
+      <SelectedSongsList
         songs={selectedSongs}
         usageWarnings={usageWarnings}
         onReorder={handleReorder}
         onRemove={handleRemove}
       />
-      
-      <RediscoveryPrompts 
+
+      <RediscoveryPrompts
         underusedSongs={rediscoveryData}
         onSongSelect={handleSongAdd}
       />
@@ -1032,46 +1094,50 @@ const ServiceSongSelector = ({ serviceId, serviceDate, seasonContext }) => {
 ### Core Song APIs
 
 #### Songs Collection API
+
 **Base**: `/api/songs`
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/songs` | List all songs with filtering |
-| POST | `/api/songs` | Create new song |
-| GET | `/api/songs/:id` | Get specific song |
-| PUT | `/api/songs/:id` | Update song |
-| DELETE | `/api/songs/:id` | Archive song |
-| POST | `/api/songs/search` | Advanced song search |
-| POST | `/api/songs/merge` | Merge duplicate songs |
+| Method | Endpoint            | Description                   |
+| ------ | ------------------- | ----------------------------- |
+| GET    | `/api/songs`        | List all songs with filtering |
+| POST   | `/api/songs`        | Create new song               |
+| GET    | `/api/songs/:id`    | Get specific song             |
+| PUT    | `/api/songs/:id`    | Update song                   |
+| DELETE | `/api/songs/:id`    | Archive song                  |
+| POST   | `/api/songs/search` | Advanced song search          |
+| POST   | `/api/songs/merge`  | Merge duplicate songs         |
 
 #### Usage Tracking APIs
+
 **Base**: `/api/song-usage`
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/song-usage` | Basic usage tracking |
-| GET | `/api/song-usage/suggestions` | Song suggestions based on usage |
-| GET | `/api/song-usage/seasonal-type-distribution` | Distribution by season and type |
-| GET | `/api/song-usage/seasonal-gaps` | Identify seasonal usage gaps |
-| GET | `/api/song-usage/new-songs` | Recently added songs tracking |
-| GET | `/api/song-usage/check` | Check usage status |
-| GET | `/api/song-usage/congregation-comfort` | Congregation familiarity analysis |
+| Method | Endpoint                                     | Description                       |
+| ------ | -------------------------------------------- | --------------------------------- |
+| GET    | `/api/song-usage`                            | Basic usage tracking              |
+| GET    | `/api/song-usage/suggestions`                | Song suggestions based on usage   |
+| GET    | `/api/song-usage/seasonal-type-distribution` | Distribution by season and type   |
+| GET    | `/api/song-usage/seasonal-gaps`              | Identify seasonal usage gaps      |
+| GET    | `/api/song-usage/new-songs`                  | Recently added songs tracking     |
+| GET    | `/api/song-usage/check`                      | Check usage status                |
+| GET    | `/api/song-usage/congregation-comfort`       | Congregation familiarity analysis |
 
 **Note**: The system provides specialized endpoints focused on seasonal planning and congregation comfort analysis, rather than generic analytics endpoints.
 
 #### Reference Songs APIs
+
 **Base**: `/api/reference-songs`
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/reference-songs` | List reference songs |
-| POST | `/api/reference-songs/import` | Import reference songs |
-| PUT | `/api/reference-songs/:id/approve` | Approve reference song |
-| DELETE | `/api/reference-songs/:id` | Reject reference song |
+| Method | Endpoint                           | Description            |
+| ------ | ---------------------------------- | ---------------------- |
+| GET    | `/api/reference-songs`             | List reference songs   |
+| POST   | `/api/reference-songs/import`      | Import reference songs |
+| PUT    | `/api/reference-songs/:id/approve` | Approve reference song |
+| DELETE | `/api/reference-songs/:id`         | Reject reference song  |
 
 ### API Request/Response Examples
 
 #### Create New Song
+
 ```javascript
 // POST /api/songs
 {
@@ -1099,6 +1165,7 @@ const ServiceSongSelector = ({ serviceId, serviceDate, seasonContext }) => {
 ```
 
 #### Get Song Suggestions
+
 ```javascript
 // GET /api/song-usage/suggestions?season=advent&limit=10
 
@@ -1119,7 +1186,7 @@ const ServiceSongSelector = ({ serviceId, serviceDate, seasonContext }) => {
     {
       songId: "64f6b2c3d4e5f6g7h8i9j1",
       title: "Come, Thou Long-Expected Jesus",
-      type: "hymn", 
+      type: "hymn",
       hymnal: "cranberry",
       number: "125",
       score: 0.88,
@@ -1133,8 +1200,10 @@ const ServiceSongSelector = ({ serviceId, serviceDate, seasonContext }) => {
   }
 }
 ```
+
 }
-```
+
+````
 
 #### Import Reference Songs
 ```javascript
@@ -1171,13 +1240,14 @@ const ServiceSongSelector = ({ serviceId, serviceDate, seasonContext }) => {
   duplicateMatches: [],
   message: "Import completed. 1 song requires review."
 }
-```
+````
 
-*For complete API documentation, see [API Reference Guide](./api-reference.md)*
+_For complete API documentation, see [API Reference Guide](./api-reference.md)_
 
 ## Configuration & Setup
 
 ### Environment Variables
+
 ```bash
 # External API Configuration
 HYMNARY_API_KEY=your_hymnary_key
@@ -1195,6 +1265,7 @@ ENABLE_USAGE_ANALYTICS=true
 ```
 
 ### Database Indexes
+
 Ensure proper indexes for performance:
 
 ```javascript
@@ -1220,21 +1291,22 @@ db.service_songs.createIndex({ songId: 1, date: -1 });
 ### Performance Optimization
 
 #### Caching Strategy
+
 ```javascript
 // Redis caching for frequently accessed data
 const cacheKeys = {
-  songUsageAnalytics: 'usage:analytics:{teamId}:{timeframe}',
-  seasonalSuggestions: 'suggestions:seasonal:{season}:{teamId}',
-  duplicateMatches: 'duplicates:matches:{songId}',
-  varietyMetrics: 'variety:metrics:{teamId}:{timeframe}'
+  songUsageAnalytics: "usage:analytics:{teamId}:{timeframe}",
+  seasonalSuggestions: "suggestions:seasonal:{season}:{teamId}",
+  duplicateMatches: "duplicates:matches:{songId}",
+  varietyMetrics: "variety:metrics:{teamId}:{timeframe}",
 };
 
 // Cache TTL settings
 const cacheTTL = {
-  usageAnalytics: 3600,    // 1 hour
+  usageAnalytics: 3600, // 1 hour
   seasonalSuggestions: 7200, // 2 hours
-  duplicateMatches: 86400,   // 24 hours
-  varietyMetrics: 1800       // 30 minutes
+  duplicateMatches: 86400, // 24 hours
+  varietyMetrics: 1800, // 30 minutes
 };
 ```
 
@@ -1243,6 +1315,7 @@ const cacheTTL = {
 ### Common Issues
 
 #### Duplicate Detection Not Working
+
 ```bash
 # Check song matcher configuration
 curl -X POST http://localhost:3000/api/songs/duplicates/test \
@@ -1254,6 +1327,7 @@ db.songs.getIndexes()
 ```
 
 #### Usage Analytics Missing Data
+
 ```javascript
 // Check song_usage collection
 db.song_usage.find().sort({date: -1}).limit(5);
@@ -1263,6 +1337,7 @@ curl http://localhost:3000/api/song-usage/analytics?teamId=main
 ```
 
 #### External Import Failures
+
 ```bash
 # Check API credentials
 echo $HYMNARY_API_KEY
@@ -1274,10 +1349,11 @@ curl -H "Authorization: Bearer $HYMNARY_API_KEY" \
 ```
 
 #### Performance Issues
+
 ```javascript
 // Check slow queries
 db.setProfilingLevel(2);
-db.system.profile.find().sort({ts: -1}).limit(5);
+db.system.profile.find().sort({ ts: -1 }).limit(5);
 
 // Analyze song database size
 db.songs.stats();
@@ -1287,6 +1363,7 @@ db.song_usage.stats();
 ### Debug Utilities
 
 #### Song Database Analysis
+
 ```bash
 # Run database structure check
 node src/scripts/check-song-structure.js
@@ -1299,12 +1376,13 @@ node src/scripts/find-duplicates.js --threshold=0.8
 ```
 
 #### Performance Monitoring
+
 ```javascript
 // Monitor API response times
 const performanceMetrics = {
   songSearch: [],
   usageAnalytics: [],
-  duplicateDetection: []
+  duplicateDetection: [],
 };
 
 // Log slow operations
@@ -1322,4 +1400,4 @@ if (responseTime > 1000) {
 
 ---
 
-*This guide covers the comprehensive song management system in ZionSync. For additional technical details or specific implementation questions, refer to the source code and related documentation files.*
+_This guide covers the comprehensive song management system in ZionSync. For additional technical details or specific implementation questions, refer to the source code and related documentation files._

@@ -1,17 +1,17 @@
-import { useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useRef } from "react";
+import { X } from "lucide-react";
 
 /**
  * ConfirmDialog Component
- * 
+ *
  * Accessible confirmation dialog with keyboard support and mobile responsiveness.
  * Replaces native window.confirm() with a professional, customizable dialog.
- * 
+ *
  * @component
  * @example
  * // Basic usage with useConfirm hook
  * const { confirm, ConfirmDialog } = useConfirm();
- * 
+ *
  * const handleDelete = async () => {
  *   const confirmed = await confirm({
  *     title: 'Delete Service',
@@ -22,7 +22,7 @@ import { X } from 'lucide-react';
  *     // Proceed with deletion
  *   }
  * };
- * 
+ *
  * @example
  * // Standalone usage
  * <ConfirmDialog
@@ -33,7 +33,7 @@ import { X } from 'lucide-react';
  *   onCancel={() => setIsOpen(false)}
  *   variant="danger"
  * />
- * 
+ *
  * @param {Object} props - Component props
  * @param {boolean} props.isOpen - Whether the dialog is visible
  * @param {string} [props.title='Confirm Action'] - Dialog title
@@ -48,14 +48,14 @@ import { X } from 'lucide-react';
  */
 export const ConfirmDialog = ({
   isOpen,
-  title = 'Confirm Action',
+  title = "Confirm Action",
   message,
   details,
   onConfirm,
   onCancel,
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
-  variant = 'default'
+  confirmText = "Confirm",
+  cancelText = "Cancel",
+  variant = "default",
 }) => {
   const dialogRef = useRef(null);
   const confirmButtonRef = useRef(null);
@@ -63,17 +63,17 @@ export const ConfirmDialog = ({
   // Variant styles
   const variantClasses = {
     default: {
-      button: 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500',
-      icon: 'text-blue-600'
+      button: "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500",
+      icon: "text-blue-600",
     },
     danger: {
-      button: 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
-      icon: 'text-red-600'
+      button: "bg-red-600 hover:bg-red-700 focus:ring-red-500",
+      icon: "text-red-600",
     },
     warning: {
-      button: 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500',
-      icon: 'text-yellow-600'
-    }
+      button: "bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500",
+      icon: "text-yellow-600",
+    },
   };
 
   const styles = variantClasses[variant] || variantClasses.default;
@@ -83,33 +83,33 @@ export const ConfirmDialog = ({
     if (!isOpen) return;
 
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         onCancel();
-      } else if (e.key === 'Enter') {
+      } else if (e.key === "Enter") {
         onConfirm();
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    
+    document.addEventListener("keydown", handleKeyDown);
+
     // Focus the confirm button when dialog opens
     confirmButtonRef.current?.focus();
 
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen, onConfirm, onCancel]);
 
   // Prevent body scroll when dialog is open
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     }
 
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     };
   }, [isOpen]);
 
@@ -136,7 +136,7 @@ export const ConfirmDialog = ({
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-200">
-          <h2 
+          <h2
             id="confirm-dialog-title"
             className="text-lg md:text-xl font-semibold text-gray-900"
           >
@@ -153,13 +153,13 @@ export const ConfirmDialog = ({
 
         {/* Body */}
         <div className="p-4 md:p-6">
-          <p 
+          <p
             id="confirm-dialog-message"
             className="text-sm md:text-base text-gray-700 leading-relaxed"
           >
             {message}
           </p>
-          
+
           {/* Optional details list */}
           {details && details.length > 0 && (
             <ul className="mt-3 space-y-1.5 text-sm text-gray-600 bg-gray-50 rounded-md p-3 max-h-48 overflow-y-auto">

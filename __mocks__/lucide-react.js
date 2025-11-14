@@ -1,5 +1,5 @@
 // Mock for lucide-react icons
-const mockIcon = () => 'IconSVG';
+const mockIcon = () => "IconSVG";
 
 // Mock all lucide-react exports used in the component
 export const Search = mockIcon;

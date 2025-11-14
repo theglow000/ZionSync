@@ -1,11 +1,19 @@
-'use client'
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { Calendar, Plus, RefreshCw, AlertCircle, Check, X, Edit2 } from 'lucide-react';
-import { LoadingSpinner } from '../shared';
-import { fetchWithTimeout } from '../../lib/api-utils';
-import GenerateServicesModal from './GenerateServicesModal';
-import EditServiceModal from './EditServiceModal';
+import React, { useState, useEffect } from "react";
+import {
+  Calendar,
+  Plus,
+  RefreshCw,
+  AlertCircle,
+  Check,
+  X,
+  Edit2,
+} from "lucide-react";
+import { LoadingSpinner } from "../shared";
+import { fetchWithTimeout } from "../../lib/api-utils";
+import GenerateServicesModal from "./GenerateServicesModal";
+import EditServiceModal from "./EditServiceModal";
 
 const ServiceCalendarManager = () => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -36,8 +44,10 @@ const ServiceCalendarManager = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetchWithTimeout(`/api/service-calendar?year=${selectedYear}`);
-      
+      const response = await fetchWithTimeout(
+        `/api/service-calendar?year=${selectedYear}`,
+      );
+
       if (response.status === 404) {
         // Year doesn't exist yet
         setServices([]);
@@ -56,7 +66,7 @@ const ServiceCalendarManager = () => {
       setMetadata(data.metadata || null);
       setKeyDates(data.keyDates || null);
     } catch (err) {
-      console.error('Error fetching services:', err);
+      console.error("Error fetching services:", err);
       setError(err.message);
       setServices([]);
       setMetadata(null);
@@ -69,22 +79,24 @@ const ServiceCalendarManager = () => {
   const validateServices = async () => {
     setIsValidating(true);
     try {
-      const response = await fetchWithTimeout(`/api/service-calendar/validate?year=${selectedYear}`);
-      
+      const response = await fetchWithTimeout(
+        `/api/service-calendar/validate?year=${selectedYear}`,
+      );
+
       if (!response.ok) {
-        throw new Error('Validation failed');
+        throw new Error("Validation failed");
       }
 
       const result = await response.json();
       setValidationResult(result);
-      
+
       // Auto-hide success message after 5 seconds
       if (result.valid) {
         setTimeout(() => setValidationResult(null), 5000);
       }
     } catch (err) {
-      console.error('Error validating services:', err);
-      setError('Failed to validate services');
+      console.error("Error validating services:", err);
+      setError("Failed to validate services");
     } finally {
       setIsValidating(false);
     }
@@ -107,16 +119,16 @@ const ServiceCalendarManager = () => {
   };
 
   const filteredServices = filterSpecial
-    ? services.filter(s => s.specialDay || s.isSpecialWeekday)
+    ? services.filter((s) => s.specialDay || s.isSpecialWeekday)
     : services;
 
   // Format date for display
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: 'numeric'
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
     });
   };
 
@@ -146,7 +158,7 @@ const ServiceCalendarManager = () => {
                 Generate and manage liturgical service schedules
               </p>
             </div>
-            
+
             {/* Year Selector */}
             <div className="flex items-center gap-3">
               <label className="text-sm font-medium text-gray-700">Year:</label>
@@ -155,8 +167,10 @@ const ServiceCalendarManager = () => {
                 onChange={(e) => setSelectedYear(Number(e.target.value))}
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
               >
-                {yearOptions.map(year => (
-                  <option key={year} value={year}>{year}</option>
+                {yearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
                 ))}
               </select>
             </div>
@@ -171,7 +185,7 @@ const ServiceCalendarManager = () => {
               <Plus size={18} />
               Generate Services
             </button>
-            
+
             {services.length > 0 && (
               <>
                 <button
@@ -192,7 +206,10 @@ const ServiceCalendarManager = () => {
                   disabled={isLoading}
                   className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
                 >
-                  <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
+                  <RefreshCw
+                    size={18}
+                    className={isLoading ? "animate-spin" : ""}
+                  />
                   Refresh
                 </button>
               </>
@@ -204,19 +221,27 @@ const ServiceCalendarManager = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-gray-200">
               <div>
                 <div className="text-sm text-gray-600">Total Services</div>
-                <div className="text-2xl font-bold text-gray-900">{metadata.totalServices}</div>
+                <div className="text-2xl font-bold text-gray-900">
+                  {metadata.totalServices}
+                </div>
               </div>
               <div>
                 <div className="text-sm text-gray-600">Sundays</div>
-                <div className="text-2xl font-bold text-gray-900">{metadata.regularSundays}</div>
+                <div className="text-2xl font-bold text-gray-900">
+                  {metadata.regularSundays}
+                </div>
               </div>
               <div>
                 <div className="text-sm text-gray-600">Special Weekdays</div>
-                <div className="text-2xl font-bold text-gray-900">{metadata.specialWeekdays}</div>
+                <div className="text-2xl font-bold text-gray-900">
+                  {metadata.specialWeekdays}
+                </div>
               </div>
               <div>
                 <div className="text-sm text-gray-600">Overrides</div>
-                <div className="text-2xl font-bold text-gray-900">{metadata.overriddenCount || 0}</div>
+                <div className="text-2xl font-bold text-gray-900">
+                  {metadata.overriddenCount || 0}
+                </div>
               </div>
             </div>
           )}
@@ -224,34 +249,54 @@ const ServiceCalendarManager = () => {
 
         {/* Validation Result */}
         {validationResult && (
-          <div className={`rounded-lg p-4 mb-6 ${validationResult.valid ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+          <div
+            className={`rounded-lg p-4 mb-6 ${validationResult.valid ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}`}
+          >
             <div className="flex items-start gap-3">
               {validationResult.valid ? (
-                <Check className="text-green-600 flex-shrink-0 mt-0.5" size={20} />
+                <Check
+                  className="text-green-600 flex-shrink-0 mt-0.5"
+                  size={20}
+                />
               ) : (
-                <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
+                <AlertCircle
+                  className="text-red-600 flex-shrink-0 mt-0.5"
+                  size={20}
+                />
               )}
               <div className="flex-1">
-                <h3 className={`font-semibold ${validationResult.valid ? 'text-green-900' : 'text-red-900'}`}>
-                  {validationResult.valid ? 'Services are valid!' : 'Validation Issues Found'}
+                <h3
+                  className={`font-semibold ${validationResult.valid ? "text-green-900" : "text-red-900"}`}
+                >
+                  {validationResult.valid
+                    ? "Services are valid!"
+                    : "Validation Issues Found"}
                 </h3>
-                <p className={`text-sm mt-1 ${validationResult.valid ? 'text-green-700' : 'text-red-700'}`}>
+                <p
+                  className={`text-sm mt-1 ${validationResult.valid ? "text-green-700" : "text-red-700"}`}
+                >
                   {validationResult.recommendation}
                 </p>
-                {validationResult.issues && validationResult.issues.length > 0 && (
-                  <ul className="mt-2 space-y-1">
-                    {validationResult.issues.map((issue, idx) => (
-                      <li key={idx} className="text-sm text-red-700">• {issue}</li>
-                    ))}
-                  </ul>
-                )}
-                {validationResult.warnings && validationResult.warnings.length > 0 && (
-                  <ul className="mt-2 space-y-1">
-                    {validationResult.warnings.map((warning, idx) => (
-                      <li key={idx} className="text-sm text-yellow-700">⚠ {warning}</li>
-                    ))}
-                  </ul>
-                )}
+                {validationResult.issues &&
+                  validationResult.issues.length > 0 && (
+                    <ul className="mt-2 space-y-1">
+                      {validationResult.issues.map((issue, idx) => (
+                        <li key={idx} className="text-sm text-red-700">
+                          • {issue}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                {validationResult.warnings &&
+                  validationResult.warnings.length > 0 && (
+                    <ul className="mt-2 space-y-1">
+                      {validationResult.warnings.map((warning, idx) => (
+                        <li key={idx} className="text-sm text-yellow-700">
+                          ⚠ {warning}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
               </div>
               <button
                 onClick={() => setValidationResult(null)}
@@ -267,7 +312,10 @@ const ServiceCalendarManager = () => {
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
             <div className="flex items-start gap-3">
-              <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
+              <AlertCircle
+                className="text-red-600 flex-shrink-0 mt-0.5"
+                size={20}
+              />
               <div className="flex-1">
                 <h3 className="font-semibold text-red-900">Error</h3>
                 <p className="text-sm text-red-700 mt-1">{error}</p>
@@ -316,7 +364,9 @@ const ServiceCalendarManager = () => {
                   onChange={(e) => setFilterSpecial(e.target.checked)}
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="text-sm text-gray-700">Show special services only</span>
+                <span className="text-sm text-gray-700">
+                  Show special services only
+                </span>
               </label>
             </div>
 
@@ -350,9 +400,9 @@ const ServiceCalendarManager = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredServices.map((service, idx) => (
-                    <tr 
+                    <tr
                       key={idx}
-                      className={`hover:bg-gray-50 transition-colors ${service.isOverridden ? 'bg-yellow-50' : ''}`}
+                      className={`hover:bg-gray-50 transition-colors ${service.isOverridden ? "bg-yellow-50" : ""}`}
                     >
                       <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
                         {formatDate(service.date)}
@@ -367,15 +417,17 @@ const ServiceCalendarManager = () => {
                         {getColorBadge(service.seasonColor)}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {service.specialDayName || '-'}
+                        {service.specialDayName || "-"}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          service.isSpecialWeekday 
-                            ? 'bg-purple-100 text-purple-800' 
-                            : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {service.isSpecialWeekday ? 'Weekday' : 'Sunday'}
+                        <span
+                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            service.isSpecialWeekday
+                              ? "bg-purple-100 text-purple-800"
+                              : "bg-blue-100 text-blue-800"
+                          }`}
+                        >
+                          {service.isSpecialWeekday ? "Weekday" : "Sunday"}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right whitespace-nowrap">

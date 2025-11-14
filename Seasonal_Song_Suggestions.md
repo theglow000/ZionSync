@@ -1,9 +1,11 @@
 # Lutheran Hymns & Contemporary Songs for the Liturgical Year
 
-## Advent 
+## Advent
+
 **Themes:** Hope, Preparation, Anticipation of Christ's Coming
 
 ### Traditional Hymns
+
 - "Savior of the Nations, Come" (ELW 263)
 - "Come, Thou Long-Expected Jesus" (ELW 254)
 - "O Come, O Come, Emmanuel" (ELW 257)
@@ -31,6 +33,7 @@
 - "All Earth Is Hopeful" (WOV 629)
 
 ### Contemporary Songs
+
 - "Even So Come" – Passion
 - "Come, Lord Jesus (Even So Come)" – Chris Tomlin
 - "Waiting Here for You" – Christy Nockels
@@ -54,10 +57,12 @@
 
 ---
 
-## Christmas  
+## Christmas
+
 **Themes:** Nativity, Incarnation, Joy, Light in Darkness
 
 ### Traditional Hymns
+
 - "O Come, All Ye Faithful" (ELW 283)
 - "Hark! The Herald Angels Sing" (ELW 270)
 - "Silent Night, Holy Night" (ELW 281)
@@ -90,6 +95,7 @@
 - "Love Has Come" (WOV 706)
 
 ### Contemporary Songs
+
 - "Noel" – Chris Tomlin & Lauren Daigle
 - "He Shall Reign Forevermore" – Chris Tomlin
 - "Adore" – Kari Jobe
@@ -119,9 +125,11 @@
 ---
 
 ## Epiphany
+
 **Themes:** Revelation, Light to the Nations, Manifestation of Christ, Discipleship
 
 ### Traditional Hymns
+
 - "Songs of Thankfulness and Praise" (ELW 310)
 - "Brightest and Best of the Stars" (ELW 303)
 - "As with Gladness Men of Old" (ELW 302)
@@ -150,6 +158,7 @@
 - "Christ, Be Our Light" (WOV 715)
 
 ### Contemporary Songs
+
 - "Light of the World" – Lauren Daigle
 - "Star of Wonder" – JJ Heller
 - "Shine, Jesus, Shine" – Graham Kendrick
@@ -174,9 +183,11 @@
 ---
 
 ## Lent
+
 **Themes:** Repentance, Renewal, Purification, Journey to the Cross
 
 ### Traditional Hymns
+
 - "O Sacred Head, Now Wounded" (ELW 351)
 - "Ah, Holy Jesus" (ELW 349)
 - "Beneath the Cross of Jesus" (ELW 338)
@@ -206,6 +217,7 @@
 - "Lord Jesus, Think on Me" (WOV 777)
 
 ### Contemporary Songs
+
 - "Lead Me to the Cross" – Hillsong UNITED
 - "At the Cross (Love Ran Red)" – Chris Tomlin
 - "Once Again" – Matt Redman
@@ -230,9 +242,11 @@
 ---
 
 ## Holy Week
+
 **Themes:** Passion, Suffering, Sacrifice, Betrayal
 
 ### Traditional Hymns
+
 - "All Glory, Laud, and Honor" (ELW 344)
 - "Hosanna, Loud Hosanna" (ELW 344)
 - "Go to Dark Gethsemane" (ELW 347)
@@ -259,6 +273,7 @@
 - "Jesus, Remember Me" (WOV 740)
 
 ### Contemporary Songs
+
 - "The Power of the Cross" – Keith & Kristyn Getty
 - "How Deep the Father's Love for Us" – Stuart Townend
 - "Above All" – Michael W. Smith
@@ -281,10 +296,12 @@
 
 ---
 
-## Easter 
+## Easter
+
 **Themes:** Resurrection, Victory, New Life, Joy
 
 ### Traditional Hymns
+
 - "Jesus Christ Is Risen Today" (ELW 365)
 - "Christ the Lord Is Risen Today" (ELW 369)
 - "Now All the Vault of Heaven Resounds" (ELW 367)
@@ -312,6 +329,7 @@
 - "Thine the Amen, Thine the Praise" (WOV 801)
 
 ### Contemporary Songs
+
 - "Glorious Day" – Passion
 - "Living Hope" – Phil Wickham
 - "Forever (We Sing Hallelujah)" – Kari Jobe
@@ -340,10 +358,12 @@
 
 ---
 
-## Ordinary Time/Time after Pentecost 
+## Ordinary Time/Time after Pentecost
+
 **Themes:** Church Growth, Discipleship, Faith in Action, God's Kingdom
 
 ### Traditional Hymns
+
 - "God of Grace and God of Glory" (ELW 705)
 - "Lord, Take My Hand and Lead Me" (ELW 767)
 - "Lift High the Cross" (ELW 660)
@@ -378,6 +398,7 @@
 - "We All Are One in Mission" (WOV 755)
 
 ### Contemporary Songs
+
 - "Build Your Kingdom Here" – Rend Collective
 - "Cornerstone" – Hillsong Worship
 - "10,000 Reasons (Bless the Lord)" – Matt Redman
@@ -409,17 +430,20 @@
 ## Special Feast Days
 
 ### Palm Sunday
+
 **Color:** Purple/Scarlet  
 **Themes:** Christ's Triumphal Entry, Beginning of Passion
 
 #### Traditional Hymns
+
 - "All Glory, Laud, and Honor" (ELW 344)
 - "Hosanna, Loud Hosanna" (ELW 344)
-- "Ride On, Ride On in Majesty!" (ELW 346) 
+- "Ride On, Ride On in Majesty!" (ELW 346)
 - "Prepare the Royal Highway" (ELW 264)
 - "The King of Glory Comes" (ELW 416)
 
 #### Contemporary Songs
+
 - "Hosanna (Praise Is Rising)" – Paul Baloche
 - "Hosanna" – Hillsong UNITED
 - "Blessed Is He" – Matt and Beth Redman
@@ -427,10 +451,12 @@
 - "Salvation Is Here" – Hillsong UNITED
 
 ### Maundy Thursday
+
 **Color:** Purple/Scarlet  
 **Themes:** Last Supper, Foot Washing, New Commandment
 
 #### Traditional Hymns
+
 - "Where Charity and Love Prevail" (ELW 359)
 - "Let Us Break Bread Together" (ELW 471)
 - "Jesus, Remember Me" (ELW 616)
@@ -438,6 +464,7 @@
 - "Eat This Bread" (ELW 472)
 
 #### Contemporary Songs
+
 - "Remembrance (The Communion Song)" – Matt Redman
 - "The Servant King" – Graham Kendrick
 - "Behold the Lamb" – Keith & Kristyn Getty
@@ -445,10 +472,12 @@
 - "The Basin and the Towel" – Michael Card
 
 ### Good Friday
+
 **Color:** Black  
 **Themes:** Crucifixion, Christ's Death, Sacrifice
 
 #### Traditional Hymns
+
 - "O Sacred Head, Now Wounded" (ELW 351)
 - "Were You There" (ELW 353)
 - "Ah, Holy Jesus" (ELW 349)
@@ -456,6 +485,7 @@
 - "Beneath the Cross of Jesus" (ELW 338)
 
 #### Contemporary Songs
+
 - "How Deep the Father's Love for Us" – Stuart Townend
 - "The Power of the Cross" – Keith & Kristyn Getty
 - "Man of Sorrows" – Hillsong Worship
@@ -463,10 +493,12 @@
 - "It Is Finished" – Passion
 
 ### Easter Sunday
+
 **Color:** White/Gold  
 **Themes:** Resurrection, Victory, New Creation
 
 #### Traditional Hymns
+
 - "Jesus Christ Is Risen Today" (ELW 365)
 - "Christ the Lord Is Risen Today" (ELW 369)
 - "Now All the Vault of Heaven Resounds" (ELW 367)
@@ -474,6 +506,7 @@
 - "The Strife Is O'er, the Battle Done" (ELW 366)
 
 #### Contemporary Songs
+
 - "Christ Is Risen" – Matt Maher
 - "Resurrecting" – Elevation Worship
 - "Forever (We Sing Hallelujah)" – Kari Jobe
@@ -481,10 +514,12 @@
 - "Because He Lives (Amen)" – Matt Maher
 
 ### Pentecost
+
 **Color:** Red  
 **Themes:** Holy Spirit, Church's Birthday, Spiritual Gifts
 
 #### Traditional Hymns
+
 - "Spirit of Gentleness" (ELW 396, WOV 684)
 - "Come, Holy Ghost, God and Lord" (ELW 395)
 - "O Day Full of Grace" (ELW 627)
@@ -495,6 +530,7 @@
 - "Come Down, O Love Divine" (WOV 790)
 
 #### Contemporary Songs
+
 - "Holy Spirit" – Francesca Battistelli
 - "Spirit of the Living God" – Vertical Worship
 - "Fall Afresh" – Kari Jobe
@@ -502,10 +538,12 @@
 - "Holy Spirit" – Bryan & Katie Torwalt
 
 ### Holy Trinity Sunday
+
 **Color:** White  
 **Themes:** Trinity, Mystery of God, Relationships
 
 #### Traditional Hymns
+
 - "Holy, Holy, Holy, Lord God Almighty!" (ELW 413)
 - "Come, Join the Dance of Trinity" (ELW 412)
 - "Source and Sovereign, Rock and Cloud" (ELW 947)
@@ -516,17 +554,20 @@
 - "Praise to the Lord, the Almighty" (WOV 782)
 
 #### Contemporary Songs
+
 - "This I Believe (The Creed)" – Hillsong Worship
 - "Doxology" – David Crowder
 - "Holy, Holy, Holy" – Matt Maher
 - "God in Three Persons" – Matt Redman
 - "The Wonderful Cross" – Chris Tomlin & Matt Redman"
 
-### Reformation (Lutheran-specific) 
+### Reformation (Lutheran-specific)
+
 **Color:** Red  
 **Themes:** Renewal, Faith Alone, Grace Alone, Scripture Alone
 
 #### Traditional Hymns
+
 - "A Mighty Fortress Is Our God" (ELW 504)
 - "Built on a Rock" (ELW 652)
 - "The Church's One Foundation" (ELW 654)
@@ -538,6 +579,7 @@
 - "God's Word Is Our Great Heritage" (WOV 771)
 
 #### Contemporary Songs
+
 - "In Christ Alone" – Keith & Kristyn Getty
 - "Your Grace Is Enough" – Matt Maher
 - "You Alone Can Rescue" – Matt Redman
@@ -545,10 +587,12 @@
 - "I Will Follow" – Chris Tomlin
 
 ### All Saints Day
+
 **Color:** White  
 **Themes:** Remembrance, Cloud of Witnesses, Hope
 
 #### Traditional Hymns
+
 - "For All the Saints" (ELW 422)
 - "Shall We Gather at the River" (ELW 423)
 - "Sing with All the Saints in Glory" (ELW 426)
@@ -560,6 +604,7 @@
 - "Blest Are They" (WOV 764)
 
 #### Contemporary Songs
+
 - "I Will Rise" – Chris Tomlin
 - "Surrounded (Fight My Battles)" – Michael W. Smith
 - "You Are My King (Amazing Love)" – Newsboys
@@ -567,10 +612,12 @@
 - "Cloud of Witnesses" – Matt Redman
 
 ### Christ the King
+
 **Color:** White  
 **Themes:** Christ's Sovereignty, Reign of Christ, Kingdom of God
 
 #### Traditional Hymns
+
 - "Crown Him with Many Crowns" (ELW 855)
 - "Jesus Shall Reign" (ELW 434)
 - "Lo! He Comes with Clouds Descending" (ELW 435)
@@ -581,6 +628,7 @@
 - "Lord, Enthroned in Heavenly Splendor" (WOV 761)
 
 #### Contemporary Songs
+
 - "King of Kings" – Hillsong Worship
 - "Is He Worthy" – Andrew Peterson
 - "The Lion and the Lamb" – Leeland

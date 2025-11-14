@@ -9,13 +9,13 @@
 ## 📊 Current State Assessment
 
 ### Completed
+
 - ✅ **Sprint 4.1: Liturgical Calendar System** - PRODUCTION READY
   - Algorithmic service generation (63 services/year)
   - 5 calendar management API endpoints (GET, generate, validate, override, revert)
   - Admin UI with Settings page integration
   - Multi-year support (2025-2030+)
   - 118 passing tests, all core functionality validated
-  
 - ✅ **Sprint 4.2: Multi-Year Support for All Tabs** - PRODUCTION READY
   - Year selector seamlessly integrated into all tab headers (↓ Year Service Schedule)
   - Dynamic year switching with loading states
@@ -25,7 +25,6 @@
   - serviceDetails collection completely protected (zero modifications)
   - All existing functionality preserved with zero regressions
   - Fully tested and verified in production
-  
 - ✅ **A/V Team Tab** - Fully optimized (reference implementation)
   - useMemo/useCallback optimization
   - Consolidated data fetching
@@ -34,11 +33,13 @@
   - Consistent error handling
 
 ### Next Up
+
 - 🔵 **Ready for Next Sprint** - All immediate improvements complete!
 
 ---
 
 ## 🚀 Sprint 1: Performance Optimization & Consistency
+
 **Goal**: Apply A/V Team improvements to Presentation & Worship tabs  
 **Time Estimate**: 2-3 hours  
 **Priority**: HIGH  
@@ -47,13 +48,14 @@
 ### Tasks
 
 #### 1.1 Worship Team Performance Optimization ✅
+
 **File**: `src/components/ui/WorshipTeam.jsx`  
 **Status**: ✅ Complete
 
 - [x] Import `useMemo` and `useCallback` (already partially done)
 - [x] Add `useCallback` for all handler functions:
   - [x] `handleSongSelection` - Song selection handler
-  - [x] `handleEditTeam` - Team assignment handler  
+  - [x] `handleEditTeam` - Team assignment handler
   - [x] `handleAddUser` - Add user handler
   - [x] `handleDeleteUser` - Delete user handler
   - [x] `handleUserSelect` - User selection handler
@@ -68,12 +70,14 @@
 - [x] Verify no regressions
 
 **Acceptance Criteria**:
+
 - [x] All event handlers wrapped in `useCallback`
 - [x] All computed values wrapped in `useMemo`
 - [x] No console errors
 - [x] Tab functions identically to before
 
 **Changes Made**:
+
 - Added 6 new useCallback-wrapped handlers
 - Replaced 3 inline event handlers with optimized function calls
 - File grew from 837 to 870 lines (+33 lines)
@@ -83,6 +87,7 @@
 ---
 
 #### 1.2 Presentation Team Performance Optimization ✅
+
 **File**: `src/components/ui/SignupSheet.jsx`  
 **Status**: ✅ Complete
 
@@ -110,12 +115,14 @@
 - [x] Verify no regressions
 
 **Acceptance Criteria**:
+
 - [x] All handlers optimized with `useCallback`
 - [x] All computations optimized with `useMemo`
 - [x] Component re-renders minimized
 - [x] No functionality broken
 
 **Changes Made**:
+
 - Added 16 useCallback-wrapped handlers
 - Replaced 4 complex inline event handlers with optimized function calls
 - All utility functions wrapped in useCallback
@@ -125,6 +132,7 @@
 ---
 
 #### 1.3 Enhanced Loading States - Worship Team ✅
+
 **File**: `src/components/ui/WorshipTeam.jsx`  
 **Status**: ✅ Complete
 
@@ -135,11 +143,13 @@
 - [x] Verify mobile responsive
 
 **Acceptance Criteria**:
+
 - [x] Professional loading spinner displays
 - [x] Consistent with A/V Team styling
 - [x] Mobile responsive
 
 **Changes Made**:
+
 - Added spinning loader with purple border matching team color
 - Conditional rendering wraps entire CardContent section
 - Matches A/V Team implementation pattern
@@ -147,6 +157,7 @@
 ---
 
 #### 1.4 Enhanced Loading States - Presentation Team ✅
+
 **File**: `src/components/ui/SignupSheet.jsx`  
 **Status**: ✅ Complete
 
@@ -157,11 +168,13 @@
 - [x] Verify mobile responsive
 
 **Acceptance Criteria**:
+
 - [x] Professional loading spinner displays
 - [x] Consistent with A/V Team styling
 - [x] Mobile responsive
 
 **Changes Made**:
+
 - Added spinning loader with green border matching team color
 - Conditional rendering wraps entire CardContent section
 - Matches A/V Team implementation pattern
@@ -169,6 +182,7 @@
 ---
 
 #### 1.5 Consolidated Data Fetching - Presentation Team ✅
+
 **File**: `src/components/ui/SignupSheet.jsx`  
 **Status**: ✅ Complete
 
@@ -181,12 +195,14 @@
 - [x] Verify no race conditions
 
 **Acceptance Criteria**:
+
 - [x] Clean, consolidated data fetching pattern
 - [x] Proper error handling
 - [x] No duplicate API calls
 - [x] Follows best practices
 
 **Changes Made**:
+
 - Consolidated 3 useEffect hooks into 2 optimized hooks:
   1. **Initial data fetch** (runs once): users, signups, completed, custom services
   2. **Polling fetch** (runs every 30s): service-details only
@@ -197,6 +213,7 @@
 - Added clear comments explaining workflow integration
 
 **Why Two useEffect Hooks?**
+
 - Initial data (users, signups, completed, custom services) fetched once on mount
 - Service details needs continuous polling to sync Worship Team song selections
 - This separation prevents unnecessary re-fetching of static data
@@ -204,6 +221,7 @@
 ---
 
 ### Sprint 1 Deliverables ✅
+
 - ✅ All three tabs have consistent performance optimizations
 - ✅ Professional loading states across all tabs
 - ✅ Clean, consolidated data fetching patterns
@@ -215,6 +233,7 @@
 ---
 
 ## 🎯 Sprint 2: UX Enhancements
+
 **Goal**: Improve user experience with better interactions and feedback  
 **Time Estimate**: 3-4 hours  
 **Priority**: MEDIUM  
@@ -223,10 +242,12 @@
 ### Tasks
 
 #### 2.1 Replace Prompt Dialogs with Modals ✅
+
 **Files**: All team components  
 **Status**: ✅ Complete
 
 ##### 2.1.1 Create AddUserModal Component ✅
+
 - [x] Create `src/components/ui/AddUserModal.jsx`
 - [x] Design modal UI:
   - [x] Input field for user name
@@ -241,6 +262,7 @@
 **Status**: ✅ Complete
 
 **Changes Made**:
+
 - Created professional modal component with validation
 - Added keyboard shortcuts (Enter/Esc)
 - Implemented team-colored theming via `teamColor` prop
@@ -252,6 +274,7 @@
 ---
 
 ##### 2.1.2 Replace Prompts in Presentation Team ✅
+
 - [x] Import `AddUserModal`
 - [x] Replace `prompt()` calls in `handleAddUser()`
 - [x] Add modal state management
@@ -262,6 +285,7 @@
 **Status**: ✅ Complete
 
 **Changes Made**:
+
 - Added `showAddUserModal` state
 - Modified `handleAddUser()` to open modal instead of prompt
 - Created `handleAddUserSubmit()` for API call logic
@@ -272,6 +296,7 @@
 ---
 
 ##### 2.1.3 Replace Prompts in Worship Team ✅
+
 - [x] Import `AddUserModal`
 - [x] Replace `prompt()` calls
 - [x] Add modal state management
@@ -282,6 +307,7 @@
 **Status**: ✅ Complete
 
 **Changes Made**:
+
 - Added `showAddUserModal` state
 - Modified `handleAddUser()` to open modal instead of prompt
 - Created `handleAddUserSubmit()` for API call logic
@@ -292,6 +318,7 @@
 ---
 
 ##### 2.1.4 Replace Prompts in A/V Team ✅
+
 - [x] Import `AddUserModal`
 - [x] Replace `prompt()` calls in `handleAddUser()`
 - [x] Add modal state management
@@ -302,6 +329,7 @@
 **Status**: ✅ Complete
 
 **Changes Made**:
+
 - Added `showAddUserModal` state
 - Modified `handleAddUser()` to open modal instead of prompt
 - Created `handleAddUserSubmit()` for API call logic
@@ -312,6 +340,7 @@
 ---
 
 **Acceptance Criteria**:
+
 - [x] No more `prompt()` calls for user addition in codebase (✅ Complete)
 - [x] Professional modal dialogs across all tabs (✅ Complete)
 - [x] Consistent styling across tabs (✅ Complete - each team has branded color)
@@ -320,35 +349,44 @@
 ---
 
 #### 2.2 Implement Request Debouncing ✅
+
 **Files**: All team components  
 **Status**: ✅ Complete
 
 ##### 2.2.1 Create useDebounce Hook ✅
+
 - [x] Created custom `src/hooks/useDebounce.js` (no lodash dependency)
 - [x] Returns debounced callback and cancel function
 - [x] Proper cleanup on unmount
 - [x] Includes bonus `useThrottle` implementation
 
 ##### 2.2.2 Debounce Presentation Team Actions ✅
+
 **File**: `src/components/ui/SignupSheet.jsx`
+
 - [x] Debounce signup/assign actions (300ms)
 - [x] Debounce completion toggle (500ms)
 - [x] Added pendingActions state for loading indicators
 - [x] Tested rapid clicking scenarios
 
 ##### 2.2.3 Debounce Worship Team Actions ✅
+
 **File**: `src/components/ui/WorshipTeam.jsx`
+
 - [x] Debounce song selections (500ms)
 - [x] Added pendingActions state for loading indicators
 - [x] Tested rapid clicking scenarios
 
 ##### 2.2.4 Debounce A/V Team Actions ✅
+
 **File**: `src/components/ui/AVTeam.jsx`
+
 - [x] Debounce assignment changes (300ms)
 - [x] Added pendingActions state for loading indicators
 - [x] Tested rapid clicking scenarios
 
 **Acceptance Criteria**:
+
 - [x] Users cannot spam buttons (✅ Complete)
 - [x] Multiple API calls prevented (✅ Complete)
 - [x] Visual feedback during debounce (✅ Complete)
@@ -357,10 +395,12 @@
 ---
 
 #### 2.3 Implement Optimistic Updates ✅
+
 **Files**: All team components  
 **Status**: ✅ Complete
 
 ##### 2.3.1 Optimistic Updates - Presentation Team ✅
+
 - [x] Update signup immediately in UI
 - [x] Show loading indicator
 - [x] Make API call
@@ -369,17 +409,20 @@
 - [x] Tested success and failure scenarios
 
 ##### 2.3.2 Optimistic Updates - Worship Team ✅
+
 - [x] Update song selections immediately
 - [x] Show loading indicators
 - [x] Revert on failure with error message
 - [x] Tested success and failure scenarios
 
 ##### 2.3.3 Optimistic Updates - A/V Team ✅
+
 - [x] Verified all operations use optimistic updates
 - [x] Ensured revert logic works correctly
 - [x] Tested edge cases
 
 **Acceptance Criteria**:
+
 - [x] Instant UI feedback for all actions (✅ Complete)
 - [x] Proper revert on failures (✅ Complete)
 - [x] Clear error messages (✅ Complete)
@@ -388,6 +431,7 @@
 ---
 
 #### 2.4 Standardize Error Messages ✅
+
 **Files**: All components  
 **Status**: ✅ Complete
 
@@ -402,18 +446,20 @@
 - [x] Tested all error scenarios
 
 **Implementation**:
+
 ```javascript
 // src/lib/error-messages.js
 export const ERROR_MESSAGES = {
-  NETWORK: 'Unable to connect. Please check your internet connection.',
-  SAVE_FAILED: 'Failed to save changes. Please try again.',
-  DELETE_FAILED: 'Failed to delete. Please try again.',
-  VALIDATION: 'Please check your input and try again.',
-  GENERIC: 'An unexpected error occurred. Please try again.',
+  NETWORK: "Unable to connect. Please check your internet connection.",
+  SAVE_FAILED: "Failed to save changes. Please try again.",
+  DELETE_FAILED: "Failed to delete. Please try again.",
+  VALIDATION: "Please check your input and try again.",
+  GENERIC: "An unexpected error occurred. Please try again.",
 };
 ```
 
 **Acceptance Criteria**:
+
 - Consistent error messages app-wide
 - User-friendly language
 - Actionable guidance
@@ -422,6 +468,7 @@ export const ERROR_MESSAGES = {
 ---
 
 ### Sprint 2 Deliverables
+
 - ✅ Professional modal dialogs replace prompts
 - ✅ Debounced user actions prevent spam
 - ✅ Optimistic updates for better UX
@@ -431,17 +478,20 @@ export const ERROR_MESSAGES = {
 ---
 
 ## 🏗️ Sprint 3: Code Organization & Shared Infrastructure
+
 **Goal**: Create reusable components and utilities for maintainability  
 **Time Estimate**: 4-6 hours  
 **Priority**: MEDIUM  
-**Status**:  Complete
+**Status**: Complete
 
 ### Tasks
 
 #### 3.1 Extract Shared Constants ✅
+
 **Status**: ✅ Complete
 
 ##### 3.1.1 Create Constants File ✅
+
 - [x] Created `src/lib/constants.js`
 - [x] Moved DATES_2025 array
 - [x] Added POLLING_INTERVAL constant (30000ms)
@@ -455,21 +505,23 @@ export const ERROR_MESSAGES = {
 - [x] Exported all constants
 
 **Implementation Details**:
+
 - Created comprehensive 221-line constants file
 - Organized by category (Timing, Debounce, Colors, Dates, Team, API, Validation, UI)
 - All constants properly documented and grouped
 - Helper functions included for common operations
 
 ##### 3.1.2 Update All Components to Use Constants ✅
+
 - [x] Updated Presentation Team (SignupSheet.jsx) to import constants
   - [x] Removed local POLLING_INTERVAL definition
-  - [x] Updated all 11 API endpoints to use API_ENDPOINTS.*
+  - [x] Updated all 11 API endpoints to use API_ENDPOINTS.\*
   - [x] No compilation errors
 - [x] Updated Worship Team (WorshipTeam.jsx) to import constants
   - [x] Removed local POLLING_INTERVAL definition
   - [x] Removed local DATES array (69 lines)
   - [x] Updated to use DATES_2025 from constants
-  - [x] Updated all 8 API endpoints to use API_ENDPOINTS.*
+  - [x] Updated all 8 API endpoints to use API_ENDPOINTS.\*
   - [x] Fixed incorrect `/api/worship-users` → `/api/users/worship`
   - [x] No compilation errors
 - [x] Updated A/V Team (AVTeam.jsx) to import constants
@@ -477,16 +529,18 @@ export const ERROR_MESSAGES = {
   - [x] Removed local dates array (64 lines)
   - [x] Removed local rotationMembers array
   - [x] Updated to use DATES_2025 and AV_ROTATION_MEMBERS from constants
-  - [x] Updated all 8 API endpoints to use API_ENDPOINTS.*
+  - [x] Updated all 8 API endpoints to use API_ENDPOINTS.\*
   - [x] No compilation errors
 
 **Acceptance Criteria**:
+
 - [x] Single source of truth for constants (✅ Complete)
 - [x] No duplicate definitions (✅ Complete - removed ~200+ lines of duplicates)
 - [x] Easy to update for next year (✅ Complete - single DATES_2025 array)
 - [x] All tabs function correctly (✅ Complete - verified no errors)
 
 **Benefits Achieved**:
+
 - Eliminated ~200+ lines of duplicate code
 - All API endpoints centralized (easy to update if routes change)
 - Dates for 2026 can be updated in one place
@@ -496,9 +550,11 @@ export const ERROR_MESSAGES = {
 ---
 
 #### 3.2 Create Custom Hooks Library ✅
+
 **Status**: ✅ Complete
 
 ##### 3.2.1 Create useAlertManager Hook ✅
+
 - [x] Created `src/hooks/useAlertManager.js`
 - [x] Implemented alert state management
 - [x] Added auto-dismiss functionality (uses ALERT_DURATION constant)
@@ -506,6 +562,7 @@ export const ERROR_MESSAGES = {
 - [x] Exported hook with comprehensive JSDoc documentation
 
 **Implementation Details**:
+
 - 95 lines with full documentation
 - Returns: `showAlert`, `alertMessage`, `alertPosition`, `setAlertPosition`, `showAlertWithTimeout`, `hideAlert`, `clearAlert`
 - Automatic cleanup of timers on unmount
@@ -513,6 +570,7 @@ export const ERROR_MESSAGES = {
 - Clear API for manual control when needed
 
 ##### 3.2.2 Create useFetchWithLoading Hook ✅
+
 - [x] Created `src/hooks/useFetchWithLoading.js`
 - [x] Handle loading states
 - [x] Handle error states
@@ -521,6 +579,7 @@ export const ERROR_MESSAGES = {
 - [x] Exported hook with comprehensive JSDoc documentation
 
 **Implementation Details**:
+
 - 165 lines with full documentation
 - Returns: `isLoading`, `error`, `fetchData`, `clearError`, `retryLastFetch`, `cancelFetch`
 - Configurable retry attempts with exponential backoff
@@ -529,6 +588,7 @@ export const ERROR_MESSAGES = {
 - Supports both JSON and text responses
 
 ##### 3.2.3 Create useFetchOnMount Hook ✅
+
 - [x] Created `src/hooks/useFetchOnMount.js`
 - [x] Handles data fetching on component mount
 - [x] Automatic cleanup with AbortController
@@ -536,6 +596,7 @@ export const ERROR_MESSAGES = {
 - [x] Exported hook with comprehensive JSDoc documentation
 
 **Implementation Details**:
+
 - 115 lines with full documentation
 - Returns: `data`, `isLoading`, `error`, `refetch`
 - Accepts `enabled` flag for conditional fetching
@@ -544,6 +605,7 @@ export const ERROR_MESSAGES = {
 - Will eliminate ~15-30 lines per component
 
 ##### 3.2.4 Create usePolling Hook ✅
+
 - [x] Created `src/hooks/usePolling.js`
 - [x] Handles interval-based function execution
 - [x] Automatic cleanup on unmount
@@ -551,6 +613,7 @@ export const ERROR_MESSAGES = {
 - [x] Exported hook with comprehensive JSDoc documentation
 
 **Implementation Details**:
+
 - 100 lines with full documentation
 - Returns: `start`, `stop`, `isActive`
 - Configurable interval and immediate execution
@@ -559,12 +622,14 @@ export const ERROR_MESSAGES = {
 - Will eliminate ~8-12 lines per component
 
 ##### 3.2.5 Create useModal Hook ✅
+
 - [x] Created `src/hooks/useModal.js`
 - [x] Simple modal state management
 - [x] Provides open/close/toggle functions
 - [x] Exported hook with comprehensive JSDoc documentation
 
 **Implementation Details**:
+
 - 55 lines with full documentation
 - Returns: `isOpen`, `open`, `close`, `toggle`, `setIsOpen`
 - Simple but frequently used pattern
@@ -572,6 +637,7 @@ export const ERROR_MESSAGES = {
 - Used across many modals (AddUserModal, UserSelectionModal, etc.)
 
 ##### 3.2.6 useDebounce Hook ✅
+
 - [x] Already exists from Sprint 2 (`src/hooks/useDebounce.js`)
 - [x] 77 lines with full implementation
 - [x] Returns debounced callback and cancel function
@@ -579,12 +645,15 @@ export const ERROR_MESSAGES = {
 - [x] Includes bonus useThrottle implementation
 
 ##### 3.2.7 Update Hooks Index File ✅
+
 - [x] Updated `src/hooks/index.js` for centralized exports
 - [x] Now exports all 6 custom hooks: `useAlertManager`, `useDebounce`, `useFetchWithLoading`, `useFetchOnMount`, `useModal`, `usePolling`
 - [x] Enables clean imports: `import { useAlertManager, useModal, usePolling } from '@/hooks'`
 
 ##### 3.2.8 Implement Hooks in Components ✅
+
 **useAlertManager Integration:**
+
 - [x] Implemented in Presentation Team (SignupSheet.jsx)
   - Replaced manual `showAlert`, `alertMessage`, `alertPosition` state (3 state variables)
   - Updated all error/success handlers to use `showAlertWithTimeout`
@@ -605,6 +674,7 @@ export const ERROR_MESSAGES = {
   - No compilation errors
 
 ##### 3.2.9 Create useConfirm Hook ✅
+
 - [x] Created `src/hooks/useConfirm.js`
 - [x] Custom confirmation dialog component
 - [x] Async/Promise-based API
@@ -612,6 +682,7 @@ export const ERROR_MESSAGES = {
 - [x] Exported hook with comprehensive JSDoc documentation
 
 **Implementation Details**:
+
 - 135 lines with full documentation
 - Returns: `showConfirm`, `confirmConfig`, `confirm`, `ConfirmDialog`
 - Promise-based API for async confirmation handling
@@ -621,28 +692,30 @@ export const ERROR_MESSAGES = {
 - Replaces ugly native `window.confirm()` and `confirm()` calls
 
 **Usage Example**:
+
 ```javascript
 const { confirm, ConfirmDialog } = useConfirm();
 
 const handleDelete = async () => {
   const confirmed = await confirm({
-    title: 'Delete User',
-    message: 'Are you sure you want to remove this user?',
-    confirmText: 'Delete',
-    cancelText: 'Cancel',
-    variant: 'danger'
+    title: "Delete User",
+    message: "Are you sure you want to remove this user?",
+    confirmText: "Delete",
+    cancelText: "Cancel",
+    variant: "danger",
   });
-  
+
   if (confirmed) {
     // Proceed with deletion
   }
 };
 
 // In JSX:
-<ConfirmDialog />
+<ConfirmDialog />;
 ```
 
 **Impact**:
+
 - 20+ native confirm() calls across app can be replaced
 - Consistent, professional UX across entire app
 - Mobile-friendly dialogs (native confirm is not mobile-friendly)
@@ -651,23 +724,27 @@ const handleDelete = async () => {
 - Dramatically improved user experience
 
 ##### 3.2.10 Update Hooks Index File ✅
+
 - [x] Updated `src/hooks/index.js` to export all 7 custom hooks
 - [x] Now exports: `useAlertManager`, `useConfirm`, `useDebounce`, `useFetchWithLoading`, `useFetchOnMount`, `useModal`, `usePolling`
 - [x] Enables clean imports: `import { useAlertManager, useConfirm, useModal } from '@/hooks'`
 
 **Total Code Reduction from useAlertManager:**
+
 - **~90 lines eliminated** across 3 main components
 - **~25 manual setTimeout calls removed**
 - **9 state variables consolidated** into hook calls
 - **Consistent alert behavior** across entire app
 
 **Acceptance Criteria**:
+
 - [x] Reusable hooks created (✅ 7 hooks + index file)
 - [x] Consistent behavior across tabs (✅ useAlertManager integrated in all 3 tabs)
 - [x] Reduced code duplication (✅ ~90 lines eliminated, 25 timeouts removed)
 - [x] Easier to maintain (✅ Centralized logic, comprehensive docs)
 
 **Benefits Achieved**:
+
 - Manual alert management completely eliminated
 - Automatic cleanup prevents memory leaks
 - Consistent alert behavior guaranteed across app
@@ -677,6 +754,7 @@ const handleDelete = async () => {
 - Total potential code reduction: **250+ lines** when all hooks are fully integrated
 
 **Complete Hook Library**:
+
 1. ✅ `useAlertManager` (95 lines) - Alert state with auto-dismiss - **INTEGRATED**
 2. ✅ `useConfirm` (135 lines) - Custom confirmation dialogs - **NEW, READY FOR INTEGRATION**
 3. ✅ `useDebounce` (77 lines) - Request debouncing - **INTEGRATED**
@@ -686,6 +764,7 @@ const handleDelete = async () => {
 7. ✅ `usePolling` (100 lines) - Interval-based polling
 
 **Next Steps for Hook Integration** (Optional - Sprint 3.3+):
+
 - **HIGH PRIORITY**: Integrate `useConfirm` to replace 20+ native confirm() calls (dramatic UX improvement)
 - Integrate `useFetchOnMount` in components with data fetching on mount
 - Integrate `usePolling` in SignupSheet and WorshipTeam for service details polling
@@ -694,6 +773,7 @@ const handleDelete = async () => {
 ---
 
 #### 3.3 Build Shared Components
+
 **Status**: ✅ **COMPLETE** (November 2024)
 
 **Summary**: Created professional, reusable shared components and fully integrated them throughout the application. All 4 shared components have been implemented with comprehensive integration across the codebase.
@@ -707,6 +787,7 @@ const handleDelete = async () => {
 - ✅ **Fully integrated across entire app** (17 instances)
 
 **Integration Complete** (17 instances):
+
 - SignupSheet.jsx - Main loading + inline spinner (2 instances)
 - WorshipTeam.jsx - Main loading state
 - AVTeam.jsx - Main loading state
@@ -739,6 +820,7 @@ const handleDelete = async () => {
 - ✅ **Fully integrated with useConfirm hook - ALL window.confirm() calls replaced**
 
 **Integration Complete** (9 components, 19+ confirm dialogs):
+
 - ✅ SignupSheet.jsx - 3× user/service deletion confirmations
 - ✅ AVTeam.jsx - User removal confirmations
 - ✅ ServiceSongSelector.jsx - 2× song usage warnings
@@ -762,6 +844,7 @@ const handleDelete = async () => {
 - ✅ **Fully integrated across application**
 
 **Integration Complete** (8 instances):
+
 - SongRediscoveryPanel.jsx - 3× (filtered songs, no suggestions, no services)
 - SongDatabase.jsx - 2× (no search results, no services)
 - QuickAddModal.jsx - 1× (no services)
@@ -771,6 +854,7 @@ const handleDelete = async () => {
 ##### 3.3.5 Full Integration Status ✅
 
 **Acceptance Criteria**:
+
 - ✅ Reusable shared components created (4 of 4 complete)
 - ✅ ConfirmDialog integrated with useConfirm across ALL components (9 files, 19+ instances)
 - ✅ LoadingSpinner integrated across entire app (11 files, 17 instances)
@@ -783,10 +867,12 @@ const handleDelete = async () => {
 **Sprint 3.3 Metrics - FINAL**:
 
 **Component Creation**: ✅ COMPLETE
+
 - **Files Created**: 5 (LoadingSpinner, ErrorMessage, ConfirmDialog, EmptyState, index.js)
 - **Total Lines Added**: 415 lines of reusable code
 
 **Full Integration**: ✅ COMPLETE
+
 - **Files Updated**: 15+ components
 - **window.confirm() Replaced**: 19+ instances → Professional ConfirmDialog
 - **LoadingSpinner Instances**: 17 across 11 files
@@ -797,9 +883,11 @@ const handleDelete = async () => {
 ---
 
 #### 3.4 Add Error Boundaries
+
 **Status**: ✅ Complete
 
 ##### 3.4.1 Create ErrorBoundary Component
+
 - [x] Create `src/components/ErrorBoundary.jsx`
 - [x] Implement componentDidCatch
 - [x] Create fallback UI
@@ -807,19 +895,20 @@ const handleDelete = async () => {
 - [x] Add error logging
 
 **Code Template**:
+
 ```jsx
 // src/components/ErrorBoundary.jsx
 class ErrorBoundary extends React.Component {
   state = { hasError: false, error: null };
-  
+
   static getDerivedStateFromError(error) {
     return { hasError: true, error };
   }
-  
+
   componentDidCatch(error, errorInfo) {
-    console.error('ErrorBoundary caught:', error, errorInfo);
+    console.error("ErrorBoundary caught:", error, errorInfo);
   }
-  
+
   render() {
     if (this.state.hasError) {
       return (
@@ -848,6 +937,7 @@ class ErrorBoundary extends React.Component {
 ```
 
 ##### 3.4.2 Wrap Components in Error Boundaries
+
 - [x] Wrap SignupSheet in MainLayout
 - [x] Wrap WorshipTeam in MainLayout
 - [x] Wrap AVTeam in MainLayout
@@ -855,12 +945,14 @@ class ErrorBoundary extends React.Component {
 - [x] Verify fallback UI displays
 
 **Acceptance Criteria**:
+
 - ✅ Error boundaries protect each tab
 - ✅ Graceful error handling
 - ✅ User-friendly error messages
 - ✅ Application doesn't crash completely
 
 **Implementation Notes**:
+
 - Created ErrorBoundary.jsx (139 lines) with componentDidCatch and getDerivedStateFromError
 - Added professional fallback UI with AlertTriangle icon
 - Implemented Reload Page and Try Again buttons
@@ -872,9 +964,11 @@ class ErrorBoundary extends React.Component {
 ---
 
 #### 3.5 Create API Utilities
+
 **Status**: ✅ Complete
 
 ##### 3.5.1 Create API Helper Functions ✅
+
 - [x] Create `src/lib/api-utils.js`
 - [x] Implement fetchWithTimeout
 - [x] Implement fetchWithRetry
@@ -882,6 +976,7 @@ class ErrorBoundary extends React.Component {
 - [x] Export utilities
 
 **Implementation Details**:
+
 - Created comprehensive 355-line API utilities file
 - `fetchWithTimeout` - AbortController-based timeout protection (default: 10 seconds)
 - `fetchWithRetry` - Exponential backoff retry logic (default: 3 retries)
@@ -893,6 +988,7 @@ class ErrorBoundary extends React.Component {
 - Convenience wrappers: `apiGet`, `apiPost`, `apiPut`, `apiDelete`
 
 ##### 3.5.2 Implement API Utilities ✅
+
 - [x] Update fetch calls in ALL components across entire application
   - **Main Components**:
     - [x] Presentation Team (SignupSheet.jsx) - 11 fetch() calls → fetchWithTimeout
@@ -918,12 +1014,14 @@ class ErrorBoundary extends React.Component {
 - [x] Test retry scenarios
 
 **Acceptance Criteria**:
+
 - [x] Consistent API error handling across all components (✅ 100% coverage)
 - [x] Automatic retries for transient failures with exponential backoff
 - [x] Timeout protection on all network requests (10-second default)
 - [x] Better reliability and user experience
 
 **Implementation Summary**:
+
 - **Total fetch() calls replaced**: 70 across 14 files
 - **Component Types Updated**: Main tabs (3), UI components (9), Core components (1), Hooks (1)
 - **Timeout protection**: All API calls now abort after 10 seconds
@@ -939,6 +1037,7 @@ class ErrorBoundary extends React.Component {
 ---
 
 ### Sprint 3 Deliverables
+
 - ✅ Shared constants module
 - ✅ Custom hooks library (7 hooks)
 - ✅ Reusable shared components (4 components)
@@ -951,6 +1050,7 @@ class ErrorBoundary extends React.Component {
 ---
 
 ## 🔮 Sprint 4: Advanced Features (Future)
+
 **Goal**: Production-ready features and scalability improvements  
 **Time Estimate**: 22-30 hours (Sprint 4.1), 15-20 hours (4.2-4.6)  
 **Priority**: HIGH (4.1 is critical), MEDIUM (4.2-4.6)  
@@ -970,6 +1070,7 @@ After comprehensive audit of the LiturgicalCalendarService (see `LITURGICAL_CALE
 4. ⚠️ **Edge case** - January 5 boundary between Christmas/Epiphany needs pastor decision
 
 **This Sprint Delivers:**
+
 - 🎯 **Automated service generation** - Generate 2026, 2027, etc. in 30 seconds (vs hours of manual work)
 - 🎯 **100% Lutheran calendar compliance** - Algorithm follows liturgical rules perfectly
 - 🎯 **Database-driven architecture** - Scalable, queryable, cacheable
@@ -981,6 +1082,7 @@ After comprehensive audit of the LiturgicalCalendarService (see `LITURGICAL_CALE
 ---
 
 #### 4.1 Complete Date Solution - Database-Driven Service Generation
+
 **Status**: 🔴 Not Started  
 **Time Estimate**: 22-30 hours  
 **Priority**: HIGH
@@ -988,10 +1090,12 @@ After comprehensive audit of the LiturgicalCalendarService (see `LITURGICAL_CALE
 **Goal**: Replace error-prone manual date entry with algorithmic generation + database storage + admin UI for overrides.
 
 ##### Phase 4.1a: Fix LiturgicalCalendarService Issues (FOUNDATION)
+
 **Time**: 2-3 hours  
 **Status**: ✅ COMPLETE
 
 **Issue #1: Missing Special Day Detection** ✅
+
 - [x] Add Maundy Thursday detection (Easter - 3 days)
   - [x] Add calculation to `getSpecialDay()` function
   - [x] Add `MAUNDY_THURSDAY` to `MAJOR_FEAST_DAYS` in LiturgicalSeasons.js
@@ -1012,12 +1116,14 @@ After comprehensive audit of the LiturgicalCalendarService (see `LITURGICAL_CALE
   - [x] Add unit test for Baptism of Our Lord 2025 (January 12)
 
 **Issue #2: January 5 Edge Case** ✅
+
 - [x] Verified with LCMC calendar: Jan 5 is Second Sunday of Christmas (CORRECT)
 - [x] Documented decision: Christmas season runs Dec 24 - Jan 5 per LCMC tradition
 - [x] No code change needed - current implementation is correct
 - [x] Updated validation script to reflect correct expectation
 
 **Issue #3: Add Validation Layer** ✅
+
 - [x] Create `validateEasterDate(year)` function
   - [x] Check Easter falls between March 22 and April 25
   - [x] Return warnings for suspicious dates
@@ -1031,18 +1137,21 @@ After comprehensive audit of the LiturgicalCalendarService (see `LITURGICAL_CALE
 - [x] Add validation unit tests (15 new tests)
 
 **Critical Bug Fixes Applied** ✅
+
 - [x] **Fix Easter 2027**: Corrected from April 18 → March 28 (7-day error)
 - [x] **Simplify All Saints Day**: Reduced complex logic to LCMC tradition (first Sunday of November)
 - [x] **Remove Ash Wednesday hardcode**: Trust Computus algorithm (Easter - 46 days)
 - [x] **Remove unnecessary hardcoded dates**: Trust algorithm for 2024-2038, keep only 2100 century boundary correction
 
 **Test Results** ✅
+
 - Unit Tests: 52/52 passing (100%) - Added 15 new tests
 - Validation Script: 12/12 passing (100%)
 - Algorithm Accuracy: 100% for years 2024-2100 (verified against LCMC calendar)
 - Foundation Status: **SOLID - Production Ready**
 
 **Acceptance Criteria (Phase 4.1a)**:
+
 - [ ] All 4 special days detected correctly
 - [ ] January 5 edge case resolved
 - [ ] Validation functions catch errors
@@ -1052,10 +1161,12 @@ After comprehensive audit of the LiturgicalCalendarService (see `LITURGICAL_CALE
 ---
 
 ##### Phase 4.1b: Database Schema & Service Generation Algorithm ✅
+
 **Time**: 6-8 hours  
 **Status**: ✅ **COMPLETE**
 
 **Database Design**
+
 - [x] Create `serviceCalendar` collection schema
   ```javascript
   // See src/models/ServiceCalendar.js for full schema (218 lines)
@@ -1116,8 +1227,9 @@ After comprehensive audit of the LiturgicalCalendarService (see `LITURGICAL_CALE
   - [x] `getSpecialDays()`
   - [x] `findOrCreate(year)`
 - [x] Add pre-save hook to calculate metadata
-  
+
 **Service Generation Algorithm**
+
 - [x] Create `src/lib/ServiceGenerator.js` utility (387 lines)
 - [x] Implement `generateServicesForYear(year)` function
   - [x] Generate all Sundays in year
@@ -1130,7 +1242,7 @@ After comprehensive audit of the LiturgicalCalendarService (see `LITURGICAL_CALE
     - [x] Thanksgiving Eve (Wednesday before Thanksgiving)
     - [x] Christmas Eve (if not Sunday)
   - [x] For each date:
-    - [x] Call `getLiturgicalInfo(date)` 
+    - [x] Call `getLiturgicalInfo(date)`
     - [x] Call `getSpecialDay(date)`
     - [x] Extract liturgical metadata (season, color, special day)
     - [x] Mark isRegularSunday vs isSpecialWeekday
@@ -1154,6 +1266,7 @@ After comprehensive audit of the LiturgicalCalendarService (see `LITURGICAL_CALE
   - [x] Test validation logic
 
 **LiturgicalCalendarService Foundation Updates**:
+
 - [x] Added `isThanksgivingEve(date)` helper function
 - [x] Added `isLentenMidweek(date, ashWednesday, palmSunday)` helper function
 - [x] Added `LENT_MIDWEEK` special day detection in `getSpecialDay()`
@@ -1164,6 +1277,7 @@ After comprehensive audit of the LiturgicalCalendarService (see `LITURGICAL_CALE
 - [x] All 52/52 LiturgicalCalendarService tests still passing
 
 **Multi-Year Generation Test Results** (test-multi-year-generation.js):
+
 ```
 2025: ✅ 63 services (52 Sundays + 11 special weekdays)
       - Easter: Apr 20 (Sunday)
@@ -1189,6 +1303,7 @@ After comprehensive audit of the LiturgicalCalendarService (see `LITURGICAL_CALE
 
 **Pastor's 2025 Schedule Verification**:
 ✅ 100% MATCH - All 63 services match pastor's confirmed schedule:
+
 - All 52 Sundays ✅
 - Ash Wednesday (3/5) ✅
 - 5 Lenten midweek services (3/12, 3/19, 3/26, 4/2, 4/9) ✅
@@ -1199,6 +1314,7 @@ After comprehensive audit of the LiturgicalCalendarService (see `LITURGICAL_CALE
 - Christmas Eve (12/24) ✅
 
 **Acceptance Criteria (Phase 4.1b)**:
+
 - [x] serviceCalendar schema documented ✅
 - [x] generateServicesForYear() produces accurate dates ✅
 - [x] Generated 2025 services match pastor's confirmed schedule ✅ (100% match)
@@ -1209,6 +1325,7 @@ After comprehensive audit of the LiturgicalCalendarService (see `LITURGICAL_CALE
 - [x] Performance: Generate 70+ services in <100ms ✅ (63 services generated instantly)
 
 **Phase 4.1b Results**:
+
 - ✅ ServiceCalendar MongoDB model: 218 lines with comprehensive schema
 - ✅ ServiceGenerator utility: 387 lines with complete generation algorithm
 - ✅ LiturgicalCalendarService: Updated with LENT_MIDWEEK & THANKSGIVING_EVE detection
@@ -1220,6 +1337,7 @@ After comprehensive audit of the LiturgicalCalendarService (see `LITURGICAL_CALE
 ---
 
 #### Phase 4.1c: API Endpoints
+
 **Time**: 4-5 hours  
 **Status**: ✅ COMPLETE
 
@@ -1265,6 +1383,7 @@ After comprehensive audit of the LiturgicalCalendarService (see `LITURGICAL_CALE
   - [x] Error handling: 400 (invalid fields), 404 (service not found), 500 (update error)
 
 **Implementation Details**:
+
 - [x] **Total API code**: 572 lines across 4 endpoints
 - [x] **Consistent patterns**: All endpoints use `NextResponse`, `clientPromise`, `try/catch`, `console.error()`
 - [x] **Database**: All use `client.db("church")` (matches existing API routes)
@@ -1274,6 +1393,7 @@ After comprehensive audit of the LiturgicalCalendarService (see `LITURGICAL_CALE
 - [x] **Algorithm versioning**: Validation endpoint detects when algorithm updates require regeneration
 
 **Documentation**:
+
 - [x] Created `SERVICE_CALENDAR_API.md` (340 lines)
   - [x] Complete endpoint documentation
   - [x] Request/response examples for all 4 endpoints
@@ -1283,12 +1403,14 @@ After comprehensive audit of the LiturgicalCalendarService (see `LITURGICAL_CALE
   - [x] Override audit trail schema
 
 **Pattern Compliance Verification**:
+
 - [x] Compared against existing API routes (`/api/songs`, `/api/service-details`)
 - [x] Verified consistency with Sprint 3.5 server-side patterns
 - [x] Fixed database name inconsistency (`"zionsync"` → `"church"`)
 - [x] Confirmed Sprint 3.5 `api-utils.js` is for client-side only (not used in server routes)
 
 **Acceptance Criteria (Phase 4.1c)**:
+
 - [x] All 4 API endpoints created and documented ✅
 - [x] Proper error handling with appropriate status codes ✅
 - [x] Input validation for all parameters ✅
@@ -1299,6 +1421,7 @@ After comprehensive audit of the LiturgicalCalendarService (see `LITURGICAL_CALE
 - [x] All endpoints tested and functional (verified in Phase 4.1d) ✅
 
 **Phase 4.1c Results**:
+
 - ✅ 4 production-ready API endpoints (572 lines)
 - ✅ Complete API documentation (340 lines)
 - ✅ Pattern consistency verified against Sprints 1-3
@@ -1306,6 +1429,7 @@ After comprehensive audit of the LiturgicalCalendarService (see `LITURGICAL_CALE
 - ✅ Ready for Admin UI (Phase 4.1e)
 
 **Future Enhancements (deferred to future sprints):**
+
 - ⏳ Add JSDoc comments to API endpoints
 - ⏳ Implement caching with Redis or similar
 - ⏳ Create formal Postman/Thunder Client test collection
@@ -1313,6 +1437,7 @@ After comprehensive audit of the LiturgicalCalendarService (see `LITURGICAL_CALE
 ---
 
 ##### Phase 4.1d: Data Migration
+
 **Time**: 3-4 hours  
 **Status**: ✅ COMPLETE
 
@@ -1377,6 +1502,7 @@ After comprehensive audit of the LiturgicalCalendarService (see `LITURGICAL_CALE
   - [x] All keyDates correct for 2027 liturgical year
 
 **Migration Results Summary**:
+
 ```
 ✅ 2025: 63 services generated, validated, stored
 ✅ 2026: 63 services generated, stored
@@ -1389,6 +1515,7 @@ Database: "church" database, "serviceCalendar" collection
 ```
 
 **Acceptance Criteria (Phase 4.1d)**:
+
 - [x] Database connection verified ✅
 - [x] 2025 services generated and stored ✅
 - [x] All 63 services include correct liturgical metadata ✅
@@ -1398,6 +1525,7 @@ Database: "church" database, "serviceCalendar" collection
 - [x] All special weekdays detected (Ash Wed, Lenten midweek, Thanksgiving Eve) ✅
 
 **Phase 4.1d Results**:
+
 - ✅ Database fully seeded with 3 years of accurate liturgical data
 - ✅ API endpoints tested and working perfectly
 - ✅ Validation confirms 100% algorithm accuracy
@@ -1406,6 +1534,7 @@ Database: "church" database, "serviceCalendar" collection
 ---
 
 ##### Phase 4.1e: Admin UI - Service Calendar Manager
+
 **Time**: 8-10 hours  
 **Status**: ✅ COMPLETE
 
@@ -1464,6 +1593,7 @@ Database: "church" database, "serviceCalendar" collection
   - [x] Scalable architecture for future admin features
 
 **MainLayout Integration**:
+
 - [x] **Settings Tab Added** to MainLayout tabs array
   - [x] Gear icon (IoSettingsOutline) matching Home tab style
   - [x] Gray color scheme (bg-gray-600 active, bg-gray-100 inactive)
@@ -1478,6 +1608,7 @@ Database: "church" database, "serviceCalendar" collection
 - [x] **Tab Rendering**: `isSettings` prop passed to both desktop and mobile tab buttons
 
 **Implementation Details**:
+
 - ✅ **Total UI Code**: 1,120 lines across 4 files (ServiceCalendarManager, GenerateServicesModal, EditServiceModal, Settings)
 - ✅ **MainLayout Updates**: ~50 lines added (imports, tab entry, component updates, rendering)
 - ✅ **API Integration**: All 4 API endpoints (GET, POST/generate, GET/validate, PATCH/override) integrated
@@ -1486,7 +1617,7 @@ Database: "church" database, "serviceCalendar" collection
 - ✅ **Loading States**: Spinners and disabled states during async operations
 - ✅ **Responsive Design**: Works on desktop and mobile (table scrolls horizontally on small screens)
 - ✅ **Text Readability**: Fixed gray text issue - all form fields now use `text-gray-900` for dark, readable text
-- ✅ **User Experience**: 
+- ✅ **User Experience**:
   - Settings tab accessible via gear icon (below A/V Team tab)
   - Horizontal tab navigation for organized admin features
   - Future-proof architecture (3 "Coming Soon" tabs ready for development)
@@ -1497,6 +1628,7 @@ Database: "church" database, "serviceCalendar" collection
   - Warning banners prevent data loss (overwrite conflicts)
 
 **Navigation Pattern**:
+
 ```
 User clicks Settings tab (gear icon) →
   Settings page loads with horizontal tabs →
@@ -1504,18 +1636,19 @@ User clicks Settings tab (gear icon) →
       ServiceCalendarManager component displays →
         User can generate/view/edit/validate services
 ```
-  - [x] Action buttons: Generate Services, Validate, Refresh
-  - [x] Metadata dashboard (Total Services, Sundays, Special Weekdays, Overrides)
-  - [x] Service list table with columns: Date, Day, Season, Color, Special Day, Type, Actions
-  - [x] Filter toggle: "Show special services only"
-  - [x] Color badge display for liturgical colors
-  - [x] Service type badges (Sunday/Weekday)
-  - [x] Edit button for each service
-  - [x] Empty state with "Generate Services" call-to-action
-  - [x] Validation result display with issues/warnings
-  - [x] Error handling with dismissible alerts
-  - [x] Loading states during async operations
-  - [x] Override highlighting (yellow background for overridden services)
+
+- [x] Action buttons: Generate Services, Validate, Refresh
+- [x] Metadata dashboard (Total Services, Sundays, Special Weekdays, Overrides)
+- [x] Service list table with columns: Date, Day, Season, Color, Special Day, Type, Actions
+- [x] Filter toggle: "Show special services only"
+- [x] Color badge display for liturgical colors
+- [x] Service type badges (Sunday/Weekday)
+- [x] Edit button for each service
+- [x] Empty state with "Generate Services" call-to-action
+- [x] Validation result display with issues/warnings
+- [x] Error handling with dismissible alerts
+- [x] Loading states during async operations
+- [x] Override highlighting (yellow background for overridden services)
 
 - [x] **GenerateServicesModal** (`src/components/admin/GenerateServicesModal.jsx` - 291 lines)
   - [x] Year selection (passed from parent)
@@ -1547,13 +1680,14 @@ User clicks Settings tab (gear icon) →
   - [x] Imports and renders ServiceCalendarManager component
 
 **Implementation Details**:
+
 - ✅ **Total UI Code**: 1,047 lines across 4 files
 - ✅ **API Integration**: All 4 API endpoints (GET, POST/generate, GET/validate, PATCH/override) integrated
 - ✅ **Styling**: Consistent with existing app (Tailwind CSS, lucide-react icons)
 - ✅ **Error Handling**: Uses fetchWithTimeout from api-utils, displays user-friendly errors
 - ✅ **Loading States**: Spinners and disabled states during async operations
 - ✅ **Responsive Design**: Works on desktop and mobile (table scrolls horizontally on small screens)
-- ✅ **User Experience**: 
+- ✅ **User Experience**:
   - Empty states guide users to generate services
   - Validation provides instant feedback
   - Progress indicators show generation status
@@ -1561,6 +1695,7 @@ User clicks Settings tab (gear icon) →
   - Warning banners prevent data loss (overwrite conflicts)
 
 **Features Implemented**:
+
 - ✅ Year selection with dropdown (7 year range)
 - ✅ Generate services with conflict detection
 - ✅ View all services in sortable table
@@ -1574,6 +1709,7 @@ User clicks Settings tab (gear icon) →
 - ✅ Audit trail for overrides (reason, who, when)
 
 **Deferred Features** (future enhancements):
+
 - ⏳ Pagination (currently shows all services)
 - ⏳ Search/filter by date or text
 - ⏳ Bulk actions (activate/deactivate multiple)
@@ -1586,6 +1722,7 @@ User clicks Settings tab (gear icon) →
 - ⏳ Navigation link in MainLayout
 
 **Acceptance Criteria (Phase 4.1e)**:
+
 - [x] Admin can generate services for any year in <30 seconds ✅
 - [x] Edit modal allows necessary modifications (season, color, special day, active status) ✅
 - [x] Conflict detection prevents accidental overwrites ✅
@@ -1594,6 +1731,7 @@ User clicks Settings tab (gear icon) →
 - [x] UI is functional and accessible at `/service-calendar` ✅
 
 **Phase 4.1e Results**:
+
 - ✅ Fully functional admin UI (1,047 lines)
 - ✅ All core features working (generate, view, edit, validate)
 - ✅ Professional UI with Tailwind CSS styling
@@ -1602,6 +1740,7 @@ User clicks Settings tab (gear icon) →
 - ✅ Accessible at http://localhost:3000/service-calendar
 
 **Future Enhancements** (Phase 4.1f or later):
+
 - Add delete service functionality
 - Implement pagination for better performance
 - Add search and advanced filtering
@@ -1614,10 +1753,12 @@ User clicks Settings tab (gear icon) →
 ---
 
 ##### Phase 4.1f: Testing & Validation
+
 **Time**: 4-6 hours  
 **Status**: 🔴 Not Started
 
 **Unit Tests**:
+
 - [ ] ServiceGenerator.test.js (test generation logic)
   - [ ] Test generateServicesForYear(2025)
   - [ ] Test generateServicesForYear(2026)
@@ -1637,6 +1778,7 @@ User clicks Settings tab (gear icon) →
   - [ ] Test refetch
 
 **Integration Tests**:
+
 - [ ] Full workflow test:
   - [ ] Generate 2026 services via API
   - [ ] Fetch services via GET endpoint
@@ -1651,6 +1793,7 @@ User clicks Settings tab (gear icon) →
   - [ ] Year switching works across tabs
 
 **Validation Tests**:
+
 - [ ] Re-run `validate-liturgical-calendar.js` for 2025
   - [ ] All tests pass
   - [ ] Easter dates correct
@@ -1661,6 +1804,7 @@ User clicks Settings tab (gear icon) →
 - [ ] Cross-check against official Lutheran calendars
 
 **Performance Tests**:
+
 - [ ] Measure service generation time (should be <100ms)
 - [ ] Measure API response time (should be <200ms cached)
 - [ ] Test with 10 years of data (2024-2033)
@@ -1668,6 +1812,7 @@ User clicks Settings tab (gear icon) →
 - [ ] Test cache hit rates
 
 **User Acceptance Testing**:
+
 - [ ] Pastor generates 2026 services
 - [ ] Pastor edits a service title
 - [ ] Pastor adds custom service (mission trip Sunday)
@@ -1676,6 +1821,7 @@ User clicks Settings tab (gear icon) →
 - [ ] All team tabs display correct 2026 services
 
 **Acceptance Criteria (Phase 4.1f)**:
+
 - [ ] All unit tests pass
 - [ ] Integration tests pass
 - [ ] Validation confirms 100% Lutheran calendar compliance
@@ -1686,6 +1832,7 @@ User clicks Settings tab (gear icon) →
 ---
 
 ##### Phase 4.1g: Documentation & Cleanup
+
 **Time**: 2-3 hours  
 **Status**: 🔴 Not Started
 
@@ -1721,6 +1868,7 @@ User clicks Settings tab (gear icon) →
   - [ ] Remove migration scripts (after successful migration)
 
 **Acceptance Criteria (Phase 4.1g)**:
+
 - [ ] Documentation is complete and accurate
 - [ ] New team members can understand system
 - [ ] Pastor can use admin UI without technical help
@@ -1732,6 +1880,7 @@ User clicks Settings tab (gear icon) →
 ### Sprint 4.1 Deliverables Summary
 
 **What We'll Have When Done**:
+
 1. ✅ **Fixed LiturgicalCalendarService** - All special days detected, edge cases handled
 2. ✅ **ServiceGenerator utility** - Generate accurate services for ANY year in seconds
 3. ✅ **Database schema** - Stores services with full liturgical metadata
@@ -1743,6 +1892,7 @@ User clicks Settings tab (gear icon) →
 9. ✅ **Full documentation** - User guides, API docs, code comments
 
 **What Problems This Solves**:
+
 - ❌ **No more manual date entry** → Automated generation
 - ❌ **No more human errors** → Algorithm is mathematically perfect
 - ❌ **No more year-by-year updates** → Generate 2026 in 30 seconds
@@ -1752,6 +1902,7 @@ User clicks Settings tab (gear icon) →
 - ✅ **Database-driven** → Scalable, queryable, cacheable
 
 **Success Metrics**:
+
 - ✅ Generate 70+ services for a year in <100ms
 - ✅ API response time <200ms (cached)
 - ✅ 100% Lutheran calendar compliance (validated)
@@ -1763,6 +1914,7 @@ User clicks Settings tab (gear icon) →
 ---
 
 #### 4.2 Add Context API for Global State
+
 **Status**: 🔴 Not Started  
 **Time Estimate**: 3-4 hours  
 **Priority**: MEDIUM (Post-4.1)
@@ -1777,6 +1929,7 @@ User clicks Settings tab (gear icon) →
 - [ ] Test state management
 
 **Acceptance Criteria**:
+
 - Centralized state management
 - Reduced prop drilling
 - Cleaner component APIs
@@ -1785,6 +1938,7 @@ User clicks Settings tab (gear icon) →
 ---
 
 #### 4.3 Implement SWR or React Query
+
 **Status**: 🔴 Not Started  
 **Time Estimate**: 4-5 hours  
 **Priority**: MEDIUM (Post-4.1)
@@ -1799,6 +1953,7 @@ User clicks Settings tab (gear icon) →
 - [ ] Test data synchronization
 
 **Acceptance Criteria**:
+
 - Automatic caching
 - Automatic revalidation
 - Optimistic updates built-in
@@ -1807,6 +1962,7 @@ User clicks Settings tab (gear icon) →
 ---
 
 #### 4.4 Add Zod Validation
+
 **Status**: 🔴 Not Started  
 **Time Estimate**: 3-4 hours  
 **Priority**: MEDIUM (Enhances 4.1)
@@ -1820,6 +1976,7 @@ User clicks Settings tab (gear icon) →
 - [ ] Test validation scenarios
 
 **Acceptance Criteria**:
+
 - All API responses validated
 - Type-safe data handling
 - Better error messages
@@ -1828,6 +1985,7 @@ User clicks Settings tab (gear icon) →
 ---
 
 #### 4.5 TypeScript Migration (Optional)
+
 **Status**: 🔴 Not Started  
 **Time Estimate**: 20+ hours  
 **Priority**: LOW (Nice-to-have)
@@ -1842,6 +2000,7 @@ User clicks Settings tab (gear icon) →
 - [ ] Test thoroughly
 
 **Acceptance Criteria**:
+
 - Type safety throughout app
 - Better IDE support
 - Catch errors at compile time
@@ -1850,6 +2009,7 @@ User clicks Settings tab (gear icon) →
 ---
 
 #### 4.6 Add Testing Suite (Expanded)
+
 **Status**: 🟡 Partial (Unit tests exist)  
 **Time Estimate**: 8-10 hours  
 **Priority**: HIGH (Quality assurance)
@@ -1865,6 +2025,7 @@ User clicks Settings tab (gear icon) →
 - [ ] Achieve 85%+ coverage goal
 
 **Acceptance Criteria**:
+
 - Comprehensive test coverage (85%+)
 - Tests pass in CI/CD
 - Confidence in deployments
@@ -1876,6 +2037,7 @@ User clicks Settings tab (gear icon) →
 ### Sprint 4 Deliverables
 
 **Priority 1 (Sprint 4.1 - CRITICAL)**:
+
 - ✅ Fixed LiturgicalCalendarService (all special days, edge cases resolved)
 - ✅ ServiceGenerator utility (generate any year automatically)
 - ✅ Database-driven service calendar (serviceCalendar collection)
@@ -1887,15 +2049,18 @@ User clicks Settings tab (gear icon) →
 - ✅ Complete documentation (user guides, API docs)
 
 **Priority 2 (Post-4.1 Enhancements)**:
+
 - 🔲 Global state management with Context API (4.2)
 - 🔲 Advanced data fetching with SWR/React Query (4.3)
 - 🔲 Type-safe validation with Zod (4.4)
 - 🔲 Expanded test suite with E2E tests (4.6)
 
 **Priority 3 (Optional)**:
+
 - 🔲 TypeScript migration (4.5)
 
 **Impact of Sprint 4.1**:
+
 - ❌ No more manual date entry → 30 seconds to generate any year
 - ❌ No more human errors → Mathematically perfect algorithm
 - ❌ No more Lutheran calendar mistakes → Built-in compliance
@@ -1908,6 +2073,7 @@ User clicks Settings tab (gear icon) →
 ## 📈 Progress Tracking
 
 ### Overall Progress
+
 - Sprint 1: ✅ 100% (5/5 tasks) - Performance & Consistency
 - Sprint 2: ✅ 100% (4/4 tasks) - UX Enhancements
 - Sprint 3: ✅ 100% (5/5 tasks) - Code Organization & Infrastructure
@@ -1923,18 +2089,21 @@ User clicks Settings tab (gear icon) →
 ## 🎯 Success Metrics
 
 ### Sprint 1 Success Criteria
+
 - [ ] All tabs load without console errors
 - [ ] Performance improvement measurable (use React DevTools Profiler)
 - [ ] Component re-renders reduced by 50%+
 - [ ] Loading states professional and consistent
 
 ### Sprint 2 Success Criteria
+
 - [ ] No more prompt() dialogs in codebase
 - [ ] User cannot trigger duplicate API calls
 - [ ] Perceived performance improved (instant UI updates)
 - [ ] Error messages consistent and helpful
 
 ### Sprint 3 Success Criteria
+
 - [ ] Code duplication reduced by 60%+
 - [ ] New features easier to add
 - [ ] Constants can be updated in one place
@@ -1943,6 +2112,7 @@ User clicks Settings tab (gear icon) →
 ### Sprint 4 Success Criteria
 
 **Sprint 4.1 (Complete Date Solution)**:
+
 - [ ] Generate 70+ services for any year in <100ms
 - [ ] API response time <200ms (cached)
 - [ ] 100% Lutheran calendar compliance (validated against official calendar)
@@ -1954,6 +2124,7 @@ User clicks Settings tab (gear icon) →
 - [ ] All existing tests pass + new tests for Sprint 4.1
 
 **Post-4.1 Enhancements**:
+
 - [ ] Global state management reduces prop drilling by 80%+
 - [ ] SWR/React Query caching improves performance measurably
 - [ ] Zod validation prevents all invalid data
@@ -1965,6 +2136,7 @@ User clicks Settings tab (gear icon) →
 ## 📝 Notes and Decisions
 
 ### Decisions Made
+
 - **Sprint 4.1 approach**: Database-driven generation + admin UI (approved after audit)
 - **Easter algorithm**: Meeus/Jones/Butcher Computus (mathematically perfect, validated)
 - **Special days to add**: Maundy Thursday, Good Friday, Ascension, Baptism of Our Lord
@@ -1977,6 +2149,7 @@ User clicks Settings tab (gear icon) →
 - **Shared components**: Created 4 shared components (Sprint 3)
 
 ### Open Questions
+
 - [x] ~~Should we use lodash or custom debounce implementation?~~ → Custom (Sprint 2)
 - [x] ~~TypeScript migration - yes or no?~~ → Optional, low priority (Sprint 4.5)
 - [x] ~~Which data fetching library: SWR vs React Query?~~ → SWR recommended (Sprint 4.3)
@@ -1985,6 +2158,7 @@ User clicks Settings tab (gear icon) →
 - [x] ~~Do we need admin panel for service management?~~ → **YES** (Sprint 4.1e)
 
 ### Technical Debt
+
 - ~~Hardcoded 2025 dates~~ → **BEING ADDRESSED in Sprint 4.1** (22-30 hours)
 - ~~Prop drilling in mobile components~~ → ✅ Addressed in Sprint 3 (shared components)
 - ~~No validation on API inputs~~ → Being addressed in Sprint 4.1 (validation layer) + Sprint 4.4 (Zod)
@@ -1999,6 +2173,7 @@ User clicks Settings tab (gear icon) →
 ## 🚦 Getting Started
 
 ### To Begin Sprint 1:
+
 1. Checkout a new branch: `git checkout -b sprint-1-performance`
 2. Start with task 1.1: Worship Team optimization
 3. Follow checklist items in order
@@ -2006,6 +2181,7 @@ User clicks Settings tab (gear icon) →
 5. Commit frequently with clear messages
 
 ### Suggested Commit Message Format:
+
 ```
 [Sprint 1.1] Add useCallback optimization to WorshipTeam handlers
 
@@ -2018,6 +2194,7 @@ User clicks Settings tab (gear icon) →
 ---
 
 ## 🎉 Sprint 4.2: Multi-Year Support for All Tabs
+
 **Goal**: Enable year selection across Presentation, Worship, and A/V tabs  
 **Time Estimate**: 4-6 hours  
 **Priority**: HIGH  
@@ -2030,6 +2207,7 @@ User clicks Settings tab (gear icon) →
 **Implementation Time**: ~5 hours (including UI polish iterations)
 
 **What Was Delivered:**
+
 - ✅ Year state management in MainLayout with smart defaults
 - ✅ Two new API endpoints: `/api/service-calendar/available-years` and `/api/service-dates`
 - ✅ Reusable YearSelector component with dynamic year range
@@ -2040,6 +2218,7 @@ User clicks Settings tab (gear icon) →
 - ✅ All existing functionality preserved with zero regressions
 
 **Testing Results:**
+
 - ✅ Year selector visible and functional in all tabs (desktop + mobile)
 - ✅ Year switching works smoothly with loading states
 - ✅ Year persists correctly across tab switches
@@ -2048,6 +2227,7 @@ User clicks Settings tab (gear icon) →
 - ✅ Service polling continues to work (30-second intervals)
 
 Key updates based on code investigation:
+
 - ✅ Default year = current year (not hardcoded 2025)
 - ✅ Year range = past generated years + current + 3 future (not fixed range)
 - ✅ **serviceDetails collection completely protected** - zero modifications
@@ -2055,6 +2235,7 @@ Key updates based on code investigation:
 - ✅ Smart fallback: If current year not generated, show most recent available
 
 ### Problem Statement
+
 Currently, all three main tabs (Presentation, Worship, A/V) are hardcoded to display only 2025 services. The header shows "2025 Service Schedule" with no way to change years. Users cannot view or manage services for 2026, 2027, or future years.
 
 **Current State (After Investigation):**
@@ -2063,7 +2244,7 @@ Currently, all three main tabs (Presentation, Worship, A/V) are hardcoded to dis
 - **WorshipTeam**: Uses `DATES_2025` from constants.js via `useMemo(() => DATES_2025, [])`
 - **AVTeam**: Uses `DATES_2025` from constants.js via `useMemo(() => DATES_2025, [])`
 - **MainLayout**: Has `serviceDetails` state but NO year state - needs to be added
-- **API Endpoints**: 
+- **API Endpoints**:
   - `/api/upcoming-services` - Uses `serviceDetails` collection, filters by date comparison, NO year parameter
   - `/api/service-details` - Uses `serviceDetails` collection, NO year field in schema
   - `/api/signups` - Uses `signups` collection with only `date` and `name` fields, NO year field
@@ -2074,11 +2255,9 @@ Currently, all three main tabs (Presentation, Worship, A/V) are hardcoded to dis
 1. **Three Different Date Patterns:**
    - SignupSheet: Hardcoded 63-line array in component
    - WorshipTeam/AVTeam: Use DATES_2025 constant
-   
 2. **Two Separate Collections:**
    - `serviceCalendar` (Sprint 4.1) - Generated services with liturgical metadata
    - `serviceDetails` (CRITICAL) - User-entered worship elements, song selections, polling data
-   
 3. **Date Format:**
    - "M/D/YY" format is sufficient (YY < 50 = 20YY rule works until 2050)
    - No changes needed to date format or existing schema
@@ -2086,6 +2265,7 @@ Currently, all three main tabs (Presentation, Worship, A/V) are hardcoded to dis
 **⚠️ CRITICAL: serviceDetails Collection is Untouchable**
 
 The `serviceDetails` collection is the **heart of the application**:
+
 - Contains order of worship, song selections, liturgical data
 - Polled every 30 seconds by all three tabs for sync
 - Changes to this collection could break existing functionality
@@ -2096,6 +2276,7 @@ The `serviceDetails` collection is the **heart of the application**:
 ### Technical Requirements
 
 #### Phase 4.2a: Shared State Management (45 min)
+
 **File**: `src/components/MainLayout.jsx`
 
 **Current State:**
@@ -2103,10 +2284,10 @@ The `serviceDetails` collection is the **heart of the application**:
 ```javascript
 const MainLayout = () => {
   const [showSplash, setShowSplash] = useState(true);
-  const [activeTab, setActiveTab] = useState('presentation');
+  const [activeTab, setActiveTab] = useState("presentation");
   const [serviceDetails, setServiceDetails] = useState({});
   // ... no year state exists
-}
+};
 ```
 
 **Changes Needed:**
@@ -2127,10 +2308,10 @@ const [availableYears, setAvailableYears] = useState([]);
 useEffect(() => {
   // Fetch available years from serviceCalendar
   const fetchAvailableYears = async () => {
-    const response = await fetch('/api/service-calendar/available-years');
+    const response = await fetch("/api/service-calendar/available-years");
     const years = await response.json();
     setAvailableYears(years);
-    
+
     // Smart default: current year if available, else most recent
     if (years.includes(currentYear)) {
       setSelectedYear(currentYear);
@@ -2152,6 +2333,7 @@ useEffect(() => {
 ---
 
 #### Phase 4.2b: Year Selector UI Component (1.5 hours)
+
 **Files**:
 
 - `src/components/shared/YearSelector.jsx` (NEW)
@@ -2176,12 +2358,10 @@ useEffect(() => {
   - [x] Shows indicator for which years have data
   - [x] Styled consistently with team colors (accepts color prop)
   - [x] Mobile responsive (compact on small screens)
-  
 - [x] Integrate into AVTeam header:
   - [x] Replace static "2025 Service Schedule" text
   - [x] Show: "Service Schedule" with year selector button/dropdown
   - [x] Positioned next to header text (desktop: inline, mobile: below)
-  
 - [x] Integrate into WorshipTeam header (same pattern)
 - [x] Integrate into SignupSheet (Presentation) header (same pattern)
 
@@ -2193,12 +2373,14 @@ const currentYear = new Date().getFullYear();
 const availableYears = [2025, 2026, 2027]; // from API
 
 const yearOptions = [
-  ...availableYears.filter(y => y < currentYear), // past years with data
+  ...availableYears.filter((y) => y < currentYear), // past years with data
   currentYear,
   currentYear + 1,
   currentYear + 2,
-  currentYear + 3
-].sort().filter((v, i, a) => a.indexOf(v) === i); // unique, sorted
+  currentYear + 3,
+]
+  .sort()
+  .filter((v, i, a) => a.indexOf(v) === i); // unique, sorted
 
 // Disable years not in availableYears
 ```
@@ -2216,6 +2398,7 @@ const yearOptions = [
 ---
 
 #### Phase 4.2c: Bridge API - Connect serviceCalendar to Components (1.5 hours)
+
 **Files**:
 
 - `src/app/api/service-dates/route.js` (NEW - recommended approach)
@@ -2248,38 +2431,40 @@ const yearOptions = [
 // GET /api/service-dates?year=2025&upcomingOnly=true
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  const year = parseInt(searchParams.get('year'));
-  const upcomingOnly = searchParams.get('upcomingOnly') === 'true';
-  
+  const year = parseInt(searchParams.get("year"));
+  const upcomingOnly = searchParams.get("upcomingOnly") === "true";
+
   // Validate year
   if (!year || year < 2024 || year > 2100) {
-    return NextResponse.json({ error: 'Invalid year' }, { status: 400 });
+    return NextResponse.json({ error: "Invalid year" }, { status: 400 });
   }
-  
+
   const client = await clientPromise;
   const db = client.db("church");
-  
+
   // Fetch from serviceCalendar (Sprint 4.1 collection)
-  const calendar = await db.collection("serviceCalendar")
-    .findOne({ year });
-  
+  const calendar = await db.collection("serviceCalendar").findOne({ year });
+
   if (!calendar) {
-    return NextResponse.json({ 
-      error: `Services for ${year} not generated yet` 
-    }, { status: 404 });
+    return NextResponse.json(
+      {
+        error: `Services for ${year} not generated yet`,
+      },
+      { status: 404 },
+    );
   }
-  
+
   let services = calendar.services || [];
-  
+
   // Optional: filter for upcoming only
   if (upcomingOnly) {
     const today = new Date();
-    services = services.filter(service => {
+    services = services.filter((service) => {
       const serviceDate = new Date(service.date);
       return serviceDate >= today;
     });
   }
-  
+
   return NextResponse.json(services);
 }
 ```
@@ -2303,6 +2488,7 @@ export async function GET(request) {
 ---
 
 #### Phase 4.2d: Update Components to Use Year Parameter (2 hours)
+
 **Files**:
 
 - `src/components/ui/SignupSheet.jsx` (COMPLEX - 63 hardcoded dates to remove)
@@ -2348,6 +2534,7 @@ export async function GET(request) {
 ---
 
 #### Phase 4.2e: Data Integrity Safeguards (30 min)
+
 **Critical: Protect serviceDetails Collection**
 
 **⚠️ Pre-Implementation Checklist:**
@@ -2361,7 +2548,7 @@ Before making ANY changes, verify:
 
 - [x] **Existing API endpoints unchanged:**
   - [x] `/api/service-details` (GET/POST/PUT/DELETE) - NO modifications
-  - [x] `/api/upcoming-services` - NO modifications  
+  - [x] `/api/upcoming-services` - NO modifications
   - [x] `/api/signups` - NO modifications
   - [x] All polling behavior preserved (30-second intervals)
 
@@ -2380,6 +2567,7 @@ Before making ANY changes, verify:
 **Rollback Plan:**
 
 If ANY issues with serviceDetails detected:
+
 1. Stop implementation immediately
 2. Restore serviceDetails from backup
 3. Review what changed and why
@@ -2402,6 +2590,7 @@ If ANY issues with serviceDetails detected:
 ---
 
 #### Phase 4.2f: Testing & Validation (1 hour)
+
 **Manual Testing Checklist:**
 
 - [x] **Year Selector:**
@@ -2492,6 +2681,7 @@ If ANY issues with serviceDetails detected:
 **Revised Time Estimate:** 4-6 hours
 
 **Time Breakdown:**
+
 - Phase 4.2a: Shared State Management - 45 min
 - Phase 4.2b: Year Selector UI - 1.5 hours
 - Phase 4.2c: Bridge API - 1.5 hours
@@ -2526,6 +2716,7 @@ If ANY issues with serviceDetails detected:
 ### Deliverables
 
 #### Core Services
+
 - **LiturgicalCalendarService** - 52 passing tests
   - Easter calculation algorithm (Computus)
   - Season detection (Advent → Christmas → Epiphany → Lent → Easter → Pentecost → Ordinary Time)
@@ -2538,6 +2729,7 @@ If ANY issues with serviceDetails detected:
   - Liturgical metadata (seasons, colors, special days)
 
 #### API Endpoints (4 total)
+
 - **GET** `/api/service-calendar?year={year}` - Fetch services (94ms avg)
 - **POST** `/api/service-calendar/generate` - Generate/regenerate year (143ms for 63 services)
 - **GET** `/api/service-calendar/validate` - Validate calendar accuracy (89ms avg)
@@ -2545,6 +2737,7 @@ If ANY issues with serviceDetails detected:
 - **POST** `/api/service-calendar/revert` - Revert single service to original state
 
 #### Admin UI
+
 - **Settings Page** - Integrated with gear icon in MainLayout
 - **Calendar Manager** - Full-featured management interface (1,120 lines)
   - Year selector (2025-2030+)
@@ -2554,11 +2747,13 @@ If ANY issues with serviceDetails detected:
   - Revert functionality for overridden services
 
 #### Database
+
 - 252 services stored across 6 years (2025-2030)
 - MongoDB collection: `serviceCalendar`
 - Validated: 100% liturgically accurate
 
 ### Testing Results
+
 - **Unit Tests**: 118/124 passing (all Sprint 4.1 tests ✅)
 - **Integration Tests**: All 4 API endpoints working
 - **Validation Tests**: 2025/2026/2027 100% accurate
@@ -2566,30 +2761,34 @@ If ANY issues with serviceDetails detected:
 - **Performance Tests**: All endpoints <150ms
 
 ### Key Features
+
 ✅ Algorithmic service generation (no manual entry)  
 ✅ Multi-year support with validation  
 ✅ Admin override with audit trail  
 ✅ Single-service revert capability  
 ✅ Custom color picker with liturgical presets  
-✅ Epiphany color fixed (#118AB2 blue)  
+✅ Epiphany color fixed (#118AB2 blue)
 
 ---
 
 ## 📚 References
 
 ### Sprint 4.1 Key Files
+
 - **Services**: `src/lib/LiturgicalCalendarService.js`, `src/lib/ServiceGenerator.js`
 - **APIs**: `src/app/api/service-calendar/**`
 - **UI**: `src/components/admin/ServiceCalendarManager.jsx`, `src/components/admin/EditServiceModal.jsx`
 - **Data**: `src/lib/LiturgicalSeasons.js`, `src/data/liturgical-themes.js`
 
 ### Key Files
+
 - **A/V Team (Reference)**: `src/components/ui/AVTeam.jsx`
 - **Worship Team**: `src/components/ui/WorshipTeam.jsx`
 - **Presentation Team**: `src/components/ui/SignupSheet.jsx`
 - **Main Layout**: `src/components/MainLayout.jsx`
 
 ### Documentation
+
 - React Hooks: https://react.dev/reference/react
 - Performance Optimization: https://react.dev/learn/render-and-commit
 - Error Boundaries: https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary
@@ -2597,4 +2796,3 @@ If ANY issues with serviceDetails detected:
 ---
 
 **Ready to start? Begin with Sprint 1, Task 1.1!** 🚀
-

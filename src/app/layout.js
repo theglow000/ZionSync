@@ -12,10 +12,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: 'ZionSync',
-  description: 'Service team coordination for Zion Lutheran Church',
+  title: "ZionSync",
+  description: "Service team coordination for Zion Lutheran Church",
   icons: {
-    icon: '/favicon.ico',
+    icon: "/favicon.ico",
   },
 };
 

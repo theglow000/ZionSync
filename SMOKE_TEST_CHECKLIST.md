@@ -11,6 +11,7 @@
 ### 1. Multi-Year Calendar System ⭐ NEW FEATURE
 
 #### Test: Year Selector Functionality
+
 **Location**: Settings → Calendar Manager tab
 
 - [ ] **Open Settings page**
@@ -40,6 +41,7 @@
   - [ ] Metadata shows: Easter date, Advent start, etc.
 
 **Expected Results**:
+
 - ✅ Year selector works smoothly
 - ✅ Service generation completes in <5 seconds
 - ✅ All 63 services appear with correct seasons
@@ -74,6 +76,7 @@
   - [ ] Performance is smooth (no lag)
 
 **Expected Results**:
+
 - ✅ Year selector persists across tabs
 - ✅ Each tab shows services for selected year
 - ✅ No DATES_2025 hardcoded values visible
@@ -105,6 +108,7 @@
   - [ ] Success message shows
 
 **Expected Results**:
+
 - ✅ Custom services save correctly
 - ✅ Edits persist after page refresh
 - ✅ Sign-up workflow smooth
@@ -141,6 +145,7 @@
   - [ ] Replacement happens without extra confirmation
 
 **Expected Results**:
+
 - ✅ Modal shows services from selected year
 - ✅ Slot system works correctly
 - ✅ Visual feedback is clear
@@ -171,6 +176,7 @@
   - [ ] Names appear correctly
 
 **Expected Results**:
+
 - ✅ Song assignments save
 - ✅ Team assignments persist
 - ✅ No data loss on refresh
@@ -199,6 +205,7 @@
   - [ ] User appears in dropdown
 
 **Expected Results**:
+
 - ✅ Debouncing works (no rapid-fire saves)
 - ✅ Modal replaces old prompt()
 - ✅ Smooth user experience
@@ -208,6 +215,7 @@
 ## 🐛 Error Cases to Test
 
 ### Network Errors
+
 - [ ] **Disconnect internet**
   - [ ] Try loading services
   - [ ] Error message appears
@@ -215,12 +223,14 @@
   - [ ] Reconnect and retry succeeds
 
 ### Invalid States
+
 - [ ] **Select year with no services**
   - [ ] Error message clear
   - [ ] Prompt to generate services
   - [ ] Generation link works
 
 ### Edge Cases
+
 - [ ] **Very old services (past dates)**
   - [ ] Appear correctly
   - [ ] Filtered when upcomingOnly=true
@@ -234,6 +244,7 @@
 ## 📱 Responsive Design Check
 
 ### Mobile View (< 768px)
+
 - [ ] **Resize browser to mobile width**
   - [ ] Year selector displays correctly
   - [ ] Tabs are swipeable
@@ -243,6 +254,7 @@
   - [ ] No horizontal scroll
 
 ### Tablet View (768px - 1024px)
+
 - [ ] **Medium screen size**
   - [ ] Layout adapts appropriately
   - [ ] No awkward spacing
@@ -253,6 +265,7 @@
 ## 🎨 Visual Regression Check
 
 ### Liturgical Colors
+
 - [ ] **Service cards show correct season colors**:
   - Advent: Blue/Purple
   - Christmas: White/Gold
@@ -263,12 +276,14 @@
   - Ordinary Time: Green
 
 ### Loading States
+
 - [ ] **Spinners appear during data fetch**
   - Presentation: Green spinner
   - Worship: Purple spinner
   - A/V: Blue spinner
 
 ### Modals
+
 - [ ] **AddUserModal** - Professional design, not prompt()
 - [ ] **QuickAddModal** - Service cards with dates, slot buttons
 - [ ] **Settings Modal** - Calendar Manager tab present
@@ -278,17 +293,20 @@
 ## ⚡ Performance Check
 
 ### Initial Load
+
 - [ ] **Full page load < 3 seconds**
 - [ ] **No flash of unstyled content**
 - [ ] **Smooth animations**
 
 ### Interactions
+
 - [ ] **Tab switching instant**
 - [ ] **Year selector responsive**
 - [ ] **Service loading < 1 second**
 - [ ] **No lag when typing**
 
 ### Console
+
 - [ ] **No errors** (except acceptable warnings)
 - [ ] **No 404s**
 - [ ] **API calls reasonable (not excessive)**
@@ -298,12 +316,14 @@
 ## 🔒 Data Integrity Check
 
 ### Critical: serviceDetails Protection
+
 - [ ] **Open MongoDB Compass** (if available)
   - [ ] Check `serviceDetails` collection
   - [ ] Verify records unchanged by calendar generation
   - [ ] Pastor notes, song selections, assignments intact
 
 ### Multi-Year Data Separation
+
 - [ ] **Check that 2025 and 2026 data don't interfere**
   - Switch between years multiple times
   - Verify services remain distinct
@@ -335,18 +355,21 @@ Before pushing to production, confirm:
 If you find issues during smoke testing, document them here:
 
 ### Critical Issues (Must fix before deploy)
-- [ ] Issue: ___________________________
-  - Impact: ___________________________
-  - Steps to reproduce: _______________
+
+- [ ] Issue: \***\*\*\*\*\*\*\***\_\_\_\***\*\*\*\*\*\*\***
+  - Impact: \***\*\*\*\*\*\*\***\_\_\_\***\*\*\*\*\*\*\***
+  - Steps to reproduce: **\*\***\_\_\_**\*\***
 
 ### Minor Issues (Can deploy, fix in next sprint)
-- [ ] Issue: ___________________________
-  - Impact: ___________________________
+
+- [ ] Issue: \***\*\*\*\*\*\*\***\_\_\_\***\*\*\*\*\*\*\***
+  - Impact: \***\*\*\*\*\*\*\***\_\_\_\***\*\*\*\*\*\*\***
   - Priority: Low/Medium
 
 ### Nice-to-Have Enhancements
-- [ ] Enhancement: _____________________
-  - Benefit: __________________________
+
+- [ ] Enhancement: \***\*\*\*\*\***\_\***\*\*\*\*\***
+  - Benefit: \***\*\*\*\*\*\*\***\_\_\***\*\*\*\*\*\*\***
 
 ---
 
@@ -360,7 +383,7 @@ After completing this smoke test:
 
 ---
 
-**Tester**: _________________  
+**Tester**: **\*\*\*\***\_**\*\*\*\***  
 **Date**: November 10, 2025  
 **Build Version**: Sprint 4.2  
 **Sign-Off**: ☐ Approved ☐ Needs Work

@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import clientPromise from '@/lib/mongodb';
+import { NextResponse } from "next/server";
+import clientPromise from "@/lib/mongodb";
 
 export async function GET() {
   try {
@@ -8,7 +8,7 @@ export async function GET() {
     const users = await db.collection("users").find({}).toArray();
     return NextResponse.json(users);
   } catch (e) {
-    console.error('Error in GET /api/users:', e);
+    console.error("Error in GET /api/users:", e);
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
@@ -18,15 +18,15 @@ export async function POST(request) {
     const body = await request.json();
     const client = await clientPromise;
     const db = client.db("church");
-    
+
     const result = await db.collection("users").insertOne({
       name: body.name,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
-    
+
     return NextResponse.json(result);
   } catch (e) {
-    console.error('Error in POST /api/users:', e);
+    console.error("Error in POST /api/users:", e);
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
@@ -36,16 +36,20 @@ export async function DELETE(request) {
     const body = await request.json();
     const client = await clientPromise;
     const db = client.db("church");
-    
+
     // Delete user
-    const deleteUserResult = await db.collection("users").deleteOne({ name: body.name });
-    
+    const deleteUserResult = await db
+      .collection("users")
+      .deleteOne({ name: body.name });
+
     // Also delete all signups for this user
-    const deleteSignupsResult = await db.collection("signups").deleteMany({ name: body.name });
-    
+    const deleteSignupsResult = await db
+      .collection("signups")
+      .deleteMany({ name: body.name });
+
     return NextResponse.json({ success: true });
   } catch (e) {
-    console.error('Error in DELETE /api/users:', e);
+    console.error("Error in DELETE /api/users:", e);
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }

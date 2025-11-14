@@ -1,12 +1,12 @@
-import { useState, useCallback, useRef } from 'react';
-import { getErrorMessage } from '../utils/errorHandler';
-import { fetchWithTimeout } from '../lib/api-utils';
+import { useState, useCallback, useRef } from "react";
+import { getErrorMessage } from "../utils/errorHandler";
+import { fetchWithTimeout } from "../lib/api-utils";
 
 /**
  * Custom hook for fetching data with loading and error state management
  * Provides consistent fetch behavior with automatic loading states and error handling
  * Includes retry logic with exponential backoff
- * 
+ *
  * @returns {Object} Fetch state and functions
  * @property {boolean} isLoading - Whether a fetch is currently in progress
  * @property {string|null} error - Current error message, null if no error
@@ -31,11 +31,7 @@ export const useFetchWithLoading = () => {
    * @returns {Promise<Object>} { data, error, response }
    */
   const fetchData = useCallback(async (url, options = {}, config = {}) => {
-    const {
-      parseJson = true,
-      retries = 0,
-      retryDelay = 1000,
-    } = config;
+    const { parseJson = true, retries = 0, retryDelay = 1000 } = config;
 
     // Store fetch params for potential retry
     lastFetchRef.current = { url, options, config };
@@ -67,27 +63,26 @@ export const useFetchWithLoading = () => {
         }
 
         const data = parseJson ? await response.json() : await response.text();
-        
+
         setIsLoading(false);
         abortControllerRef.current = null;
-        
-        return { 
-          data, 
-          error: null, 
-          response,
-          success: true 
-        };
 
+        return {
+          data,
+          error: null,
+          response,
+          success: true,
+        };
       } catch (err) {
         // Don't retry if aborted
-        if (err.name === 'AbortError') {
+        if (err.name === "AbortError") {
           setIsLoading(false);
-          setError('Request cancelled');
-          return { 
-            data: null, 
-            error: 'Request cancelled', 
+          setError("Request cancelled");
+          return {
+            data: null,
+            error: "Request cancelled",
             response: null,
-            success: false 
+            success: false,
           };
         }
 
@@ -96,7 +91,7 @@ export const useFetchWithLoading = () => {
         // If we have retries left, wait and try again
         if (attempt < retries) {
           const delay = retryDelay * Math.pow(2, attempt); // Exponential backoff
-          await new Promise(resolve => setTimeout(resolve, delay));
+          await new Promise((resolve) => setTimeout(resolve, delay));
           attempt++;
         } else {
           break;
@@ -110,11 +105,11 @@ export const useFetchWithLoading = () => {
     setIsLoading(false);
     abortControllerRef.current = null;
 
-    return { 
-      data: null, 
-      error: errorMessage, 
+    return {
+      data: null,
+      error: errorMessage,
       response: null,
-      success: false 
+      success: false,
     };
   }, []);
 
@@ -131,11 +126,11 @@ export const useFetchWithLoading = () => {
    */
   const retryLastFetch = useCallback(async () => {
     if (!lastFetchRef.current) {
-      return { 
-        data: null, 
-        error: 'No previous fetch to retry', 
+      return {
+        data: null,
+        error: "No previous fetch to retry",
         response: null,
-        success: false 
+        success: false,
       };
     }
 

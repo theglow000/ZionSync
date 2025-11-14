@@ -3,7 +3,9 @@
 ## 🛡️ Protection Strategies
 
 ### 1. **Never Force Push Without Safety**
+
 Always use `--force-with-lease` instead of `--force`:
+
 ```bash
 # ❌ DANGEROUS - Can lose work
 git push --force
@@ -13,6 +15,7 @@ git push --force-with-lease
 ```
 
 ### 2. **Create Backup Branches Before Risky Operations**
+
 ```bash
 # Before any merge, rebase, or force push:
 git branch backup-$(date +%Y%m%d-%H%M%S)
@@ -22,7 +25,9 @@ git branch backup-before-merge
 ```
 
 ### 3. **Use Git Reflog to Recovery Lost Work**
+
 Git keeps a 90-day history of all HEAD movements:
+
 ```bash
 # View recent changes
 git reflog
@@ -36,7 +41,9 @@ git branch recovered-work
 ```
 
 ### 4. **Enable Git Autosave (Stash)**
+
 Before pulling or merging:
+
 ```bash
 # Save uncommitted work automatically
 git stash push -m "WIP: $(date)"
@@ -53,16 +60,19 @@ git stash pop
 ## 🔄 Daily Workflow Safety Checklist
 
 ### Before Starting Work:
+
 - [ ] `git status` - Check you're on the right branch
 - [ ] `git pull origin main` - Get latest changes
 - [ ] Create a feature branch if making big changes
 
 ### During Work:
+
 - [ ] Commit frequently (every 30 minutes to 1 hour)
 - [ ] Write descriptive commit messages
 - [ ] Push to GitHub regularly (don't let work sit locally for days)
 
 ### Before Merging/Pushing:
+
 - [ ] `git status` - Verify what's changed
 - [ ] `git log --oneline -5` - Review recent commits
 - [ ] Create backup branch if unsure
@@ -95,6 +105,7 @@ git merge recovery-branch
 ```
 
 ### If Merge Goes Wrong:
+
 ```bash
 # Abort the merge
 git merge --abort
@@ -111,6 +122,7 @@ git reset --hard <commit-hash>
 ## 📦 External Backup Strategy
 
 ### Option 1: GitHub Branch Protection
+
 1. Go to GitHub repo Settings → Branches
 2. Add branch protection rule for `main`:
    - ✅ Require pull request reviews
@@ -118,9 +130,11 @@ git reset --hard <commit-hash>
    - ✅ Include administrators (protects you from yourself!)
 
 ### Option 2: Automatic Daily Backups
+
 Create a scheduled task to backup your work daily:
 
 **Windows (PowerShell):**
+
 ```powershell
 # backup-repo.ps1
 $date = Get-Date -Format "yyyy-MM-dd"
@@ -131,6 +145,7 @@ git bundle create "../backups/zionsync-$date.bundle" --all
 Schedule this in Windows Task Scheduler to run daily.
 
 ### Option 3: Remote Backup Branch
+
 ```bash
 # Push to a backup branch regularly
 git push origin main:backup/main-$(date +%Y%m%d)
@@ -143,6 +158,7 @@ git push origin main:backup/main-$(date +%Y%m%d)
 ## 🎯 Quick Reference
 
 ### Safe Push Commands:
+
 ```bash
 # Standard push (safe)
 git push origin main
@@ -155,6 +171,7 @@ git push origin main --follow-tags
 ```
 
 ### Safe Pull Commands:
+
 ```bash
 # Standard pull
 git pull origin main
@@ -169,6 +186,7 @@ git merge origin/main      # Merge when ready
 ```
 
 ### Recovery Commands:
+
 ```bash
 # Find lost commits
 git reflog
@@ -206,10 +224,11 @@ Based on your recovery, here's what likely happened:
    - GitKraken (free for personal use)
    - GitHub Desktop (simpler, free)
    - Sourcetree (free)
-   
+
    These provide visual safeguards against dangerous operations.
 
 2. **Set Up Git Aliases:**
+
 ```bash
 # Add to ~/.gitconfig or run these commands:
 git config --global alias.safe-push 'push --force-with-lease'

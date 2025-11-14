@@ -1,6 +1,6 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Link, Youtube, ChevronDown, ChevronUp, X } from 'lucide-react';
-import { titleCase, spellCheckAndCorrect } from '@/lib/utils'; // Import our new utility functions
+import React, { useState, useRef, useCallback, useEffect } from "react";
+import { Link, Youtube, ChevronDown, ChevronUp, X } from "lucide-react";
+import { titleCase, spellCheckAndCorrect } from "@/lib/utils"; // Import our new utility functions
 
 const isValidUrl = (url) => {
   if (!url) return false;
@@ -21,22 +21,21 @@ const SongSection = ({
   availableSongs,
   currentUser,
   hymnalVersions,
-  isMobile = false // Add this prop
+  isMobile = false, // Add this prop
 }) => {
-
   // State
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [localTitle, setLocalTitle] = useState(songState.title || '');
-  const [localAuthor, setLocalAuthor] = useState(songState.author || '');
+  const [localTitle, setLocalTitle] = useState(songState.title || "");
+  const [localAuthor, setLocalAuthor] = useState(songState.author || "");
   const [titleTimer, setTitleTimer] = useState(null);
   const [authorTimer, setAuthorTimer] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
 
   // Use useEffect to sync the local state with props when they change externally
   useEffect(() => {
-    setLocalTitle(songState.title || '');
-    setLocalAuthor(songState.author || '');
+    setLocalTitle(songState.title || "");
+    setLocalAuthor(songState.author || "");
   }, [songState.title, songState.author]);
 
   // Refs
@@ -44,124 +43,144 @@ const SongSection = ({
   const suggestionsRef = useRef(null);
 
   // Derived values
-  const isHymn = songState.type === 'hymn';
-  const isLeader = currentUser?.role === 'leader';
+  const isHymn = songState.type === "hymn";
+  const isLeader = currentUser?.role === "leader";
 
   // Handlers
-  const handleSongTypeChange = useCallback((type) => {
-    onSongStateUpdate(slot, {
-      ...songState,
-      type,
-      number: type === 'hymn' ? songState.number : '',
-      hymnal: type === 'hymn' ? songState.hymnal : '',
-      author: type !== 'hymn' ? songState.author : ''
-    });
-  }, [slot, songState, onSongStateUpdate]);
-
-  // Update handleInputChange for title and author to use delayed formatting
-  const handleInputChange = useCallback((field, value) => {
-    if (field === 'title') {
-      // Update local state immediately for responsive typing
-      setLocalTitle(value);
-      
-      // Clear any existing timers
-      if (titleTimer) clearTimeout(titleTimer);
-      
-      // Set a new timer to apply formatting after a short delay
-      const timer = setTimeout(() => {
-        const formattedValue = spellCheckAndCorrect(value);
-        onSongStateUpdate(slot, {
-          ...songState,
-          title: formattedValue
-        });
-      }, 800); // 800ms delay before formatting
-      
-      setTitleTimer(timer);
-    } 
-    else if (field === 'author') {
-      // Update local state immediately
-      setLocalAuthor(value);
-      
-      // Clear any existing timers
-      if (authorTimer) clearTimeout(authorTimer);
-      
-      // Set a new timer to apply formatting after a short delay
-      const timer = setTimeout(() => {
-        const formattedValue = titleCase(value);
-        onSongStateUpdate(slot, {
-          ...songState,
-          author: formattedValue
-        });
-      }, 800); // 800ms delay
-      
-      setAuthorTimer(timer);
-    }
-    else {
-      // For other fields, update immediately without formatting
+  const handleSongTypeChange = useCallback(
+    (type) => {
       onSongStateUpdate(slot, {
         ...songState,
-        [field]: value
+        type,
+        number: type === "hymn" ? songState.number : "",
+        hymnal: type === "hymn" ? songState.hymnal : "",
+        author: type !== "hymn" ? songState.author : "",
       });
-    }
-  }, [slot, songState, onSongStateUpdate, titleTimer, authorTimer]);
+    },
+    [slot, songState, onSongStateUpdate],
+  );
 
-  const handleSuggestionSelect = useCallback((suggestion) => {
-    // Format the title and author using our utility functions
-    const formattedTitle = spellCheckAndCorrect(suggestion.title);
-    const formattedAuthor = suggestion.author ? titleCase(suggestion.author) : '';
-    
-    onSongStateUpdate(slot, {
-      ...songState,
-      title: formattedTitle,
-      ...(isHymn ? {
-        number: suggestion.number || '',
-        hymnal: suggestion.hymnal || '',
-        sheetMusic: suggestion.hymnaryLink || '',
-        youtube: suggestion.youtubeLink || '',
-        notes: suggestion.notes || ''
-      } : {
-        author: formattedAuthor,
-        sheetMusic: suggestion.songSelectLink || '',
-        youtube: suggestion.youtubeLink || '',
-        notes: suggestion.notes || ''
-      })
-    });
-    setShowSuggestions(false);
-  }, [slot, songState, isHymn, onSongStateUpdate]);
+  // Update handleInputChange for title and author to use delayed formatting
+  const handleInputChange = useCallback(
+    (field, value) => {
+      if (field === "title") {
+        // Update local state immediately for responsive typing
+        setLocalTitle(value);
 
-  const updateSuggestions = useCallback((value) => {
-    if (!value || value.length < 2) {
-      setSuggestions([]);
-      return;
-    }
+        // Clear any existing timers
+        if (titleTimer) clearTimeout(titleTimer);
 
-    const songs = isHymn ? availableSongs?.hymn : availableSongs?.contemporary;
-    
-    if (!songs) {
-      setSuggestions([]);
-      return;
-    }
+        // Set a new timer to apply formatting after a short delay
+        const timer = setTimeout(() => {
+          const formattedValue = spellCheckAndCorrect(value);
+          onSongStateUpdate(slot, {
+            ...songState,
+            title: formattedValue,
+          });
+        }, 800); // 800ms delay before formatting
 
-    const matches = songs
-      ?.filter(song =>
-        song.title.toLowerCase().includes(value.toLowerCase()) ||
-        (song.number && song.number.toString().includes(value))
-      )
-      ?.slice(0, 5);
+        setTitleTimer(timer);
+      } else if (field === "author") {
+        // Update local state immediately
+        setLocalAuthor(value);
 
-    setSuggestions(matches || []);
-  }, [isHymn, availableSongs]);
+        // Clear any existing timers
+        if (authorTimer) clearTimeout(authorTimer);
+
+        // Set a new timer to apply formatting after a short delay
+        const timer = setTimeout(() => {
+          const formattedValue = titleCase(value);
+          onSongStateUpdate(slot, {
+            ...songState,
+            author: formattedValue,
+          });
+        }, 800); // 800ms delay
+
+        setAuthorTimer(timer);
+      } else {
+        // For other fields, update immediately without formatting
+        onSongStateUpdate(slot, {
+          ...songState,
+          [field]: value,
+        });
+      }
+    },
+    [slot, songState, onSongStateUpdate, titleTimer, authorTimer],
+  );
+
+  const handleSuggestionSelect = useCallback(
+    (suggestion) => {
+      // Format the title and author using our utility functions
+      const formattedTitle = spellCheckAndCorrect(suggestion.title);
+      const formattedAuthor = suggestion.author
+        ? titleCase(suggestion.author)
+        : "";
+
+      onSongStateUpdate(slot, {
+        ...songState,
+        title: formattedTitle,
+        ...(isHymn
+          ? {
+              number: suggestion.number || "",
+              hymnal: suggestion.hymnal || "",
+              sheetMusic: suggestion.hymnaryLink || "",
+              youtube: suggestion.youtubeLink || "",
+              notes: suggestion.notes || "",
+            }
+          : {
+              author: formattedAuthor,
+              sheetMusic: suggestion.songSelectLink || "",
+              youtube: suggestion.youtubeLink || "",
+              notes: suggestion.notes || "",
+            }),
+      });
+      setShowSuggestions(false);
+    },
+    [slot, songState, isHymn, onSongStateUpdate],
+  );
+
+  const updateSuggestions = useCallback(
+    (value) => {
+      if (!value || value.length < 2) {
+        setSuggestions([]);
+        return;
+      }
+
+      const songs = isHymn
+        ? availableSongs?.hymn
+        : availableSongs?.contemporary;
+
+      if (!songs) {
+        setSuggestions([]);
+        return;
+      }
+
+      const matches = songs
+        ?.filter(
+          (song) =>
+            song.title.toLowerCase().includes(value.toLowerCase()) ||
+            (song.number && song.number.toString().includes(value)),
+        )
+        ?.slice(0, 5);
+
+      setSuggestions(matches || []);
+    },
+    [isHymn, availableSongs],
+  );
 
   // Click outside handler
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target)) {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(event.target)
+      ) {
         setShowSuggestions(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Clean up timers when component unmounts
@@ -180,15 +199,15 @@ const SongSection = ({
         <div className="flex items-center gap-1">
           <button
             type="button"
-            onClick={() => handleSongTypeChange('hymn')}
-            className={`px-2 py-0.5 text-xs rounded ${isHymn ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-black'}`}
+            onClick={() => handleSongTypeChange("hymn")}
+            className={`px-2 py-0.5 text-xs rounded ${isHymn ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-black"}`}
           >
             Hymn
           </button>
           <button
             type="button"
-            onClick={() => handleSongTypeChange('contemporary')}
-            className={`px-2 py-0.5 text-xs rounded ${!isHymn ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-black'}`}
+            onClick={() => handleSongTypeChange("contemporary")}
+            className={`px-2 py-0.5 text-xs rounded ${!isHymn ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-black"}`}
           >
             Contemporary
           </button>
@@ -204,7 +223,7 @@ const SongSection = ({
               type="text"
               value={localTitle}
               onChange={(e) => {
-                handleInputChange('title', e.target.value);
+                handleInputChange("title", e.target.value);
                 updateSuggestions(e.target.value);
                 setShowSuggestions(true);
               }}
@@ -216,7 +235,7 @@ const SongSection = ({
               autoComplete="off"
             />
             {showSuggestions && suggestions.length > 0 && (
-              <div 
+              <div
                 ref={suggestionsRef}
                 className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg"
               >
@@ -228,10 +247,12 @@ const SongSection = ({
                   >
                     <div className="text-sm text-black">
                       {song.title}
-                      {song.type === 'hymn' && song.number && ` (#${song.number})`}
+                      {song.type === "hymn" &&
+                        song.number &&
+                        ` (#${song.number})`}
                     </div>
                     <div className="text-xs text-gray-500">
-                      {song.type === 'hymn' ? song.hymnal : song.author}
+                      {song.type === "hymn" ? song.hymnal : song.author}
                     </div>
                   </div>
                 ))}
@@ -258,18 +279,24 @@ const SongSection = ({
               <input
                 type="text"
                 value={songState.number}
-                onChange={(e) => handleInputChange('number', e.target.value)}
+                onChange={(e) => handleInputChange("number", e.target.value)}
                 placeholder="Hymn #"
                 className="w-20 p-1 text-sm border rounded text-black placeholder:text-gray-500"
               />
               <select
                 value={songState.hymnal}
-                onChange={(e) => handleInputChange('hymnal', e.target.value)}
+                onChange={(e) => handleInputChange("hymnal", e.target.value)}
                 className="p-1 text-sm border rounded flex-1 text-black"
               >
-                <option value="" className="text-gray-500">Select Hymnal</option>
-                {hymnalVersions.map(version => (
-                  <option key={version.id} value={version.id} className="text-black">
+                <option value="" className="text-gray-500">
+                  Select Hymnal
+                </option>
+                {hymnalVersions.map((version) => (
+                  <option
+                    key={version.id}
+                    value={version.id}
+                    className="text-black"
+                  >
                     {version.name}
                   </option>
                 ))}
@@ -279,7 +306,7 @@ const SongSection = ({
             <input
               type="text"
               value={localAuthor}
-              onChange={(e) => handleInputChange('author', e.target.value)}
+              onChange={(e) => handleInputChange("author", e.target.value)}
               placeholder="Artist/Author"
               className="w-full p-1 text-sm border rounded text-black placeholder:text-gray-500"
             />
@@ -310,7 +337,9 @@ const SongSection = ({
                 <input
                   type="text"
                   value={songState.sheetMusic}
-                  onChange={(e) => handleInputChange('sheetMusic', e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("sheetMusic", e.target.value)
+                  }
                   placeholder={isHymn ? "Hymnary.org link" : "SongSelect link"}
                   className="w-full p-1 pl-7 text-sm border rounded text-black placeholder:text-gray-500"
                 />
@@ -321,12 +350,12 @@ const SongSection = ({
                     rel="noopener noreferrer"
                     className="absolute left-2 top-1/2 -translate-y-1/2"
                   >
-                    <Link 
+                    <Link
                       className={`w-4 h-4 ${
-                        isHymn 
-                          ? 'text-[#7B1416] hover:text-[#5a0f10]' // Cranberry color for Hymnary.org
-                          : 'text-blue-600 hover:text-blue-800'    // Blue for SongSelect
-                      }`} 
+                        isHymn
+                          ? "text-[#7B1416] hover:text-[#5a0f10]" // Cranberry color for Hymnary.org
+                          : "text-blue-600 hover:text-blue-800" // Blue for SongSelect
+                      }`}
                     />
                   </a>
                 ) : (
@@ -337,7 +366,7 @@ const SongSection = ({
                 <input
                   type="text"
                   value={songState.youtube}
-                  onChange={(e) => handleInputChange('youtube', e.target.value)}
+                  onChange={(e) => handleInputChange("youtube", e.target.value)}
                   placeholder="YouTube link"
                   className="w-full p-1 pl-7 text-sm border rounded text-black placeholder:text-gray-500"
                 />
@@ -357,7 +386,7 @@ const SongSection = ({
             </div>
             <textarea
               value={songState.notes}
-              onChange={(e) => handleInputChange('notes', e.target.value)}
+              onChange={(e) => handleInputChange("notes", e.target.value)}
               placeholder="Notes (optional)"
               className="w-full p-1 text-sm border rounded text-black placeholder:text-gray-500"
               rows={isMobile ? 1 : 2}

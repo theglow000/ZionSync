@@ -17,106 +17,111 @@ export const LITURGICAL_SEASONS = {
   REFORMATION: { name: "Reformation", color: "#FF0000" }, // Red
   ALL_SAINTS: { name: "All Saints", color: "#FFFFFF" }, // White
   CHRIST_KING: { name: "Christ the King", color: "#FFFFFF" }, // White
-  UNKNOWN: { name: "Ordinary Time", color: "#888888" } // Default fallback
+  UNKNOWN: { name: "Ordinary Time", color: "#888888" }, // Default fallback
 };
 
 // Special feast days that appear in the calendar
 export const MAJOR_FEAST_DAYS = {
-  CHRISTMAS_EVE: { 
-    name: "Christmas Eve", 
+  CHRISTMAS_EVE: {
+    name: "Christmas Eve",
     color: "#D4AF37",
-    description: "hope, peace, joy, and the anticipation of Christ's birth"
+    description: "hope, peace, joy, and the anticipation of Christ's birth",
   },
-  CHRISTMAS_DAY: { 
-    name: "Christmas Day", 
+  CHRISTMAS_DAY: {
+    name: "Christmas Day",
     color: "#D4AF37",
-    description: "celebration, joy, and the incarnation of Christ"
+    description: "celebration, joy, and the incarnation of Christ",
   },
-  EPIPHANY_DAY: { 
-    name: "Feast of the Epiphany", 
+  EPIPHANY_DAY: {
+    name: "Feast of the Epiphany",
     color: "#008080",
-    description: "revelation, light, and the manifestation of Christ to the Gentiles"
+    description:
+      "revelation, light, and the manifestation of Christ to the Gentiles",
   },
-  BAPTISM_OF_OUR_LORD: { 
-    name: "Baptism of Our Lord", 
+  BAPTISM_OF_OUR_LORD: {
+    name: "Baptism of Our Lord",
     color: "#FFFFFF",
-    description: "Christ's baptism, the beginning of his ministry, and our baptism into Christ"
+    description:
+      "Christ's baptism, the beginning of his ministry, and our baptism into Christ",
   },
-  TRANSFIGURATION: { 
-    name: "Transfiguration of Our Lord", 
+  TRANSFIGURATION: {
+    name: "Transfiguration of Our Lord",
     color: "#FFFFFF",
-    description: "the revelation of Christ's divine glory before the Passion"
+    description: "the revelation of Christ's divine glory before the Passion",
   },
-  ASH_WEDNESDAY: { 
-    name: "Ash Wednesday", 
+  ASH_WEDNESDAY: {
+    name: "Ash Wednesday",
     color: "#800020",
-    description: "repentance, mortality, and the beginning of Lent"
+    description: "repentance, mortality, and the beginning of Lent",
   },
-  PALM_SUNDAY: { 
-    name: "Palm Sunday", 
+  PALM_SUNDAY: {
+    name: "Palm Sunday",
     color: "#8B0000",
-    description: "Christ's triumphal entry and the beginning of Holy Week"
+    description: "Christ's triumphal entry and the beginning of Holy Week",
   },
-  MAUNDY_THURSDAY: { 
-    name: "Maundy Thursday", 
+  MAUNDY_THURSDAY: {
+    name: "Maundy Thursday",
     color: "#8B0000",
-    description: "service, communion, and Christ's last supper"
+    description: "service, communion, and Christ's last supper",
   },
-  GOOD_FRIDAY: { 
-    name: "Good Friday", 
+  GOOD_FRIDAY: {
+    name: "Good Friday",
     color: "#000000",
-    description: "Christ's sacrifice, suffering, and death on the cross"
+    description: "Christ's sacrifice, suffering, and death on the cross",
   },
-  EASTER_SUNDAY: { 
-    name: "Easter Sunday", 
+  EASTER_SUNDAY: {
+    name: "Easter Sunday",
     color: "#FFF0AA",
-    description: "resurrection, victory, and new life in Christ"
+    description: "resurrection, victory, and new life in Christ",
   },
-  ASCENSION: { 
-    name: "Ascension of Our Lord", 
+  ASCENSION: {
+    name: "Ascension of Our Lord",
     color: "#FFFFFF",
-    description: "Christ's return to heaven and his continuing presence"
+    description: "Christ's return to heaven and his continuing presence",
   },
-  PENTECOST: { 
-    name: "Day of Pentecost", 
+  PENTECOST: {
+    name: "Day of Pentecost",
     color: "#FF3131",
-    description: "the Holy Spirit, the birth of the church, and spiritual gifts"
+    description:
+      "the Holy Spirit, the birth of the church, and spiritual gifts",
   },
-  TRINITY_SUNDAY: { 
-    name: "Holy Trinity", 
+  TRINITY_SUNDAY: {
+    name: "Holy Trinity",
     color: "#FFFFFF",
-    description: "the mystery of the Trinity and God's three-fold nature"
+    description: "the mystery of the Trinity and God's three-fold nature",
   },
-  REFORMATION: { 
-    name: "Reformation Sunday", 
+  REFORMATION: {
+    name: "Reformation Sunday",
     color: "#FF0000",
-    description: "scripture, grace, faith, and Lutheran heritage"
+    description: "scripture, grace, faith, and Lutheran heritage",
   },
-  ALL_SAINTS: { 
-    name: "All Saints Day", 
+  ALL_SAINTS: {
+    name: "All Saints Day",
     color: "#FFFFFF",
-    description: "remembrance, the communion of saints, and the faithful departed"
+    description:
+      "remembrance, the communion of saints, and the faithful departed",
   },
-  CHRIST_KING: { 
-    name: "Christ the King", 
+  CHRIST_KING: {
+    name: "Christ the King",
     color: "#FFFFFF",
-    description: "Christ's sovereignty, kingship, and the fulfillment of God's kingdom"
+    description:
+      "Christ's sovereignty, kingship, and the fulfillment of God's kingdom",
   },
   THANKSGIVING: {
     name: "Thanksgiving",
     color: "#556B2F",
-    description: "gratitude, harvest, and God's providential care"
+    description: "gratitude, harvest, and God's providential care",
   },
   THANKSGIVING_EVE: {
     name: "Thanksgiving Eve",
     color: "#556B2F",
-    description: "gratitude and preparation for Thanksgiving"
+    description: "gratitude and preparation for Thanksgiving",
   },
   LENT_MIDWEEK: {
     name: "Lent Worship",
     color: "#800020",
-    description: "midweek Lenten devotion, reflection, and prayer"
-  }
+    description: "midweek Lenten devotion, reflection, and prayer",
+  },
 };
 
 // CSS Classes for seasons to be used in components
@@ -133,20 +138,20 @@ export const SEASON_CSS_CLASSES = {
   REFORMATION: "season-reformation",
   ALL_SAINTS: "season-all_saints", // Changed to use underscore for consistency
   CHRIST_KING: "season-christ_king", // Changed to use underscore for consistency
-  UNKNOWN: "season-unknown"
+  UNKNOWN: "season-unknown",
 };
 
 // Helper function to get a season by its name
 export function getSeasonByName(name) {
-  return Object.values(LITURGICAL_SEASONS).find(season => 
-    season.name.toLowerCase() === name.toLowerCase()
+  return Object.values(LITURGICAL_SEASONS).find(
+    (season) => season.name.toLowerCase() === name.toLowerCase(),
   );
 }
 
 // Helper function to get a feast day by its name
 export function getFeastDayByName(name) {
-  return Object.values(MAJOR_FEAST_DAYS).find(feast => 
-    feast.name.toLowerCase() === name.toLowerCase()
+  return Object.values(MAJOR_FEAST_DAYS).find(
+    (feast) => feast.name.toLowerCase() === name.toLowerCase(),
   );
 }
 
@@ -156,7 +161,11 @@ export function getFeastDayByName(name) {
  * @returns {boolean} True if the season ID is valid
  */
 export function isValidSeasonId(seasonId) {
-  return seasonId && typeof seasonId === 'string' && LITURGICAL_SEASONS[seasonId] !== undefined;
+  return (
+    seasonId &&
+    typeof seasonId === "string" &&
+    LITURGICAL_SEASONS[seasonId] !== undefined
+  );
 }
 
 /**
@@ -165,7 +174,11 @@ export function isValidSeasonId(seasonId) {
  * @returns {boolean} True if the feast day ID is valid
  */
 export function isValidFeastDayId(feastDayId) {
-  return feastDayId && typeof feastDayId === 'string' && MAJOR_FEAST_DAYS[feastDayId] !== undefined;
+  return (
+    feastDayId &&
+    typeof feastDayId === "string" &&
+    MAJOR_FEAST_DAYS[feastDayId] !== undefined
+  );
 }
 
 /**

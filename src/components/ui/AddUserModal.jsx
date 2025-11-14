@@ -1,28 +1,28 @@
-'use client'
+"use client";
 
-import React, { useState, useEffect, useRef } from 'react';
-import { X, UserPlus } from 'lucide-react';
-import { LoadingSpinner } from '../shared';
+import React, { useState, useEffect, useRef } from "react";
+import { X, UserPlus } from "lucide-react";
+import { LoadingSpinner } from "../shared";
 
 /**
  * AddUserModal - Professional modal dialog for adding new users
  * Replaces prompt() dialogs with better UX and validation
- * 
+ *
  * @param {boolean} isOpen - Controls modal visibility
  * @param {function} onClose - Called when modal is closed
  * @param {function} onSubmit - Called with user name when submitted
  * @param {string} teamColor - Team-specific color (e.g., '#6B8E23', '#9333EA', '#DC2626')
  * @param {string} teamName - Team name for display (e.g., 'Presentation', 'Worship', 'A/V')
  */
-const AddUserModal = ({ 
-  isOpen, 
-  onClose, 
-  onSubmit, 
-  teamColor = '#6B8E23',
-  teamName = 'Team'
+const AddUserModal = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  teamColor = "#6B8E23",
+  teamName = "Team",
 }) => {
-  const [name, setName] = useState('');
-  const [error, setError] = useState('');
+  const [name, setName] = useState("");
+  const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRef = useRef(null);
 
@@ -39,8 +39,8 @@ const AddUserModal = ({
   // Reset form when modal closes
   useEffect(() => {
     if (!isOpen) {
-      setName('');
-      setError('');
+      setName("");
+      setError("");
       setIsSubmitting(false);
     }
   }, [isOpen]);
@@ -50,15 +50,15 @@ const AddUserModal = ({
     const handleKeyDown = (e) => {
       if (!isOpen) return;
 
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         handleClose();
-      } else if (e.key === 'Enter' && !isSubmitting) {
+      } else if (e.key === "Enter" && !isSubmitting) {
         handleSubmit(e);
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, name, isSubmitting]);
 
   const handleClose = () => {
@@ -69,24 +69,24 @@ const AddUserModal = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validation
     const trimmedName = name.trim();
-    
+
     if (!trimmedName) {
-      setError('Please enter a name');
+      setError("Please enter a name");
       inputRef.current?.focus();
       return;
     }
 
     if (trimmedName.length < 2) {
-      setError('Name must be at least 2 characters');
+      setError("Name must be at least 2 characters");
       inputRef.current?.focus();
       return;
     }
 
     if (trimmedName.length > 50) {
-      setError('Name must be less than 50 characters');
+      setError("Name must be less than 50 characters");
       inputRef.current?.focus();
       return;
     }
@@ -94,19 +94,19 @@ const AddUserModal = ({
     // Check for invalid characters
     const invalidChars = /[<>{}[\]\\\/]/;
     if (invalidChars.test(trimmedName)) {
-      setError('Name contains invalid characters');
+      setError("Name contains invalid characters");
       inputRef.current?.focus();
       return;
     }
 
-    setError('');
+    setError("");
     setIsSubmitting(true);
 
     try {
       await onSubmit(trimmedName);
       // Success - modal will be closed by parent
     } catch (err) {
-      setError(err.message || 'Failed to add user');
+      setError(err.message || "Failed to add user");
       setIsSubmitting(false);
     }
   };
@@ -114,33 +114,27 @@ const AddUserModal = ({
   if (!isOpen) return null;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]"
       onClick={handleClose}
     >
-      <div 
+      <div
         className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div 
+        <div
           className="flex items-center justify-between p-6 border-b border-gray-200"
           style={{ borderBottomColor: `${teamColor}20` }}
         >
           <div className="flex items-center gap-3">
-            <div 
+            <div
               className="p-2 rounded-lg"
               style={{ backgroundColor: `${teamColor}20` }}
             >
-              <UserPlus 
-                className="w-5 h-5" 
-                style={{ color: teamColor }}
-              />
+              <UserPlus className="w-5 h-5" style={{ color: teamColor }} />
             </div>
-            <h2 
-              className="text-xl font-bold"
-              style={{ color: teamColor }}
-            >
+            <h2 className="text-xl font-bold" style={{ color: teamColor }}>
               Add {teamName} User
             </h2>
           </div>
@@ -158,8 +152,8 @@ const AddUserModal = ({
         <form onSubmit={handleSubmit} className="p-6">
           <div className="space-y-4">
             <div>
-              <label 
-                htmlFor="userName" 
+              <label
+                htmlFor="userName"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
                 User Name <span className="text-red-500">*</span>
@@ -171,19 +165,23 @@ const AddUserModal = ({
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value);
-                  if (error) setError('');
+                  if (error) setError("");
                 }}
                 disabled={isSubmitting}
                 placeholder="Enter user name..."
                 className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed ${
-                  error 
-                    ? 'border-red-500 focus:ring-red-500' 
-                    : 'border-gray-300 focus:ring-opacity-50'
+                  error
+                    ? "border-red-500 focus:ring-red-500"
+                    : "border-gray-300 focus:ring-opacity-50"
                 }`}
-                style={!error ? { 
-                  borderColor: name ? teamColor : undefined,
-                  focusRing: teamColor 
-                } : {}}
+                style={
+                  !error
+                    ? {
+                        borderColor: name ? teamColor : undefined,
+                        focusRing: teamColor,
+                      }
+                    : {}
+                }
                 maxLength={50}
               />
               {error && (
@@ -212,9 +210,9 @@ const AddUserModal = ({
               type="submit"
               disabled={isSubmitting || !name.trim()}
               className="px-4 py-2 rounded-lg text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md"
-              style={{ 
+              style={{
                 backgroundColor: teamColor,
-                opacity: isSubmitting || !name.trim() ? 0.5 : 1
+                opacity: isSubmitting || !name.trim() ? 0.5 : 1,
               }}
             >
               {isSubmitting ? (
@@ -223,7 +221,7 @@ const AddUserModal = ({
                   Adding...
                 </span>
               ) : (
-                'Add User'
+                "Add User"
               )}
             </button>
           </div>

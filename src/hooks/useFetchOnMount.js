@@ -1,23 +1,23 @@
-import { useState, useEffect, useCallback } from 'react';
-import { getErrorMessage } from '../utils/errorHandler';
+import { useState, useEffect, useCallback } from "react";
+import { getErrorMessage } from "../utils/errorHandler";
 
 /**
  * Custom hook for fetching data when component mounts
  * Handles loading states, error handling, and automatic cleanup with AbortController
- * 
+ *
  * @param {Function} fetchFunction - Async function that performs the fetch. Receives AbortSignal as parameter.
  * @param {Array} dependencies - Array of dependencies that trigger refetch (default: [])
  * @param {Object} options - Configuration options
  * @param {boolean} options.enabled - Whether to run the fetch (default: true)
  * @param {Function} options.onSuccess - Callback called with data on successful fetch
  * @param {Function} options.onError - Callback called with error on failed fetch
- * 
+ *
  * @returns {Object} Object containing:
  *   - data: The fetched data
  *   - isLoading: Boolean indicating if fetch is in progress
  *   - error: Error object if fetch failed
  *   - refetch: Function to manually trigger a refetch
- * 
+ *
  * @example
  * const { data: users, isLoading, error, refetch } = useFetchOnMount(
  *   async (signal) => {
@@ -35,51 +35,50 @@ import { getErrorMessage } from '../utils/errorHandler';
 export const useFetchOnMount = (
   fetchFunction,
   dependencies = [],
-  options = {}
+  options = {},
 ) => {
-  const {
-    enabled = true,
-    onSuccess = null,
-    onError = null
-  } = options;
+  const { enabled = true, onSuccess = null, onError = null } = options;
 
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(enabled);
   const [error, setError] = useState(null);
 
-  const executeFetch = useCallback(async (signal) => {
-    if (!enabled) return;
+  const executeFetch = useCallback(
+    async (signal) => {
+      if (!enabled) return;
 
-    setIsLoading(true);
-    setError(null);
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      const result = await fetchFunction(signal);
-      
-      // Only update state if request wasn't aborted
-      if (!signal.aborted) {
-        setData(result);
-        if (onSuccess) {
-          onSuccess(result);
+      try {
+        const result = await fetchFunction(signal);
+
+        // Only update state if request wasn't aborted
+        if (!signal.aborted) {
+          setData(result);
+          if (onSuccess) {
+            onSuccess(result);
+          }
+        }
+      } catch (err) {
+        // Only update state if request wasn't aborted
+        if (!signal.aborted) {
+          const errorMessage = getErrorMessage(err);
+          setError(errorMessage);
+          if (onError) {
+            onError(err);
+          }
+          console.error("useFetchOnMount error:", err);
+        }
+      } finally {
+        // Only update state if request wasn't aborted
+        if (!signal.aborted) {
+          setIsLoading(false);
         }
       }
-    } catch (err) {
-      // Only update state if request wasn't aborted
-      if (!signal.aborted) {
-        const errorMessage = getErrorMessage(err);
-        setError(errorMessage);
-        if (onError) {
-          onError(err);
-        }
-        console.error('useFetchOnMount error:', err);
-      }
-    } finally {
-      // Only update state if request wasn't aborted
-      if (!signal.aborted) {
-        setIsLoading(false);
-      }
-    }
-  }, [fetchFunction, enabled, onSuccess, onError]);
+    },
+    [fetchFunction, enabled, onSuccess, onError],
+  );
 
   useEffect(() => {
     if (!enabled) return;
@@ -103,7 +102,7 @@ export const useFetchOnMount = (
     data,
     isLoading,
     error,
-    refetch
+    refetch,
   };
 };
 

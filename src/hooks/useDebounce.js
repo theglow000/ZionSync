@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef } from "react";
 
 /**
  * Custom hook that returns a debounced version of a function
@@ -21,7 +21,7 @@ export const useDebounce = (callback, delay) => {
         callback(...args);
       }, delay);
     },
-    [callback, delay]
+    [callback, delay],
   );
 
   // Cleanup function to clear timeout on unmount
@@ -59,14 +59,14 @@ export const useThrottle = (callback, delay) => {
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
         }
-        
+
         timeoutRef.current = setTimeout(() => {
           lastCallRef.current = Date.now();
           callback(...args);
         }, delay - timeSinceLastCall);
       }
     },
-    [callback, delay]
+    [callback, delay],
   );
 
   return throttledCallback;

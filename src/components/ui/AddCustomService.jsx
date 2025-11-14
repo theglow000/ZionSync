@@ -1,72 +1,72 @@
-import React, { useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { ChevronRight, X } from 'lucide-react';
-import stringSimilarity from 'string-similarity';
-import { fetchWithTimeout } from '../../lib/api-utils';
+import React, { useState } from "react";
+import { Card } from "@/components/ui/card";
+import { ChevronRight, X } from "lucide-react";
+import stringSimilarity from "string-similarity";
+import { fetchWithTimeout } from "../../lib/api-utils";
 
 // Add at the top of the file
 const ELEMENT_TYPES = {
-  LITURGY: 'liturgy',
-  SONG_HYMN: 'song_hymn',
-  LITURGICAL_SONG: 'liturgical_song',
-  READING: 'reading',
-  MESSAGE: 'message'
+  LITURGY: "liturgy",
+  SONG_HYMN: "song_hymn",
+  LITURGICAL_SONG: "liturgical_song",
+  READING: "reading",
+  MESSAGE: "message",
 };
 
 // Add after the ELEMENT_TYPES constant
 const validateElementTypes = (elements) => {
-  return elements.map(el => ({
+  return elements.map((el) => ({
     ...el,
-    type: Object.values(ELEMENT_TYPES).includes(el.type) 
-      ? el.type 
-      : ELEMENT_TYPES.LITURGY
+    type: Object.values(ELEMENT_TYPES).includes(el.type)
+      ? el.type
+      : ELEMENT_TYPES.LITURGY,
   }));
 };
 
 // Add after the imports and before the component:
 const liturgicalTerms = {
   songs: [
-    'Kyrie',
-    'Alleluia',
-    'Gospel Acclamation',
-    'Canticle',
-    'Create in Me',
-    'Change My Heart O God',
-    'Lamb of God',
-    'Glory to God',
-    'This is the Feast',
-    'Hymn of the Day',  // Add this
-    'Opening Hymn',     // Add this
-    'Sending Song'      // Add this
+    "Kyrie",
+    "Alleluia",
+    "Gospel Acclamation",
+    "Canticle",
+    "Create in Me",
+    "Change My Heart O God",
+    "Lamb of God",
+    "Glory to God",
+    "This is the Feast",
+    "Hymn of the Day", // Add this
+    "Opening Hymn", // Add this
+    "Sending Song", // Add this
   ],
   readings: [
-    'First Reading',
-    'Second Reading',
-    'Gospel Reading',
-    'Psalm Reading'
+    "First Reading",
+    "Second Reading",
+    "Gospel Reading",
+    "Psalm Reading",
   ],
   liturgy: [
-    'Confession and Forgiveness',
-    'Apostle\'s Creed',
-    'Prayer of the Day',
-    'Blessing',
-    'Peace',
-    'Offering',
-    'Communion',
-    'Distribution',
-    'Prelude',
-    'Postlude',
-    'Dismissal',
-    'Greeting',
-    'Announcements'
-  ]
+    "Confession and Forgiveness",
+    "Apostle's Creed",
+    "Prayer of the Day",
+    "Blessing",
+    "Peace",
+    "Offering",
+    "Communion",
+    "Distribution",
+    "Prelude",
+    "Postlude",
+    "Dismissal",
+    "Greeting",
+    "Announcements",
+  ],
 };
 
 // Add this helper function before the component
 const findClosestMatch = (word, dictionary) => {
   // First check if the input contains any exact dictionary term
-  const exactMatch = dictionary.find(
-    term => word.toLowerCase().includes(term.toLowerCase())
+  const exactMatch = dictionary.find((term) =>
+    word.toLowerCase().includes(term.toLowerCase()),
   );
   if (exactMatch) {
     return null; // No suggestion needed if it contains a valid term
@@ -75,17 +75,17 @@ const findClosestMatch = (word, dictionary) => {
   // For multi-word input, only suggest if it's very similar to a dictionary term
   const matches = stringSimilarity.findBestMatch(
     word.toLowerCase(),
-    dictionary.map(term => term.toLowerCase())
+    dictionary.map((term) => term.toLowerCase()),
   );
 
   // Higher threshold for multi-word phrases
-  const threshold = word.includes(' ') ? 0.8 : 0.6;
+  const threshold = word.includes(" ") ? 0.8 : 0.6;
 
   if (matches.bestMatch.rating > threshold) {
     return {
       original: word,
       suggestion: dictionary[matches.bestMatchIndex],
-      rating: matches.bestMatch.rating
+      rating: matches.bestMatch.rating,
     };
   }
   return null;
@@ -99,78 +99,91 @@ const AddCustomService = ({
   setIsCustomService,
   setOrderOfWorship,
   setHasExistingContent,
-  setCustomServices
+  setCustomServices,
 }) => {
   const isEditMode = !!existingService;
-  const [step, setStep] = useState('input');
-  const [serviceName, setServiceName] = useState(existingService?.name || '');
+  const [step, setStep] = useState("input");
+  const [serviceName, setServiceName] = useState(existingService?.name || "");
   const [rawOrder, setRawOrder] = useState(
-    existingService?.elements?.map(el => el.content).join('\n') || 
-    existingService?.order || 
-    existingService?.template || 
-    ''
+    existingService?.elements?.map((el) => el.content).join("\n") ||
+      existingService?.order ||
+      existingService?.template ||
+      "",
   );
   const [parsedElements, setParsedElements] = useState(
-    existingService?.elements?.map(el => ({
+    existingService?.elements?.map((el) => ({
       ...el,
-      type: el.type || 'liturgy'
-    })) || []
+      type: el.type || "liturgy",
+    })) || [],
   );
   const [isSaving, setIsSaving] = useState(false);
 
   const parseOrderOfWorship = (text) => {
-    const lines = text.split('\n').filter(line => line.trim());
+    const lines = text.split("\n").filter((line) => line.trim());
 
-    return lines.map(line => {
+    return lines.map((line) => {
       const lowerLine = line.toLowerCase().trim();
-      let type = 'liturgy'; // default type
+      let type = "liturgy"; // default type
       let suggestion = null;
 
       // 1. First check for explicit hymns/songs (highest priority)
-      if (lowerLine.includes('hymn:') ||
-          lowerLine.includes('hymn of the day') ||
-          lowerLine.includes('opening hymn') ||
-          lowerLine.includes('sending song') ||
-          lowerLine.includes('anthem:') ||
-          lowerLine.includes('song:')) {
-        type = 'song_hymn';
+      if (
+        lowerLine.includes("hymn:") ||
+        lowerLine.includes("hymn of the day") ||
+        lowerLine.includes("opening hymn") ||
+        lowerLine.includes("sending song") ||
+        lowerLine.includes("anthem:") ||
+        lowerLine.includes("song:")
+      ) {
+        type = "song_hymn";
       }
       // 2. Check for liturgical songs
-      else if (liturgicalTerms.songs.some(term => 
-        lowerLine.includes(term.toLowerCase()))) {
-        type = 'liturgical_song';
+      else if (
+        liturgicalTerms.songs.some((term) =>
+          lowerLine.includes(term.toLowerCase()),
+        )
+      ) {
+        type = "liturgical_song";
       }
       // 3. Check for readings
-      else if (liturgicalTerms.readings.some(term => 
-        lowerLine.includes(term.toLowerCase()))) {
-        type = 'reading';
+      else if (
+        liturgicalTerms.readings.some((term) =>
+          lowerLine.includes(term.toLowerCase()),
+        )
+      ) {
+        type = "reading";
       }
       // 4. Check for messages/sermons
-      else if (lowerLine.includes('sermon:') ||
-               lowerLine.includes('message:') ||
-               lowerLine.includes('children')) {
-        type = 'message';
+      else if (
+        lowerLine.includes("sermon:") ||
+        lowerLine.includes("message:") ||
+        lowerLine.includes("children")
+      ) {
+        type = "message";
       }
       // 5. Check for liturgical elements (lowest priority)
-      else if (liturgicalTerms.liturgy.some(term => 
-        lowerLine.includes(term.toLowerCase()))) {
-        type = 'liturgy';
+      else if (
+        liturgicalTerms.liturgy.some((term) =>
+          lowerLine.includes(term.toLowerCase()),
+        )
+      ) {
+        type = "liturgy";
       }
       // 6. Look for suggestions if no type was definitively determined
       else {
         let match = findClosestMatch(line, liturgicalTerms.songs);
         if (match) {
-          type = 'liturgical_song';
+          type = "liturgical_song";
           suggestion = match.suggestion;
         } else {
           match = findClosestMatch(line, liturgicalTerms.readings);
           if (match) {
-            type = 'reading';
+            type = "reading";
             suggestion = match.suggestion;
           } else {
             match = findClosestMatch(line, liturgicalTerms.liturgy);
             if (match) {
-              type = 'liturgy';
+              type = "liturgy";
               suggestion = match.suggestion;
             }
           }
@@ -180,9 +193,9 @@ const AddCustomService = ({
       return {
         type,
         content: line,
-        reference: '',
-        note: '',
-        suggestion
+        reference: "",
+        note: "",
+        suggestion,
       };
     });
   };
@@ -204,11 +217,13 @@ const AddCustomService = ({
         <div className="text-xs text-[#6B8E23] bg-[#FFD700] bg-opacity-10 p-1 rounded">
           Did you mean:
           <button
-            onClick={() => onChange(index, {
-              ...element,
-              content: element.suggestion,
-              suggestion: null
-            })}
+            onClick={() =>
+              onChange(index, {
+                ...element,
+                content: element.suggestion,
+                suggestion: null,
+              })
+            }
             className="ml-1 underline hover:text-[#556B2F]"
           >
             {element.suggestion}
@@ -224,7 +239,7 @@ const AddCustomService = ({
         <div className="p-6 border-b">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold text-[#6B8E23]">
-              {isEditMode ? 'Edit' : 'Add'} Custom Service
+              {isEditMode ? "Edit" : "Add"} Custom Service
             </h2>
             <button
               onClick={onClose}
@@ -235,7 +250,7 @@ const AddCustomService = ({
           </div>
         </div>
 
-        {step === 'input' ? (
+        {step === "input" ? (
           <div className="p-6 space-y-6">
             <div>
               <label className="block text-lg font-bold text-[#6B8E23] mb-2">
@@ -268,7 +283,7 @@ const AddCustomService = ({
                   if (serviceName && rawOrder) {
                     const elements = parseOrderOfWorship(rawOrder);
                     setParsedElements(elements);
-                    setStep('review');
+                    setStep("review");
                   }
                 }}
                 disabled={!serviceName || !rawOrder}
@@ -281,10 +296,15 @@ const AddCustomService = ({
           </div>
         ) : (
           <div className="p-6">
-            <h3 className="text-lg font-bold text-[#6B8E23] mb-4">Review Service Elements</h3>
+            <h3 className="text-lg font-bold text-[#6B8E23] mb-4">
+              Review Service Elements
+            </h3>
             <div className="space-y-3 max-h-[60vh] overflow-y-auto">
               {parsedElements.map((element, index) => (
-                <div key={index} className="flex items-start gap-3 p-2 border rounded">
+                <div
+                  key={index}
+                  className="flex items-start gap-3 p-2 border rounded"
+                >
                   <ElementTypeSelect
                     element={element}
                     index={index}
@@ -299,17 +319,25 @@ const AddCustomService = ({
                       value={element.content}
                       onChange={(e) => {
                         const newElements = [...parsedElements];
-                        newElements[index] = { ...element, content: e.target.value };
+                        newElements[index] = {
+                          ...element,
+                          content: e.target.value,
+                        };
                         setParsedElements(newElements);
                       }}
                       className="w-full p-1 border rounded text-sm text-black hover:border-[#6B8E23] focus:border-[#6B8E23] focus:ring-1 focus:ring-[#6B8E23]"
                     />
-                    {(element.reference || element.type === 'hymn' || element.type === 'reading') && (
+                    {(element.reference ||
+                      element.type === "hymn" ||
+                      element.type === "reading") && (
                       <input
                         value={element.reference}
                         onChange={(e) => {
                           const newElements = [...parsedElements];
-                          newElements[index] = { ...element, reference: e.target.value };
+                          newElements[index] = {
+                            ...element,
+                            reference: e.target.value,
+                          };
                           setParsedElements(newElements);
                         }}
                         placeholder="Reference (e.g., hymn number or Bible verse)"
@@ -321,7 +349,10 @@ const AddCustomService = ({
                         value={element.note}
                         onChange={(e) => {
                           const newElements = [...parsedElements];
-                          newElements[index] = { ...element, note: e.target.value };
+                          newElements[index] = {
+                            ...element,
+                            note: e.target.value,
+                          };
                           setParsedElements(newElements);
                         }}
                         placeholder="Notes"
@@ -336,9 +367,9 @@ const AddCustomService = ({
         )}
 
         <div className="p-4 border-t bg-[#FFD700] bg-opacity-10 flex justify-between">
-          {step === 'review' && (
+          {step === "review" && (
             <button
-              onClick={() => setStep('input')}
+              onClick={() => setStep("input")}
               className="px-4 py-2 border border-[#6B8E23] text-[#6B8E23] rounded hover:bg-[#6B8E23] hover:text-white"
             >
               Back to Edit
@@ -351,46 +382,55 @@ const AddCustomService = ({
             >
               Cancel
             </button>
-            {step === 'review' && (
+            {step === "review" && (
               <button
                 onClick={async () => {
                   setIsSaving(true);
                   const serviceData = {
                     id: existingService?.id || `service_${Date.now()}`,
                     name: serviceName.trim(),
-                    elements: validateElementTypes(parsedElements.map(el => ({
-                      ...el,
-                      type: el.type || 'liturgy',
-                      content: el.content.trim(),
-                      reference: el.reference || '',
-                      note: el.note || '',
-                      suggestion: null // Clear suggestions after saving
-                    }))),
+                    elements: validateElementTypes(
+                      parsedElements.map((el) => ({
+                        ...el,
+                        type: el.type || "liturgy",
+                        content: el.content.trim(),
+                        reference: el.reference || "",
+                        note: el.note || "",
+                        suggestion: null, // Clear suggestions after saving
+                      })),
+                    ),
                     // Store the original template separately from the current content
                     template: existingService?.template || rawOrder,
                     // The order should reflect the current state with selections
-                    order: parsedElements.map(el => {
-                      const content = el.content.trim();
-                      const selection = el.selection ? 
-                        ` - ${typeof el.selection === 'object' ? el.selection.title || el.selection.text : el.selection}` : 
-                        '';
-                      return `${content}${selection}`;
-                    }).join('\n')
+                    order: parsedElements
+                      .map((el) => {
+                        const content = el.content.trim();
+                        const selection = el.selection
+                          ? ` - ${typeof el.selection === "object" ? el.selection.title || el.selection.text : el.selection}`
+                          : "";
+                        return `${content}${selection}`;
+                      })
+                      .join("\n"),
                   };
 
                   try {
-                    const method = existingService ? 'PUT' : 'POST';
-                    const response = await fetchWithTimeout('/api/custom-services', {
-                      method,
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(serviceData),
-                    });
+                    const method = existingService ? "PUT" : "POST";
+                    const response = await fetchWithTimeout(
+                      "/api/custom-services",
+                      {
+                        method,
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(serviceData),
+                      },
+                    );
 
                     if (response.ok) {
                       const savedService = await response.json();
 
                       // First update custom services
-                      const updatedServices = await fetchWithTimeout('/api/custom-services').then(res => res.json());
+                      const updatedServices = await fetchWithTimeout(
+                        "/api/custom-services",
+                      ).then((res) => res.json());
                       await setCustomServices(updatedServices);
 
                       // Then update other states synchronously
@@ -403,7 +443,7 @@ const AddCustomService = ({
                       onClose();
                     }
                   } catch (error) {
-                    console.error('Error saving custom service:', error);
+                    console.error("Error saving custom service:", error);
                   } finally {
                     setIsSaving(false);
                   }
@@ -411,13 +451,13 @@ const AddCustomService = ({
                 disabled={isSaving}
                 className="px-4 py-2 bg-[#6B8E23] text-white rounded hover:bg-[#556B2F] disabled:opacity-50"
               >
-                {isSaving ? 'Saving...' : 'Save Custom Service'}
+                {isSaving ? "Saving..." : "Save Custom Service"}
               </button>
             )}
           </div>
         </div>
-      </Card >
-    </div >
+      </Card>
+    </div>
   );
 };
 

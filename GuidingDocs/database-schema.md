@@ -21,43 +21,50 @@ ZionSync uses MongoDB as its primary data store with the database name **"church
 ### Critical Issues
 
 #### 1. Dynamic Field Names in AV Collections
+
 **Problem**: The AV team management uses dynamic field names like `team_member_${body.position}` which creates unpredictable schema structures.
 
 **Affected Collections**: `av_assignments`, `av_team_members`, `av_completed`
 
 **Code Location**: `/src/app/api/av-team/route.js` line 36
+
 ```javascript
-$set: { 
+$set: {
   [`team_member_${body.position}`]: body.name,  // Creates team_member_1, team_member_2, etc.
   lastUpdated: new Date()
 }
 ```
 
-**Impact**: 
+**Impact**:
+
 - Makes schema documentation impossible
 - Creates maintenance challenges
 - Inconsistent querying patterns
 - Field names are unpredictable
 
 **Recommendation**: Refactor to use a structured array approach:
+
 ```javascript
 // Instead of dynamic fields, use:
 teamAssignments: [
   { position: 1, member: "Ben" },
   { position: 2, member: "John" },
-  { position: 3, member: "Mike" }
-]
+  { position: 3, member: "Mike" },
+];
 ```
 
 #### 2. Active Architectural Duplication (NOT Naming Inconsistency)
+
 **REALITY**: Two separate collections exist and serve different purposes - this is **intentional architectural separation**:
 
-**Evidence**: 
+**Evidence**:
+
 - `service_details` used in `/src/app/api/services/add-song/route.js` - handles song additions to services
 - `serviceDetails` used in `/src/app/api/service-details/route.js` - handles service content management
 - Both collections are actively maintained and used for different workflows
 
-**Impact**: 
+**Impact**:
+
 - **NOT** a naming inconsistency - this is **functional separation**
 - `service_details` focuses on song selection workflow
 - `serviceDetails` focuses on service content and liturgical information
@@ -66,19 +73,23 @@ teamAssignments: [
 **Recommendation**: Document the architectural intent and data synchronization patterns rather than treating as naming error.
 
 #### 3. Systematic Cross-Collection Field Contamination
+
 **REALITY**: Extensive field contamination occurs from object spread operations - **this is systematic, not accidental**:
 
 **Contamination Patterns**:
+
 - **Songs collection contains**: `serviceDate`, `position`, `elements`, `dateUsed`, `service`, `addedBy`
 - **Service collections contain**: `title`, `author`, `hymnaryLink`, `songSelectLink`, `youtubeLink`, `notes`
 - **Root Cause**: Object spread operations like `...songData` in add-song workflow
 
-**Code Evidence**: 
+**Code Evidence**:
+
 - `/src/app/api/services/add-song/route.js` spreads song data into service collections
 - Verification script finds these fields consistently across multiple collections
 - Pattern is too systematic to be accidental - appears to be part of data denormalization strategy
 
-**Impact**: 
+**Impact**:
+
 - **Intentional denormalization** for performance/convenience
 - Makes schema documentation extremely challenging
 - Query patterns may rely on this denormalized data
@@ -87,23 +98,28 @@ teamAssignments: [
 **Architectural Decision**: This appears to be a conscious trade-off between data normalization and query performance.
 
 #### 6. Dynamic Selection Field Patterns
+
 **Problem**: Service and song collections use dynamic field patterns like `selections.${position}` which creates unpredictable field structures.
 
 **Examples**:
+
 - `service_songs.selections.opening`
-- `service_songs.selections.dayHymn` 
+- `service_songs.selections.dayHymn`
 - `service_songs.selections.song_1`
 - `service_details.selections.${position}`
 
 **Impact**: Schema verification tools cannot predict all possible field combinations.
 
 #### 7. Object Spread Operator Usage
+
 **Problem**: Code uses object spread operators like `...songData` which makes field tracking difficult.
 
 **Impact**: Fields are dynamically merged from other objects, making schema documentation challenging.
 
 #### 8. Nested vs Flat Field Inconsistencies
+
 **Problem**: Some fields exist in both nested and flat formats:
+
 - `rotationStatus.isLearning` (nested)
 - `"rotationStatus.isLearning"` (flat field name)
 
@@ -116,17 +132,22 @@ teamAssignments: [
 **MAJOR FINDING**: The actual codebase uses significantly different patterns than currently documented:
 
 #### 1. Rotation Status Field Usage
+
 **REALITY**: Code uses both nested object AND flat field patterns simultaneously:
+
 - **Nested**: `rotationStatus: { isLearning: Boolean, isInRotation: Boolean, ... }`
 - **Flat queries**: `"rotationStatus.isLearning": true` and `"rotationStatus.isInRotation": true`
 
 **Code Evidence**:
+
 - `/src/lib/SongUsageAnalyzer.js` line 146: Sets nested `rotationStatus` object
 - `/src/lib/SongUsageAnalyzer.js` line 193: Queries using `"rotationStatus.isLearning": true`
 - `/src/lib/CongregationComfortAnalyzer.js` line 193: Same flat field query pattern
 
 #### 2. Song Usage Collection Structure
+
 **REALITY**: The `song_usage` collection has a **completely flat structure**, not the nested structure documented:
+
 - Fields are stored directly at document level: `dateUsed`, `service`, `addedBy`, `number`, `hymnal`, etc.
 - **NO** nested `uses` array as documented
 - **NO** nested `songData` object as documented
@@ -134,13 +155,17 @@ teamAssignments: [
 **Code Evidence**: `/src/app/api/services/add-song/route.js` line 110-122 shows flat insertion pattern
 
 #### 3. Service Details vs ServiceDetails Collections
+
 **REALITY**: Both collections exist and are used for different purposes:
+
 - `service_details`: Used by `/src/app/api/services/add-song/route.js` for song additions
 - `serviceDetails`: Used by `/src/app/api/service-details/route.js` for service management
 - This is **active architectural duplication**, not a naming inconsistency
 
 #### 4. Dynamic Field Contamination
+
 **REALITY**: Cross-collection field contamination is **extensive and systematic**:
+
 - Songs collection contains service-specific fields (`serviceDate`, `position`, `elements`)
 - Service collections contain song-specific fields (`title`, `author`, `hymnaryLink`)
 - This appears to be from object spread operations (`...songData`) in the codebase
@@ -152,6 +177,7 @@ teamAssignments: [
 ### User Management Collections
 
 #### users
+
 **Purpose**: Presentation team members  
 **Primary Key**: `_id` (ObjectId)
 
@@ -164,6 +190,7 @@ teamAssignments: [
 ```
 
 #### worship_users
+
 **Purpose**: Worship team members with role-based access  
 **Primary Key**: `_id` (ObjectId)
 
@@ -178,6 +205,7 @@ teamAssignments: [
 ```
 
 #### av_users
+
 **Purpose**: Audio/Visual team members  
 **Primary Key**: `_id` (ObjectId)
 
@@ -190,6 +218,7 @@ teamAssignments: [
 ```
 
 #### av_team_members
+
 **Purpose**: Extended AV team member information  
 **Primary Key**: `_id` (ObjectId)
 
@@ -207,7 +236,7 @@ teamAssignments: [
   [`team_member_${body.position}`]: String,  // Dynamic field: creates team_member_1, team_member_2, etc.
   // Examples of actual generated fields:
   "team_member_1": String,  // Position 1 assignment
-  "team_member_2": String,  // Position 2 assignment  
+  "team_member_2": String,  // Position 2 assignment
   "team_member_3": String   // Position 3 assignment
   // Note: Field names vary based on position parameter in API calls
 }
@@ -216,6 +245,7 @@ teamAssignments: [
 ### Service Management Collections
 
 #### serviceDetails
+
 **Purpose**: Primary service information and content  
 **Primary Key**: `_id` (ObjectId)  
 **Business Key**: `date` (String)
@@ -257,6 +287,7 @@ teamAssignments: [
 ```
 
 #### custom_services
+
 **Purpose**: Reusable service templates  
 **Primary Key**: `_id` (ObjectId)  
 **Business Key**: `id` (String)
@@ -281,6 +312,7 @@ teamAssignments: [
 ```
 
 #### service_songs
+
 **Purpose**: Song selections for specific services (legacy compatibility)  
 **Primary Key**: `_id` (ObjectId)  
 **Business Key**: `date` (String)
@@ -331,6 +363,7 @@ teamAssignments: [
 ```
 
 #### service_details
+
 **Purpose**: Service details collection used for song additions (separate from serviceDetails)  
 **Primary Key**: `_id` (ObjectId)  
 **Business Key**: `date` (String)
@@ -385,6 +418,7 @@ teamAssignments: [
 ### Assignment Collections
 
 #### signups
+
 **Purpose**: Presentation team service assignments  
 **Primary Key**: `_id` (ObjectId)
 
@@ -399,6 +433,7 @@ teamAssignments: [
 ```
 
 #### worship_assignments
+
 **Purpose**: Worship team scheduling and assignments  
 **Primary Key**: `_id` (ObjectId)  
 **Business Key**: `date` (String)
@@ -416,6 +451,7 @@ teamAssignments: [
 ```
 
 #### av_assignments
+
 **Purpose**: Audio/Visual team assignments  
 **Primary Key**: `_id` (ObjectId)
 
@@ -440,6 +476,7 @@ teamAssignments: [
 ```
 
 #### assignments
+
 **Purpose**: General assignment approvals and tracking  
 **Primary Key**: `_id` (ObjectId)  
 **Business Key**: `date` (String)
@@ -455,6 +492,7 @@ teamAssignments: [
 ```
 
 #### completed
+
 **Purpose**: Service completion tracking  
 **Primary Key**: `_id` (ObjectId)  
 **Business Key**: `date` (String)
@@ -468,6 +506,7 @@ teamAssignments: [
 ```
 
 #### av_completed
+
 **Purpose**: AV team completion tracking  
 **Primary Key**: `_id` (ObjectId)
 
@@ -493,6 +532,7 @@ teamAssignments: [
 ### Music Collections
 
 #### songs
+
 **Purpose**: Primary song library  
 **Primary Key**: `_id` (ObjectId)  
 **Business Key**: `title` (String)
@@ -515,7 +555,7 @@ teamAssignments: [
   tags: [String],         // Optional. General purpose tags
   notes: String,          // Optional. Additional notes
   references: Object,     // Optional. Scripture references
-  
+
   // ROTATION STATUS: Uses NESTED OBJECT structure for storage
   rotationStatus: {       // Optional. Calculated rotation status information
     isLearning: Boolean,  // Whether song is in learning phase (consecutive uses)
@@ -526,11 +566,11 @@ teamAssignments: [
     rotationScore: Number, // Calculated rotation score (0-10)
     lastUpdated: Date     // When rotation status was last calculated
   },
-  
+
   comfortLevel: String,   // Optional. Congregation comfort level
   created: Date,          // Required. Creation timestamp
   lastUpdated: Date,      // Required. Last modification timestamp
-  
+
   // FIELD CONTAMINATION: Fields that appear from cross-collection operations
   serviceDate: String,    // ⚠️ Service-specific field (should not be in songs)
   position: String,       // ⚠️ Service position field (should not be in songs)
@@ -544,15 +584,18 @@ teamAssignments: [
 }
 ```
 
-**⚠️ CRITICAL QUERY PATTERN**: 
+**⚠️ CRITICAL QUERY PATTERN**:
 While `rotationStatus` is stored as a nested object, the code queries using **flat field notation**:
+
 - Query: `db.collection("songs").find({ "rotationStatus.isLearning": true })`
 - Query: `db.collection("songs").find({ "rotationStatus.isInRotation": true })`
 
 **Code Evidence**:
+
 - Storage: `/src/lib/SongUsageAnalyzer.js` line 146 - stores nested object
 - Queries: `/src/lib/SongUsageAnalyzer.js` lines 193, 212 - queries flat fields
 - MongoDB automatically indexes nested fields for dot notation queries
+
 ```
   hymnaryLink: String,    // Optional. Link to hymnary.org
   songSelectLink: String, // Optional. Link to CCLI SongSelect
@@ -577,6 +620,7 @@ While `rotationStatus` is stored as a nested object, the code queries using **fl
 ```
 
 #### song_usage
+
 **Purpose**: Song usage tracking and analytics  
 **Primary Key**: `_id` (ObjectId)  
 **Business Key**: Composite (`title` + `dateUsed`)
@@ -584,6 +628,7 @@ While `rotationStatus` is stored as a nested object, the code queries using **fl
 **⚠️ CRITICAL**: This collection has a **completely flat structure** - the documented nested structure is INCORRECT
 
 **ACTUAL CODE IMPLEMENTATION** (from `/src/app/api/services/add-song/route.js`):
+
 ```javascript
 {
   _id: ObjectId,
@@ -603,19 +648,22 @@ While `rotationStatus` is stored as a nested object, the code queries using **fl
 ```
 
 **⚠️ DOCUMENTATION ERRORS IDENTIFIED**:
+
 1. **NO `uses` array exists** - each usage is a separate document
 2. **NO nested `songData` object exists** - all fields are flat
 3. **`dateUsed` is stored as STRING**, not Date object
 4. **Documents are inserted per usage**, not aggregated per song
 
-**ACTUAL USAGE PATTERN**: 
+**ACTUAL USAGE PATTERN**:
+
 - Each time a song is added to a service, a new document is inserted
 - Query pattern: `db.collection("song_usage").find({ title: songTitle })`
 - Multiple documents exist per song, one per usage instance
-```
+
+````
 
 #### reference_songs
-**Purpose**: External song recommendations and suggestions  
+**Purpose**: External song recommendations and suggestions
 **Primary Key**: `_id` (ObjectId)
 
 ```javascript
@@ -636,9 +684,10 @@ While `rotationStatus` is stored as a nested object, the code queries using **fl
   tags: [String],             // Optional. General tags
   source: String              // Required. Source identifier (e.g., 'seasonal_song_suggestions')
 }
-```
+````
 
 #### worship_selections
+
 **Purpose**: Worship song selections with usage tracking  
 **Primary Key**: `_id` (ObjectId)  
 **Business Key**: `date` (String)
@@ -665,6 +714,7 @@ While `rotationStatus` is stored as a nested object, the code queries using **fl
 ```
 
 #### song_history
+
 **Purpose**: Song usage history tracking for worship planning  
 **Primary Key**: `_id` (ObjectId)  
 **Business Key**: `title` (String)
@@ -694,7 +744,9 @@ While `rotationStatus` is stored as a nested object, the code queries using **fl
 ### Primary Relationships
 
 #### Date-Based Linking
+
 Most service-related collections use string dates (M/D/YY format) as business keys:
+
 - `serviceDetails.date` ↔ `service_songs.date`
 - `serviceDetails.date` ↔ `service_details.date`
 - `serviceDetails.date` ↔ `signups.date`
@@ -706,31 +758,41 @@ Most service-related collections use string dates (M/D/YY format) as business ke
 - `serviceDetails.date` ↔ `song_history.usageDates[]`
 
 #### Name-Based References
+
 User assignments reference user names directly:
+
 - `signups.name` → `users.name`
 - `worship_assignments.team[]` → `worship_users.name`
 - `av_assignments.team_member_*` → `av_users.name`
 
 #### Song References
+
 Song usage and selections reference song titles:
+
 - `song_usage.title` → `songs.title`
 - `service_songs.selections.*` → `songs.title`
 - `worship_selections.selections.*` → `songs.title`
 
 #### Template References
+
 Services can reference custom service templates:
+
 - `serviceDetails` may reference `custom_services.id` for template-based services
 
 ### Derived Relationships
 
 #### Liturgical Information
+
 Liturgical data flows from service dates to multiple collections:
+
 - `serviceDetails.liturgical` (primary source)
 - `service_songs.liturgical` (synchronized copy)
 - Migration scripts maintain consistency
 
 #### Usage Analytics
+
 Song usage analytics derive from multiple sources:
+
 - `song_usage.uses[]` aggregates from service selections
 - `songs.rotationStatus` calculated from usage patterns
 - Comfort scores derived from usage frequency and recency
@@ -740,35 +802,64 @@ Song usage analytics derive from multiple sources:
 ## Indexing Strategy
 
 ### Implicit Indexes
+
 MongoDB automatically creates indexes on `_id` fields for all collections.
 
 ### Performance-Critical Indexes
 
 #### Service Lookups
+
 Date-based queries are the most common access pattern:
+
 ```javascript
 // Recommended indexes
-serviceDetails: { date: 1 }
-service_songs: { date: 1 }
-signups: { date: 1 }
-worship_assignments: { date: 1 }
-av_assignments: { date: 1 }
-completed: { date: 1 }
-service_details: { date: 1 }
-assignments: { date: 1 }
+serviceDetails: {
+  date: 1;
+}
+service_songs: {
+  date: 1;
+}
+signups: {
+  date: 1;
+}
+worship_assignments: {
+  date: 1;
+}
+av_assignments: {
+  date: 1;
+}
+completed: {
+  date: 1;
+}
+service_details: {
+  date: 1;
+}
+assignments: {
+  date: 1;
+}
 ```
 
 #### User Searches
+
 Name-based lookups for team management:
+
 ```javascript
 // Recommended indexes
-users: { name: 1 }
-worship_users: { name: 1 }
-av_users: { name: 1 }
+users: {
+  name: 1;
+}
+worship_users: {
+  name: 1;
+}
+av_users: {
+  name: 1;
+}
 ```
 
 #### Song Queries
+
 Title-based and type-based song searches:
+
 ```javascript
 // Recommended indexes
 songs: { title: 1 }
@@ -779,7 +870,9 @@ reference_songs: { seasonalTags: 1 }
 ```
 
 #### Date Range Queries
+
 For upcoming services and assignment planning:
+
 ```javascript
 // Compound indexes for date ranges
 worship_assignments: { date: 1, lastUpdated: 1 }
@@ -793,6 +886,7 @@ av_assignments: { date: 1, lastUpdated: 1 }
 ### Field Requirements
 
 #### Required Fields
+
 - **All collections**: `_id` (auto-generated ObjectId)
 - **Service collections**: `date` (string in M/D/YY format)
 - **User collections**: `name` (string, non-empty)
@@ -800,6 +894,7 @@ av_assignments: { date: 1, lastUpdated: 1 }
 - **Timestamp fields**: Creation and update timestamps where specified
 
 #### Enum Validations
+
 - **Service Types**: `['communion', 'no_communion', 'communion_potluck', 'service']`
 - **User Roles**: `['team_member', 'leader', 'pastor']`
 - **Song Types**: `['hymn', 'contemporary']`
@@ -811,32 +906,38 @@ av_assignments: { date: 1, lastUpdated: 1 }
 ### Business Rules
 
 #### Date Format Validation
+
 - Service dates must follow M/D/YY format (e.g., "1/5/25", "12/25/24")
 - Dates should represent valid calendar dates
 - Two-digit years assumed to be in 2000s if < 50, otherwise 1900s
 
 #### Assignment Rules
+
 - `av_assignments.team_member_1` typically defaults to 'Ben'
 - `av_assignments.team_member_2` should be from rotation pool
 - `av_assignments.team_member_3` is optional volunteer slot
 
 #### Song Uniqueness
+
 - Song titles must be unique within their type category
 - Multiple songs can have same title if different types (hymn vs contemporary)
 
 #### Element Structure
+
 - Service elements must have valid `type` from enum
-- Elements with type 'song_*' should have `title` field
+- Elements with type 'song\_\*' should have `title` field
 - Elements with type 'reading' should have `reference` field
 
 ### Data Integrity Constraints
 
 #### Referential Integrity
+
 - Assignment names should exist in corresponding user collections
 - Song references should exist in songs collection
 - Service dates should be consistent across related collections
 
 #### Temporal Constraints
+
 - `lastUpdated` timestamps should be >= creation timestamps
 - Usage dates should be valid service dates
 - Future service dates should be >= current date for planning
@@ -848,7 +949,9 @@ av_assignments: { date: 1, lastUpdated: 1 }
 ### Schema Evolution Strategy
 
 #### Script-Based Migrations
+
 ZionSync uses standalone Node.js scripts for schema changes:
+
 - Location: `src/scripts/`
 - Pattern: Direct MongoDB client connection
 - Environment: Loads from `.env.local`
@@ -857,62 +960,74 @@ ZionSync uses standalone Node.js scripts for schema changes:
 #### Common Migration Types
 
 ##### Adding New Fields
+
 ```javascript
 // Example: Adding liturgical information
-await db.collection('serviceDetails').updateMany(
-  { liturgical: { $exists: false } },
-  { $set: { liturgical: calculateLiturgicalInfo(date) } }
-);
+await db
+  .collection("serviceDetails")
+  .updateMany(
+    { liturgical: { $exists: false } },
+    { $set: { liturgical: calculateLiturgicalInfo(date) } },
+  );
 ```
 
 ##### Data Transformation
+
 ```javascript
 // Example: Converting content to elements
-const services = await db.collection('serviceDetails').find({ 
-  content: { $exists: true }, 
-  elements: { $exists: false } 
-}).toArray();
+const services = await db
+  .collection("serviceDetails")
+  .find({
+    content: { $exists: true },
+    elements: { $exists: false },
+  })
+  .toArray();
 
 for (const service of services) {
   const elements = parseServiceContent(service.content);
-  await db.collection('serviceDetails').updateOne(
-    { _id: service._id },
-    { $set: { elements } }
-  );
+  await db
+    .collection("serviceDetails")
+    .updateOne({ _id: service._id }, { $set: { elements } });
 }
 ```
 
 ##### Backfill Operations
+
 ```javascript
 // Example: Adding seasonal tags to existing songs
-const songs = await db.collection('songs').find({ 
-  seasonalTags: { $exists: false } 
-}).toArray();
+const songs = await db
+  .collection("songs")
+  .find({
+    seasonalTags: { $exists: false },
+  })
+  .toArray();
 
 for (const song of songs) {
   const tags = inferSeasonalTags(song.title, song.lyrics);
-  await db.collection('songs').updateOne(
-    { _id: song._id },
-    { $set: { seasonalTags: tags } }
-  );
+  await db
+    .collection("songs")
+    .updateOne({ _id: song._id }, { $set: { seasonalTags: tags } });
 }
 ```
 
 #### Migration Best Practices
 
 ##### Safety Measures
+
 - Always backup before major migrations
 - Use `{ upsert: false }` by default to avoid accidental creates
 - Implement dry-run modes for testing
 - Include rollback procedures where possible
 
 ##### Performance Considerations
+
 - Process large collections in batches
 - Use bulk operations where possible
 - Monitor memory usage during migrations
 - Include progress logging for long-running operations
 
 ##### Data Consistency
+
 - Maintain referential integrity during transformations
 - Validate data before and after migrations
 - Clear calculated caches when underlying data changes
@@ -923,20 +1038,22 @@ for (const song of songs) {
 ## Database Connection Configuration
 
 ### Connection Parameters
+
 ```javascript
 // From src/lib/mongodb.js
 const options = {
-  maxPoolSize: 10,                    // Maximum connections in pool
-  serverSelectionTimeoutMS: 30000,    // Server selection timeout
-  socketTimeoutMS: 45000,             // Socket timeout
-  retryWrites: true,                  // Retry failed writes
-  w: 'majority',                      // Write concern
-  wtimeoutMS: 30000,                  // Write timeout
-  monitorCommands: true               // Command monitoring for debugging
+  maxPoolSize: 10, // Maximum connections in pool
+  serverSelectionTimeoutMS: 30000, // Server selection timeout
+  socketTimeoutMS: 45000, // Socket timeout
+  retryWrites: true, // Retry failed writes
+  w: "majority", // Write concern
+  wtimeoutMS: 30000, // Write timeout
+  monitorCommands: true, // Command monitoring for debugging
 };
 ```
 
 ### Environment Handling
+
 - **Development**: Reuses global connection via `global._mongoClientPromise`
 - **Production**: Creates new connection per instance
 - **Database Name**: `"church"` (hardcoded in all API routes)
@@ -949,14 +1066,17 @@ const options = {
 ### Query Optimization
 
 #### Date-Based Queries
+
 Service date queries are the most frequent operation:
+
 ```javascript
 // Optimized date filtering
 const today = new Date();
 const todayFormatted = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear() % 100}`;
 
 // Use string comparison for M/D/YY format dates
-const upcomingServices = await db.collection('serviceDetails')
+const upcomingServices = await db
+  .collection("serviceDetails")
   .find({ date: { $gte: todayFormatted } })
   .sort({ date: 1 })
   .limit(limit)
@@ -964,28 +1084,37 @@ const upcomingServices = await db.collection('serviceDetails')
 ```
 
 #### Aggregation Pipelines
+
 Complex analytics use aggregation for performance:
+
 ```javascript
 // Song usage aggregation
-const usageStats = await db.collection('song_usage').aggregate([
-  { $unwind: '$uses' },
-  { $group: { 
-    _id: '$title', 
-    totalUses: { $sum: 1 },
-    lastUsed: { $max: '$uses.dateUsed' }
-  }},
-  { $sort: { totalUses: -1 } }
-]).toArray();
+const usageStats = await db
+  .collection("song_usage")
+  .aggregate([
+    { $unwind: "$uses" },
+    {
+      $group: {
+        _id: "$title",
+        totalUses: { $sum: 1 },
+        lastUsed: { $max: "$uses.dateUsed" },
+      },
+    },
+    { $sort: { totalUses: -1 } },
+  ])
+  .toArray();
 ```
 
 ### Memory Management
 
 #### Connection Pooling
+
 - Maximum 10 concurrent connections
 - Automatic connection reuse in development
 - Proper connection cleanup in scripts
 
 #### Large Dataset Handling
+
 - Batch processing for migrations
 - Streaming for large result sets
 - Pagination for UI-bound queries
@@ -993,6 +1122,7 @@ const usageStats = await db.collection('song_usage').aggregate([
 ### Caching Strategies
 
 #### Liturgical Calendar Caching
+
 ```javascript
 // Liturgical calculations cached to avoid recalculation
 const liturgicalCache = new Map();
@@ -1005,6 +1135,7 @@ export function getLiturgicalInfo(dateStr) {
 ```
 
 #### Song Usage Caching
+
 - Usage statistics calculated on-demand
 - Comfort scores cached in song documents
 - Rotation status updated periodically
@@ -1014,23 +1145,27 @@ export function getLiturgicalInfo(dateStr) {
 ## Development Guidelines
 
 ### Collection Naming Conventions
+
 - Use camelCase for collection names (e.g., `serviceDetails`)
 - Use descriptive names that indicate the domain
 - Maintain consistency between similar collections
 
 ### Field Naming Conventions
+
 - Use camelCase for field names
 - Use descriptive names that indicate purpose
 - Prefix boolean fields appropriately (e.g., `isActive`, `hasCompleted`)
 - Use consistent timestamp field names (`created`, `lastUpdated`)
 
 ### Document Structure Guidelines
+
 - Keep documents reasonably sized (< 16MB MongoDB limit)
 - Use embedded documents for tightly coupled data
 - Use references for loosely coupled relationships
 - Include audit fields (timestamps, user references) where needed
 
 ### Query Best Practices
+
 - Use specific field selections to reduce network traffic
 - Leverage indexes for frequently queried fields
 - Use aggregation pipelines for complex transformations
@@ -1047,26 +1182,30 @@ export function getLiturgicalInfo(dateStr) {
 ### Critical Findings & Corrections
 
 #### Schema Documentation Accuracy Issues
+
 1. **`song_usage` collection**: Documentation was **completely incorrect** - nested structure doesn't exist
 2. **Rotation status queries**: Code uses flat field queries (`"rotationStatus.isLearning"`) on nested objects
 3. **Collection separation**: `service_details` vs `serviceDetails` is intentional architecture, not naming error
 4. **Field contamination**: Systematic denormalization pattern, not accidental contamination
 
 #### Verification Statistics
+
 - **Initial Accuracy**: 32% (baseline)
-- **Previous Accuracy**: 63% (after partial corrections) 
+- **Previous Accuracy**: 63% (after partial corrections)
 - **Current Accuracy**: ~85% (after major corrections)
 - **Remaining Discrepancies**: ~5-7 (primarily dynamic field patterns by design)
 
 ### Real Architecture Patterns Documented
 
 #### Dynamic Patterns (Cannot Be Fully Enumerated)
+
 1. **AV Field Patterns**: `team_member_${position}` creates unpredictable field names
-2. **Selection Patterns**: `selections.${position}` creates position-based fields  
+2. **Selection Patterns**: `selections.${position}` creates position-based fields
 3. **Spread Patterns**: `...songData` merges arbitrary fields from other objects
 4. **Dual Query Patterns**: Nested storage with flat field queries
 
 #### Actual vs Documented Structure Corrections
+
 - ✅ **song_usage**: Corrected from nested to flat structure
 - ✅ **rotationStatus**: Documented both nested storage AND flat query patterns
 - ✅ **service collections**: Clarified intentional duplication vs naming error
@@ -1075,6 +1214,7 @@ export function getLiturgicalInfo(dateStr) {
 ### Confidence Level
 
 **HIGH CONFIDENCE** in corrected documentation - Schema now accurately reflects:
+
 - ✅ **Actual data structures** used by the application
 - ✅ **Real query patterns** in the codebase
 - ✅ **Architectural intentions** behind design decisions
@@ -1085,4 +1225,4 @@ export function getLiturgicalInfo(dateStr) {
 
 ---
 
-*This schema reference is maintained as a living document and should be updated whenever collection structures or validation rules change. For architectural context and high-level database strategy, see `architecture-overview.md`.*
+_This schema reference is maintained as a living document and should be updated whenever collection structures or validation rules change. For architectural context and high-level database strategy, see `architecture-overview.md`._

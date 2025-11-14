@@ -34,7 +34,7 @@ Good news! ZionSync has been updated to make planning easier, especially as we l
 
 ## Do I Need to Do Anything?
 
-**Nope!** Everything works the same way. The year selector is optional - if you don't use it, you'll just see this year's services like before. 
+**Nope!** Everything works the same way. The year selector is optional - if you don't use it, you'll just see this year's services like before.
 
 All your existing sign-ups, song selections, and team assignments are exactly as you left them.
 
@@ -58,10 +58,10 @@ Blessings,
 ## Optional: Visual Guide (if sending with images)
 
 **Screenshot 1:** Arrow pointing to year selector dropdown  
-*Caption: "Click here to switch between years"*
+_Caption: "Click here to switch between years"_
 
 **Screenshot 2:** Service list showing 2026 dates  
-*Caption: "Now you can plan for future years!"*
+_Caption: "Now you can plan for future years!"_
 
 ---
 

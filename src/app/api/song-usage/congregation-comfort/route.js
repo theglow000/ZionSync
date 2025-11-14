@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import clientPromise from '@/lib/mongodb';
+import { NextResponse } from "next/server";
+import clientPromise from "@/lib/mongodb";
 
 export async function GET(request) {
   try {
@@ -14,7 +14,7 @@ export async function GET(request) {
 
     // Create a map of song usage for faster lookup
     const usageMap = {};
-    songUsage.forEach(song => {
+    songUsage.forEach((song) => {
       usageMap[song.title] = song.uses || [];
     });
 
@@ -24,101 +24,116 @@ export async function GET(request) {
       high: [],
       learning: [],
       low: [],
-      unknown: []
+      unknown: [],
     };
 
     // Process each song to calculate comfort metrics
-    songs.forEach(song => {
+    songs.forEach((song) => {
       const uses = usageMap[song.title] || [];
-      
+
       // Sort uses by date (newest first)
-      const sortedUses = [...uses].sort((a, b) => 
-        new Date(b.dateUsed) - new Date(a.dateUsed)
+      const sortedUses = [...uses].sort(
+        (a, b) => new Date(b.dateUsed) - new Date(a.dateUsed),
       );
-      
+
       // Calculate comfort score based on usage frequency and recency
       let comfortScore = 0;
-      let category = 'unknown';
-      
+      let category = "unknown";
+
       if (sortedUses.length > 0) {
         // Base score on number of uses (max 10 for 10+ uses)
         const useScore = Math.min(10, sortedUses.length) / 10;
-        
+
         // Factor in recency - reduce score for songs not used recently
         const mostRecentUse = new Date(sortedUses[0].dateUsed);
-        const daysSinceLastUse = Math.floor((new Date() - mostRecentUse) / (1000 * 60 * 60 * 24));
-        
+        const daysSinceLastUse = Math.floor(
+          (new Date() - mostRecentUse) / (1000 * 60 * 60 * 24),
+        );
+
         // Recency factor - songs used within last 60 days get full value, then decreases
-        const recencyFactor = Math.max(0, 1 - (Math.max(0, daysSinceLastUse - 60) / 305));
-        
+        const recencyFactor = Math.max(
+          0,
+          1 - Math.max(0, daysSinceLastUse - 60) / 305,
+        );
+
         // Calculate final score (0-10 scale)
         comfortScore = useScore * recencyFactor;
-        
+
         // Determine category based on score
         if (comfortScore >= 0.7) {
-          category = 'high';
+          category = "high";
         } else if (comfortScore >= 0.4) {
-          category = 'learning';
+          category = "learning";
         } else {
-          category = 'low';
+          category = "low";
         }
       }
-      
+
       const processedSong = {
         title: song.title,
         type: song.type,
         comfortScore,
-        usageCount: sortedUses.length,  // Make sure this line exists
+        usageCount: sortedUses.length, // Make sure this line exists
         lastUsed: sortedUses.length > 0 ? sortedUses[0].dateUsed : null,
-        seasonalTags: song.seasonalTags || []
+        seasonalTags: song.seasonalTags || [],
       };
-      
+
       processedSongs.push(processedSong);
       groups[category].push(processedSong);
     });
-    
+
     // Process seasonal distribution
     const seasons = [
-      'Advent', 'Christmas', 'Epiphany', 'Lent', 
-      'Easter', 'Pentecost', 'Ordinary Time', 'Special Feasts'
+      "Advent",
+      "Christmas",
+      "Epiphany",
+      "Lent",
+      "Easter",
+      "Pentecost",
+      "Ordinary Time",
+      "Special Feasts",
     ];
-    
-    const seasonal = seasons.map(season => {
-      const seasonalSongs = processedSongs.filter(song => 
-        song.seasonalTags && song.seasonalTags.includes(season)
+
+    const seasonal = seasons.map((season) => {
+      const seasonalSongs = processedSongs.filter(
+        (song) => song.seasonalTags && song.seasonalTags.includes(season),
       );
-      
+
       const comfort = {
-        high: seasonalSongs.filter(s => s.comfortScore >= 0.7).length,
-        learning: seasonalSongs.filter(s => s.comfortScore >= 0.4 && s.comfortScore < 0.7).length,
-        low: seasonalSongs.filter(s => s.comfortScore > 0 && s.comfortScore < 0.4).length,
-        unknown: seasonalSongs.filter(s => s.comfortScore === 0).length
+        high: seasonalSongs.filter((s) => s.comfortScore >= 0.7).length,
+        learning: seasonalSongs.filter(
+          (s) => s.comfortScore >= 0.4 && s.comfortScore < 0.7,
+        ).length,
+        low: seasonalSongs.filter(
+          (s) => s.comfortScore > 0 && s.comfortScore < 0.4,
+        ).length,
+        unknown: seasonalSongs.filter((s) => s.comfortScore === 0).length,
       };
-      
+
       return {
         season,
         total: seasonalSongs.length,
-        comfort
+        comfort,
       };
     });
-    
+
     // Calculate overall metrics
     const metrics = [
-      { name: 'Total Songs', value: processedSongs.length },
-      { name: 'High Comfort', value: groups.high.length },
-      { name: 'Learning', value: groups.learning.length },
-      { name: 'Low Comfort', value: groups.low.length },
-      { name: 'Unused', value: groups.unknown.length }
+      { name: "Total Songs", value: processedSongs.length },
+      { name: "High Comfort", value: groups.high.length },
+      { name: "Learning", value: groups.learning.length },
+      { name: "Low Comfort", value: groups.low.length },
+      { name: "Unused", value: groups.unknown.length },
     ];
 
     return NextResponse.json({
       metrics,
       groups,
       seasonal,
-      totalSongs: processedSongs.length
+      totalSongs: processedSongs.length,
     });
   } catch (error) {
-    console.error('Error in GET /api/song-usage/congregation-comfort:', error);
+    console.error("Error in GET /api/song-usage/congregation-comfort:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

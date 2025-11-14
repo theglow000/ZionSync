@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import clientPromise from '@/lib/mongodb';
+import { NextResponse } from "next/server";
+import clientPromise from "@/lib/mongodb";
 
 /**
  * GET /api/service-calendar/available-years
@@ -10,22 +10,23 @@ export async function GET() {
   try {
     const client = await clientPromise;
     const db = client.db("church");
-    
+
     // Query serviceCalendar collection for all years
-    const calendars = await db.collection("serviceCalendar")
+    const calendars = await db
+      .collection("serviceCalendar")
       .find({}, { projection: { year: 1, _id: 0 } })
       .sort({ year: 1 })
       .toArray();
-    
+
     // Extract just the year numbers
-    const years = calendars.map(cal => cal.year);
-    
+    const years = calendars.map((cal) => cal.year);
+
     return NextResponse.json(years);
   } catch (error) {
-    console.error('Error fetching available years:', error);
+    console.error("Error fetching available years:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch available years' },
-      { status: 500 }
+      { error: "Failed to fetch available years" },
+      { status: 500 },
     );
   }
 }
