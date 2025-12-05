@@ -94,10 +94,18 @@ async function testCrossTeamSync() {
     const serviceDetails = await collection.findOne({ date: testDate });
     let currentSongIndex = 0;
 
+    // IMPORTANT: Sort the keys to ensure consistent order (song_0, song_1, song_2, etc.)
+    const sortedKeys = Object.keys(songSelections).sort((a, b) => {
+      const numA = parseInt(a.split("_")[1] || "0");
+      const numB = parseInt(b.split("_")[1] || "0");
+      return numA - numB;
+    });
+    const sortedSongSelections = sortedKeys.map((key) => songSelections[key]);
+
     const updatedElements = serviceDetails.elements.map(
       (element, elementIndex) => {
         if (element.type === "song_hymn") {
-          const matchingSong = Object.values(songSelections)[currentSongIndex];
+          const matchingSong = sortedSongSelections[currentSongIndex];
           currentSongIndex++;
 
           if (matchingSong) {

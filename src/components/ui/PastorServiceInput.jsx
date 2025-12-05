@@ -678,6 +678,9 @@ Postlude`,
     // Parse the content into service elements
     const usedIds = new Set();
 
+    // Get existing elements to preserve song selections
+    const existingElements = serviceDetails?.[date]?.elements || [];
+
     const parsedElements = parseServiceContent(
       orderOfWorship,
       serviceElementLines,
@@ -694,9 +697,35 @@ Postlude`,
       // Only use the stable ID if it's not a duplicate
       if (!usedIds.has(stableId)) {
         usedIds.add(stableId);
+
+        // Try to find and preserve existing selection for song_hymn elements
+        let existingSelection = null;
+        if (element.type === "song_hymn") {
+          // Count how many song_hymn elements we've seen so far (this element's position)
+          const songPosition = parsedElements.filter(
+            (e, i) => i < index && e.type === "song_hymn",
+          ).length;
+          // Find the song at the same position in existing elements
+          const existingSongs = existingElements.filter(
+            (e) => e.type === "song_hymn",
+          );
+          if (existingSongs[songPosition]?.selection) {
+            existingSelection = existingSongs[songPosition].selection;
+            // Update the element content to include the song details if we have a selection
+            const songDetails =
+              existingSelection.type === "hymn"
+                ? `${existingSelection.title} #${existingSelection.number} (${existingSelection.hymnal?.charAt(0).toUpperCase() + existingSelection.hymnal?.slice(1) || ""})`
+                : existingSelection.author
+                  ? `${existingSelection.title} - ${existingSelection.author}`
+                  : existingSelection.title;
+            element.content = `${element.content}: ${songDetails}`;
+          }
+        }
+
         return {
           ...element,
           id: stableId,
+          selection: existingSelection,
         };
       }
 

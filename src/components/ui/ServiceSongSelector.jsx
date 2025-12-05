@@ -510,7 +510,14 @@ const ServiceSongSelector = ({
 
     try {
       // Check for duplicate songs before saving
-      const songSelections = Object.values(serviceSongStates);
+      // IMPORTANT: Sort the keys to ensure consistent order (song_0, song_1, song_2, etc.)
+      // Object.values() does NOT guarantee order, which can cause song order mismatches
+      const sortedKeys = Object.keys(serviceSongStates).sort((a, b) => {
+        const numA = parseInt(a.split("_")[1] || "0");
+        const numB = parseInt(b.split("_")[1] || "0");
+        return numA - numB;
+      });
+      const songSelections = sortedKeys.map((key) => serviceSongStates[key]);
       const duplicates = await checkForDuplicateSongs(songSelections, date);
 
       if (duplicates.length > 0) {
