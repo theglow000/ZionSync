@@ -1736,6 +1736,16 @@ const SignupSheet = ({
                                                             : ""}
                                                       </span>
                                                     )}
+                                                  {/* Display reference for reading and message elements */}
+                                                  {element.reference &&
+                                                    (element.type ===
+                                                      "reading" ||
+                                                      element.type ===
+                                                        "message") && (
+                                                      <span className="text-green-600 italic ml-1">
+                                                        {element.reference}
+                                                      </span>
+                                                    )}
                                                 </>
                                               )}
                                             </div>
