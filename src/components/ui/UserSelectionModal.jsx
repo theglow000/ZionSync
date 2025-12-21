@@ -16,6 +16,7 @@ const UserSelectionModal = ({
   showDeleteButton = !!initialUserName,
   currentAssignments = {}, // Add this prop to receive assignments for current date
   currentPosition = null, // Add this prop to know which position we're editing
+  isPastDate = false, // Add this prop to know if we're editing a past date
 }) => {
   const { isMobile } = useResponsive();
   const { confirm, ConfirmDialog } = useConfirm();
@@ -56,6 +57,7 @@ const UserSelectionModal = ({
         >
           {availableUsers.map((user) => {
             const isAssignedElsewhere = isUserAssignedElsewhere(user.name);
+            const isDeleted = user.deleted === true;
 
             return (
               <button
@@ -66,20 +68,26 @@ const UserSelectionModal = ({
                       ? "bg-[#6B8E23] bg-opacity-20 text-[#6B8E23] font-medium"
                       : isAssignedElsewhere
                         ? "text-gray-400 bg-gray-50 cursor-not-allowed"
-                        : "text-black hover:bg-gray-100"
+                        : isDeleted && !isPastDate
+                          ? "text-gray-400 bg-gray-50 cursor-not-allowed"
+                          : isDeleted && isPastDate
+                            ? "text-gray-600 hover:bg-gray-100 border border-gray-300"
+                            : "text-black hover:bg-gray-100"
                   }`}
                 onClick={() => {
                   // Prevent action if user is already assigned elsewhere
                   if (isAssignedElsewhere) return;
+                  // Prevent selecting deleted users for future dates
+                  if (isDeleted && !isPastDate) return;
 
                   onSelect(user.name);
                   onClose();
                 }}
-                disabled={isAssignedElsewhere}
+                disabled={isAssignedElsewhere || (isDeleted && !isPastDate)}
               >
                 <div className="flex items-center">
                   <UserCircle
-                    className={`w-5 h-5 mr-2 ${isAssignedElsewhere ? "text-gray-400" : "text-[#6B8E23]"}`}
+                    className={`w-5 h-5 mr-2 ${isAssignedElsewhere || (isDeleted && !isPastDate) ? "text-gray-400" : "text-[#6B8E23]"}`}
                   />
                   <span>{user.name}</span>
                 </div>
@@ -91,6 +99,12 @@ const UserSelectionModal = ({
                   <span className="text-xs text-gray-400">
                     Already Assigned
                   </span>
+                ) : isDeleted && isPastDate ? (
+                  <span className="text-xs text-orange-600 font-medium">
+                    Inactive
+                  </span>
+                ) : isDeleted ? (
+                  <span className="text-xs text-gray-400">Inactive</span>
                 ) : null}
               </button>
             );

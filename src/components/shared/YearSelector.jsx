@@ -57,22 +57,26 @@ const YearSelector = ({
 
   return (
     <div className={`relative inline-block ${className}`}>
-      <div className="relative inline-flex items-center">
-        {/* Clickable wrapper for arrow + year */}
-        <label className="inline-flex items-center cursor-pointer">
-          {/* Dropdown arrow before the year */}
-          <div className="flex items-center mr-1" style={{ color: teamColor }}>
-            <ChevronDown className="h-4 w-4" />
-          </div>
+      {/* Service Schedule on first line */}
+      <div className={`font-bold text-gray-600 ${textSize} text-center`}>
+        Service Schedule
+      </div>
 
+      {/* Year selector on second line */}
+      <div className="relative inline-flex items-center justify-center mt-1">
+        <span className={`font-medium text-gray-600 mr-2 ${textSize}`}>
+          Year:
+        </span>
+
+        {/* Clickable wrapper for year + arrow - styled as button */}
+        <label className="inline-flex items-center cursor-pointer relative">
           <select
             value={selectedYear || ""}
             onChange={handleYearChange}
-            className={`appearance-none bg-transparent border-0 font-bold text-gray-600 focus:outline-none cursor-pointer ${textSize}`}
+            className={`appearance-none bg-white border-2 rounded-lg px-4 py-2 pr-10 font-bold text-gray-700 focus:outline-none cursor-pointer shadow-sm hover:shadow-md transition-shadow ${textSize}`}
             style={{
-              color: "inherit",
+              borderColor: teamColor,
               width: "auto",
-              paddingRight: "0.25rem",
             }}
           >
             {yearOptions.map((year) => {
@@ -95,13 +99,15 @@ const YearSelector = ({
               );
             })}
           </select>
-        </label>
 
-        {/* "Service Schedule" text as plain text (not clickable) */}
-        <span className={`font-bold text-gray-600 ${textSize}`}>
-          {" "}
-          Service Schedule
-        </span>
+          {/* Dropdown arrow after the year */}
+          <div
+            className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center pointer-events-none"
+            style={{ color: teamColor }}
+          >
+            <ChevronDown className="h-5 w-5" />
+          </div>
+        </label>
       </div>
 
       {/* Tooltip for unavailable years */}

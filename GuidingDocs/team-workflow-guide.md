@@ -298,7 +298,7 @@ _Technical operations scheduling and equipment management_
 **Three-Position System:**
 
 - **Team Member 1**: Ben (Primary/Fixed position)
-- **Team Member 2**: Automatic rotation (Doug → Jaimes → Justin → Brett)
+- **Team Member 2**: Automatic rotation (Doug → Jaimes → Brett)
 - **Team Member 3**: Volunteer/flexible position
 
 **Important Note**: Team member assignments indicate scheduling, not service roles. Actual equipment responsibilities determined before each service.
@@ -368,7 +368,7 @@ Manage Users → Select User → Click Trash Icon → Confirm
 
 System automatically initializes core team members:
 
-- Ben, Doug, Jaimes, Laila, Brett, Justin
+- Ben, Doug, Jaimes, Laila, Brett
 
 ---
 

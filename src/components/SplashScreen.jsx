@@ -135,6 +135,16 @@ const SplashScreen = ({ onEnter, setActiveTab }) => {
           ))}
         </motion.div>
       </motion.div>
+
+      {/* Version Number - positioned at screen bottom */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1 }}
+        className="absolute bottom-4 left-0 right-0 text-center z-20"
+      >
+        <p className="text-white/70 text-sm md:text-2xl font-medium">v2.2.0</p>
+      </motion.div>
     </motion.div>
   );
 };

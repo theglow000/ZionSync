@@ -138,7 +138,7 @@ export const DATES_2025 = [
 // A/V TEAM SPECIFIC
 // ===========================
 
-export const AV_ROTATION_MEMBERS = ["Doug", "Jaimes", "Justin", "Brett"];
+export const AV_ROTATION_MEMBERS = ["Doug", "Jaimes", "Brett"];
 
 // ===========================
 // API ENDPOINTS
