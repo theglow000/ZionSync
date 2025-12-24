@@ -143,7 +143,7 @@ const SplashScreen = ({ onEnter, setActiveTab }) => {
         transition={{ delay: 1 }}
         className="absolute bottom-4 left-0 right-0 text-center z-20"
       >
-        <p className="text-white/70 text-sm md:text-2xl font-medium">v2.2.0</p>
+        <p className="text-white/70 text-sm md:text-2xl font-medium">v2.3.0</p>
       </motion.div>
     </motion.div>
   );

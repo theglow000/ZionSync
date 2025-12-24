@@ -2,6 +2,11 @@
 
 import React from "react";
 import { Trash2, Edit2 } from "lucide-react";
+import {
+  getSpecialServiceType,
+  SpecialServiceIndicator,
+  formatServiceTitle,
+} from "../liturgical/LiturgicalStyling";
 
 const MobileAVTeamCard = ({
   item,
@@ -27,12 +32,20 @@ const MobileAVTeamCard = ({
   const assignment = getAssignment
     ? getAssignment(date, serviceTime)
     : assignments[date] || {};
-  const displayTitle = serviceTime ? `${title} - ${serviceTime}` : title;
+  const formattedTitle = formatServiceTitle(item);
+  const displayTitle = serviceTime
+    ? `${formattedTitle} - ${serviceTime}`
+    : formattedTitle;
 
   return (
     <div className="mb-4 p-4 bg-white rounded-lg shadow border">
       <div className="mb-2">
-        <div className="font-medium text-black">{displayTitle}</div>
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-black">{displayTitle}</span>
+          {getSpecialServiceType(date) && (
+            <SpecialServiceIndicator date={date} />
+          )}
+        </div>
         <div className="text-sm text-black">
           {day}, {date}
         </div>

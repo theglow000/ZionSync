@@ -56,6 +56,7 @@ import {
   getSpecialServiceType,
   getHeaderClass,
   SpecialServiceIndicator,
+  formatServiceTitle,
 } from "../liturgical/LiturgicalStyling";
 import { LiturgicalDebugger } from "../liturgical/LiturgicalDebug";
 import { YearSelector } from "../shared";
@@ -817,6 +818,7 @@ const WorshipTeam = ({
                           style={{ scrollMarginTop: "20px" }}
                         >
                           <MobileWorshipServiceCard
+                            item={item}
                             date={item.date}
                             title={item.title}
                             day={item.day}
@@ -863,7 +865,7 @@ const WorshipTeam = ({
                             onEditTeam={() => handleEditTeam(item.date)}
                             header={
                               <div
-                                className={`w-full ${getHeaderClass(item.date)}`}
+                                className={`w-full flex items-center justify-between ${getHeaderClass(item.date)}`}
                               >
                                 {/* Left Side - Service Info */}
                                 <div
@@ -885,7 +887,7 @@ const WorshipTeam = ({
                                       {/* Title and type on same line */}
                                       <div className="flex items-center gap-2">
                                         <h3 className="font-medium text-black text-sm truncate">
-                                          {item.title}
+                                          {formatServiceTitle(item)}
                                         </h3>
                                         {getSpecialServiceType(item.date) && (
                                           <SpecialServiceIndicator

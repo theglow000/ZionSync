@@ -58,6 +58,12 @@ import {
 } from "../../lib/api-utils";
 import "./table.css";
 import PastorServiceInput from "./PastorServiceInput"; // Add this import
+import {
+  getSpecialServiceType,
+  SpecialServiceIndicator,
+  formatServiceTitle,
+  getHeaderClass,
+} from "../liturgical/LiturgicalStyling";
 import { downloadICSFile } from "../../lib/ics-generator"; // Change this import
 
 const SignupSheet = ({
@@ -612,7 +618,7 @@ const SignupSheet = ({
 
       const newUser = {
         name,
-        color: "bg-[#6B8E23] bg-opacity-20",
+        color: "bg-[#6B8E23] bg-opacity-40",
       };
 
       // Update both signups and signupDetails states
@@ -1382,7 +1388,7 @@ const SignupSheet = ({
                               style={{ width: "35%" }}
                               className="p-2 text-left font-bold text-[#6B8E23]"
                             >
-                              Service
+                              Service/Season
                             </th>
                             <th
                               style={{ width: "120px" }}
@@ -1404,7 +1410,7 @@ const SignupSheet = ({
                               <tr
                                 ref={(el) => (dateRefs.current[item.date] = el)}
                                 style={{ scrollMarginTop: "60px" }}
-                                className={index % 2 === 0 ? "bg-gray-50" : ""}
+                                className={`${getHeaderClass(item.date)} ${index % 2 === 0 ? "bg-gray-50" : ""}`}
                               >
                                 <td
                                   style={{ width: "64px" }}
@@ -1466,7 +1472,14 @@ const SignupSheet = ({
                                   className="p-2 border-r border-gray-300"
                                 >
                                   <div className="flex items-center justify-between">
-                                    <span>{item.title}</span>
+                                    <div className="flex items-center gap-2">
+                                      <span>{formatServiceTitle(item)}</span>
+                                      {getSpecialServiceType(item.date) && (
+                                        <SpecialServiceIndicator
+                                          date={item.date}
+                                        />
+                                      )}
+                                    </div>
                                     <div className="flex items-center gap-1">
                                       {checkForOrderOfWorship(item.date) && (
                                         <BookOpen
@@ -1488,10 +1501,10 @@ const SignupSheet = ({
                                   className="p-2 border-r border-gray-300"
                                 >
                                   {signups[item.date] ? (
-                                    <div className="p-2 rounded bg-[#6B8E23] bg-opacity-20 flex items-center gap-2">
+                                    <div className="p-2 rounded bg-[#6B8E23] bg-opacity-40 flex items-center gap-2">
                                       <span className="flex-1">
-                                        <UserCircle className="w-4 h-4 text-[#6B8E23] inline-block mr-1" />
-                                        <span className="text-[#6B8E23] font-medium">
+                                        <UserCircle className="w-4 h-4 text-black inline-block mr-1" />
+                                        <span className="text-black font-medium">
                                           {signups[item.date]}
                                         </span>
                                       </span>

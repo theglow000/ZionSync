@@ -19,6 +19,11 @@ import {
 } from "lucide-react";
 import UserSelectionModal from "./UserSelectionModal";
 import { useConfirm } from "../../hooks/useConfirm";
+import {
+  getSpecialServiceType,
+  SpecialServiceIndicator,
+  formatServiceTitle,
+} from "../liturgical/LiturgicalStyling";
 
 const MobileServiceCard = ({
   item,
@@ -191,11 +196,16 @@ const MobileServiceCard = ({
         {/* Service Info Column */}
         <div className="flex-1 min-w-0">
           {/* Date and Title */}
-          <div className="flex items-center">
-            <span className="text-sm font-medium text-gray-700 mr-2 w-[60px] flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700 w-[60px] flex-shrink-0">
               {date}
             </span>
-            <span className="font-medium text-black truncate">{title}</span>
+            <span className="font-medium text-black truncate">
+              {formatServiceTitle(item)}
+            </span>
+            {getSpecialServiceType(date) && (
+              <SpecialServiceIndicator date={date} />
+            )}
           </div>
 
           {/* Day and Assignment */}

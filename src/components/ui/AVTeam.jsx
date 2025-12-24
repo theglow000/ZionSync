@@ -38,6 +38,12 @@ import {
 import UserSelectionModal from "./UserSelectionModal";
 import AddUserModal from "./AddUserModal";
 import ServiceTimeModal from "./ServiceTimeModal";
+import {
+  getSpecialServiceType,
+  SpecialServiceIndicator,
+  formatServiceTitle,
+  getHeaderClass,
+} from "../liturgical/LiturgicalStyling";
 
 const AVTeam = ({ selectedYear, setSelectedYear, availableYears }) => {
   const [assignments, setAssignments] = useState({});
@@ -673,9 +679,10 @@ const AVTeam = ({ selectedYear, setSelectedYear, availableYears }) => {
   ) => {
     const assignment = getAssignment(item.date, serviceTime);
     const key = getAssignmentKey(item.date, serviceTime);
+    const formattedTitle = formatServiceTitle(item);
     const displayTitle = serviceTime
-      ? `${item.title} - ${serviceTime}`
-      : item.title;
+      ? `${formattedTitle} - ${serviceTime}`
+      : formattedTitle;
     const allTimesForDate = serviceTimeForDate[item.date] || [];
 
     return (
@@ -687,7 +694,7 @@ const AVTeam = ({ selectedYear, setSelectedYear, availableYears }) => {
             : undefined
         }
         style={{ scrollMarginTop: "60px" }}
-        className={`${index % 2 === 0 ? "bg-gray-50" : ""} ${isPartOfMultiple && !isFirstOfMultiple ? "border-t-0" : ""}`}
+        className={`${getHeaderClass(item.date)} ${index % 2 === 0 ? "bg-gray-50" : ""} ${isPartOfMultiple && !isFirstOfMultiple ? "border-t-0" : ""}`}
       >
         {/* Date column - only show on first row of multi-service dates */}
         <td
@@ -715,11 +722,16 @@ const AVTeam = ({ selectedYear, setSelectedYear, availableYears }) => {
           {isFirstOfMultiple || !isPartOfMultiple ? item.day : ""}
         </td>
         <td style={{ width: "35%" }} className="p-2 border-r border-gray-300">
-          {displayTitle}
+          <div className="flex items-center gap-2">
+            <span>{displayTitle}</span>
+            {getSpecialServiceType(item.date) && (
+              <SpecialServiceIndicator date={item.date} />
+            )}
+          </div>
         </td>
         <td style={{ width: "16%" }} className="p-2 border-r border-gray-300">
           <div
-            className={`p-2 rounded bg-red-700 ${isPastDate(item.date) ? "opacity-50" : "bg-opacity-20"} flex justify-between items-center`}
+            className={`p-2 rounded bg-red-700 ${isPastDate(item.date) ? "opacity-50" : "bg-opacity-40"} flex justify-between items-center`}
           >
             <span className="flex-1 text-center pr-2">
               {assignment?.team_member_1 || "Ben"}
@@ -746,7 +758,7 @@ const AVTeam = ({ selectedYear, setSelectedYear, availableYears }) => {
         </td>
         <td style={{ width: "16%" }} className="p-2 border-r border-gray-300">
           <div
-            className={`p-2 rounded bg-red-700 ${isPastDate(item.date) ? "opacity-50" : "bg-opacity-20"} flex justify-between items-center`}
+            className={`p-2 rounded bg-red-700 ${isPastDate(item.date) ? "opacity-50" : "bg-opacity-40"} flex justify-between items-center`}
           >
             <span className="flex-1 text-center pr-2">
               {assignment?.team_member_2 || getRotationMember(index)}
@@ -775,7 +787,7 @@ const AVTeam = ({ selectedYear, setSelectedYear, availableYears }) => {
         <td style={{ width: "16%" }} className="p-2">
           {assignment?.team_member_3 ? (
             <div
-              className={`p-2 rounded bg-red-700 ${isPastDate(item.date) ? "opacity-50" : "bg-opacity-20"} flex justify-between items-center`}
+              className={`p-2 rounded bg-red-700 ${isPastDate(item.date) ? "opacity-50" : "bg-opacity-40"} flex justify-between items-center`}
             >
               <span className="flex-1 text-center pr-2">
                 {assignment.team_member_3}
@@ -966,7 +978,7 @@ const AVTeam = ({ selectedYear, setSelectedYear, availableYears }) => {
                               style={{ width: "35%" }}
                               className="p-2 text-left font-bold text-red-700"
                             >
-                              Service
+                              Service/Season
                             </th>
                             <th
                               style={{ width: "16%" }}

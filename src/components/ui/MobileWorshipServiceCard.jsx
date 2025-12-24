@@ -10,8 +10,14 @@ import {
 } from "lucide-react";
 import ServiceSongSelector from "./ServiceSongSelector";
 import { getLiturgicalInfoForService } from "../../lib/LiturgicalCalendarService.js";
+import {
+  getSpecialServiceType,
+  SpecialServiceIndicator,
+  formatServiceTitle,
+} from "../liturgical/LiturgicalStyling";
 
 const MobileWorshipServiceCard = ({
+  item,
   date,
   title,
   day,
@@ -141,7 +147,12 @@ const MobileWorshipServiceCard = ({
             <span className="text-base font-medium text-gray-700 w-[60px] flex-shrink-0">
               {date}
             </span>
-            <span className="font-medium text-black truncate">{title}</span>
+            <span className="font-medium text-black truncate">
+              {formatServiceTitle(item)}
+            </span>
+            {getSpecialServiceType(date) && (
+              <SpecialServiceIndicator date={date} />
+            )}
           </div>
 
           {/* Second line with items justified to opposite sides */}
