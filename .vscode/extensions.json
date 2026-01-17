@@ -1,0 +1,48 @@
+{
+  "recommendations": [
+    // ============================================
+    // Essential Extensions
+    // ============================================
+    "github.copilot",
+    "github.copilot-chat",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+
+    // ============================================
+    // Next.js & React Development
+    // ============================================
+    "dsznajder.es7-react-js-snippets",
+    "formulahendry.auto-rename-tag",
+    "bradlc.vscode-tailwindcss",
+
+    // ============================================
+    // Database & API Testing
+    // ============================================
+    "mongodb.mongodb-vscode",
+    "humao.rest-client",
+
+    // ============================================
+    // Code Quality & Productivity
+    // ============================================
+    "usernamehw.errorlens",
+    "streetsidesoftware.code-spell-checker",
+    "aaron-bond.better-comments",
+    "wix.vscode-import-cost",
+
+    // ============================================
+    // Git & Version Control
+    // ============================================
+    "eamodio.gitlens",
+    "mhutchie.git-graph",
+
+    // ============================================
+    // Markdown & Documentation
+    // ============================================
+    "yzhang.markdown-all-in-one",
+    "bierner.markdown-preview-github-styles"
+  ],
+  "unwantedRecommendations": [
+    // Avoid extensions that conflict with our setup
+    "ms-vscode.vscode-typescript-next"
+  ]
+}

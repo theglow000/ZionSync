@@ -1,1 +1,18 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running pre-commit quality checks..."
+
+# Run lint-staged for formatting
 npx lint-staged
+
+# Run ESLint
+echo "📝 Checking code quality with ESLint..."
+npx eslint . --max-warnings 50
+
+# Run tests to ensure nothing broke
+echo "🧪 Running tests..."
+npm test -- --passWithNoTests
+
+echo "✅ Pre-commit checks passed!"
+
