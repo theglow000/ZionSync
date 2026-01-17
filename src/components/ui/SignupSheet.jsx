@@ -795,9 +795,17 @@ const SignupSheet = ({
     async (date) => {
       const confirmed = await confirm({
         title: "Delete Service Details",
-        message: "This action cannot be undone.",
+        message:
+          "This will permanently remove all order of worship content and elements for this service.",
+        details: [
+          "This will delete:",
+          "Order of worship text and all elements",
+          "Song selections by the worship team",
+          "Scripture references and sermon notes",
+          "This cannot be undone.",
+        ],
         variant: "danger",
-        confirmText: "Delete",
+        confirmText: "Delete Service Details",
         cancelText: "Cancel",
       });
 

@@ -61,9 +61,12 @@ const getSundayInfo = (dateStr) => {
 };
 
 // Update the parseServiceContent function to be more specific with song detection
-const parseServiceContent = (content, existingElements = []) => {
+const parseServiceContent = (content, dateStr, existingElements = []) => {
   // If no content provided, return empty array
   if (!content) return [];
+
+  // Format date as MMDDYYYY for stable IDs
+  const formattedDate = dateStr ? dateStr.replace(/\//g, "") : "";
 
   // Create a map of existing elements for type lookup and ID preservation
   const existingElementMap = {};
@@ -79,9 +82,8 @@ const parseServiceContent = (content, existingElements = []) => {
     });
   }
 
-  // Create a unique timestamp for this parsing session
-  // This ensures unique IDs even when function is called multiple times in quick succession
-  const timestamp = Date.now();
+  // Track used IDs to handle duplicates
+  const usedIds = new Set();
 
   // Parse each line of the content
   const elements = content
@@ -91,12 +93,13 @@ const parseServiceContent = (content, existingElements = []) => {
     .map((line, index) => {
       const lineKey = line.toLowerCase().trim();
 
-      // First check if this exact line exists in our map to preserve its ID
+      // First check if this exact line exists in our map to preserve its ID and type
       const existingElement = existingContentMap[lineKey];
       if (existingElement) {
+        usedIds.add(existingElement.id);
         return {
           ...existingElement,
-          content: line,
+          content: line, // Use original case from current content
         };
       }
 
@@ -151,16 +154,22 @@ const parseServiceContent = (content, existingElements = []) => {
       ) {
         type = "liturgical_song";
       }
-      // Generate a stable, predictable ID based on content
-      // This approach creates consistent IDs across renders
-      const cleanContent = line.replace(/[^a-zA-Z0-9]/g, "");
 
-      // We need to use an externally passed date here, but we'll add it in the map function later
-      // For now, create a preliminary ID that will be made fully stable in saveOrderAndReturnToMain
-      const uniqueId = `temp_${type}_${cleanContent}`;
+      // Generate stable ID based on date, type, and content
+      const cleanContent = line.replace(/[^a-zA-Z0-9]/g, "");
+      const baseId = formattedDate
+        ? `${formattedDate}_${type}_${cleanContent}`
+        : `temp_${type}_${cleanContent}`;
+
+      // Handle duplicate IDs by adding index suffix
+      let stableId = baseId;
+      if (usedIds.has(stableId)) {
+        stableId = `${baseId}_${index}`;
+      }
+      usedIds.add(stableId);
 
       return {
-        id: uniqueId,
+        id: stableId,
         type,
         content: line,
         selection: null,
@@ -503,52 +512,56 @@ Postlude`,
 
   // Update useEffect to load service content
   useEffect(() => {
+    let isMounted = true; // Prevent state updates after unmount
+
     const fetchExistingContent = async () => {
       try {
         const response = await fetchWithTimeout(
           `/api/service-details?date=${date}`,
         );
-        if (response.ok) {
-          const data = await response.json();
-          if (data && data.content) {
-            // Only update if we have existing content
-            setOrderOfWorship(data.content);
-            setSelectedType(data.type || getDefaultServiceType(date));
-            setHasExistingContent(true);
-            const isCustom = customServices.some((s) => s.id === data.type);
-            setIsCustomService(isCustom);
+        if (!response.ok || !isMounted) return;
 
-            // Parse the lines to get element types
-            const parsedElements = parseServiceContent(
-              data.content,
-              data.elements,
-            );
-            setServiceElementLines(parsedElements);
+        const data = await response.json();
+        if (!isMounted) return;
 
-            // Initialize element details
-            const details = {};
-            if (data.elements) {
-              data.elements.forEach((element) => {
-                details[element.id] = {
-                  reference: element.reference || "",
-                  notes: element.notes || "",
-                  selection: element.selection || null,
-                };
-              });
-            }
-            setElementDetails(details);
-          } else if (!hasExistingContent) {
-            // Only set default if we don't have any content
-            const defaultType = getDefaultServiceType(date);
-            setSelectedType(defaultType);
-            const defaultContent = getServiceTemplates()[defaultType];
-            setOrderOfWorship(defaultContent);
+        if (data && data.content) {
+          // Existing content found - batch all state updates
+          const isCustom = customServices.some((s) => s.id === data.type);
+          const parsedElements = parseServiceContent(
+            data.content,
+            date,
+            data.elements,
+          );
 
-            // Initialize element types for the default content
-            const parsedElements = parseServiceContent(defaultContent);
-            setServiceElementLines(parsedElements);
-            setIsCustomService(false);
+          // Initialize element details from existing data
+          const details = {};
+          if (data.elements) {
+            data.elements.forEach((element) => {
+              details[element.id] = {
+                reference: element.reference || "",
+                notes: element.notes || "",
+                selection: element.selection || null,
+              };
+            });
           }
+
+          // Batch state updates using functional updates to prevent race conditions
+          setOrderOfWorship(data.content);
+          setSelectedType(data.type || getDefaultServiceType(date));
+          setIsCustomService(isCustom);
+          setHasExistingContent(true);
+          setServiceElementLines(parsedElements);
+          setElementDetails(details);
+        } else if (!hasExistingContent) {
+          // No existing content - set defaults with batched updates
+          const defaultType = getDefaultServiceType(date);
+          const defaultContent = getServiceTemplates()[defaultType];
+          const parsedElements = parseServiceContent(defaultContent, date);
+
+          setSelectedType(defaultType);
+          setOrderOfWorship(defaultContent);
+          setServiceElementLines(parsedElements);
+          setIsCustomService(false);
         }
       } catch (error) {
         console.error("Error fetching existing content:", error);
@@ -559,6 +572,11 @@ Postlude`,
     if (!isCustomService) {
       fetchExistingContent();
     }
+
+    return () => {
+      isMounted = false; // Cleanup to prevent state updates on unmounted component
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date, customServices]);
 
   // Add a cleanup effect when the component unmounts
@@ -577,29 +595,29 @@ Postlude`,
     if (isCustomService && selectedType) {
       const customService = customServices.find((s) => s.id === selectedType);
       if (customService) {
-        setOrderOfWorship(customService.order || customService.template);
+        const content = customService.order || customService.template;
+        setOrderOfWorship(content);
         setHasExistingContent(false);
+
+        // Parse elements with date for stable IDs
+        const parsedElements = parseServiceContent(content, date);
+        setServiceElementLines(parsedElements);
       }
     }
-  }, [isCustomService, selectedType, customServices]);
-
-  // Add this near your other useEffects
-  useEffect(() => {}, [
-    selectedType,
-    isCustomService,
-    orderOfWorship,
-    hasExistingContent,
-  ]);
+  }, [isCustomService, selectedType, customServices, date]);
 
   // Update the handleServiceTypeChange to preserve selections when possible
   const handleServiceTypeChange = async (typeId) => {
     if (!hasExistingContent) {
       const elements = standardServiceElements[typeId];
       const content = elements.map((el) => el.content).join("\n");
+      const parsedElements = parseServiceContent(content, date);
 
+      // Batch state updates to prevent race conditions
       setSelectedType(typeId);
       setIsCustomService(false);
       setOrderOfWorship(content);
+      setServiceElementLines(parsedElements);
       setHasExistingContent(false);
       return;
     }
@@ -616,29 +634,28 @@ Postlude`,
     if (confirmed) {
       const elements = standardServiceElements[typeId];
       const content = elements.map((el) => el.content).join("\n");
+      const parsedElements = parseServiceContent(content, date);
 
+      // Batch state updates to prevent race conditions
       setSelectedType(typeId);
       setIsCustomService(false);
       setOrderOfWorship(content);
+      setServiceElementLines(parsedElements);
       setHasExistingContent(false);
     }
   };
 
-  // Add this effect to prevent unwanted state resets
-  useEffect(() => {
-    if (isCustomService && selectedType && orderOfWorship) {
-      // Prevent the default service type from overriding custom service
-      return;
-    }
-    // ... rest of your existing fetchExistingContent effect
-  }, [date, customServices]);
-
   // Replace the custom service selection handler
   const handleCustomServiceSelection = async (service) => {
     if (!hasExistingContent) {
+      const content = service.order || service.template;
+      const parsedElements = parseServiceContent(content, date);
+
+      // Batch state updates
       setSelectedType(service.id);
       setIsCustomService(true);
-      setOrderOfWorship(service.order || service.template);
+      setOrderOfWorship(content);
+      setServiceElementLines(parsedElements);
       setShowCustomDropdown(false);
       return;
     }
@@ -653,115 +670,147 @@ Postlude`,
     });
 
     if (confirmed) {
+      const content = service.order || service.template;
+      const parsedElements = parseServiceContent(content, date);
+
+      // Batch state updates
       setSelectedType(service.id);
       setIsCustomService(true);
-      setOrderOfWorship(service.order || service.template);
+      setOrderOfWorship(content);
+      setServiceElementLines(parsedElements);
       setShowCustomDropdown(false);
     }
   };
-
-  // Replace the existing custom service effect
-  useEffect(() => {
-    if (isCustomService && selectedType && !hasExistingContent) {
-      const customService = customServices.find((s) => s.id === selectedType);
-      if (customService) {
-        setOrderOfWorship(customService.order || customService.template);
-      }
-    }
-  }, [isCustomService, selectedType, customServices, hasExistingContent]);
 
   // Add a new function to handle toggling to the editor view
   const openOrderEditor = () => {
     setCurrentStep("editor");
   }; // Add a function to handle saving the order of worship and returning to main view
-  const saveOrderAndReturnToMain = () => {
-    // Parse the content into service elements
-    const usedIds = new Set();
+  const saveOrderAndReturnToMain = async () => {
+    try {
+      // Get existing elements to preserve song selections
+      const existingElements = serviceDetails?.[date]?.elements || [];
 
-    // Get existing elements to preserve song selections
-    const existingElements = serviceDetails?.[date]?.elements || [];
+      // Re-parse content with current date to ensure stable IDs
+      const parsedElements = parseServiceContent(
+        orderOfWorship,
+        date,
+        serviceElementLines,
+      );
 
-    const parsedElements = parseServiceContent(
-      orderOfWorship,
-      serviceElementLines,
-    ).map((element, index) => {
-      // Format date as MMDDYYYY
-      const formattedDate = date.replace(/\//g, "");
+      // Preserve existing selections for matching elements
+      const elementsWithSelections = parsedElements.map((element) => {
+        // Try to find matching existing element to preserve selection
+        const matchingExisting = existingElements.find(
+          (existing) =>
+            existing.type === element.type &&
+            (existing.id === element.id ||
+              existing.content.toLowerCase() === element.content.toLowerCase()),
+        );
 
-      // Clean the content for use in ID (remove spaces, special chars)
-      const cleanContent = element.content.replace(/[^a-zA-Z0-9]/g, "");
-
-      // Create a stable ID that won't change between renders
-      const stableId = `${formattedDate}_${element.type}_${cleanContent}`;
-
-      // Only use the stable ID if it's not a duplicate
-      if (!usedIds.has(stableId)) {
-        usedIds.add(stableId);
-
-        // Try to find and preserve existing selection for song_hymn elements
-        let existingSelection = null;
-        if (element.type === "song_hymn") {
-          // Count how many song_hymn elements we've seen so far (this element's position)
-          const songPosition = parsedElements.filter(
-            (e, i) => i < index && e.type === "song_hymn",
-          ).length;
-          // Find the song at the same position in existing elements
-          const existingSongs = existingElements.filter(
-            (e) => e.type === "song_hymn",
-          );
-          if (existingSongs[songPosition]?.selection) {
-            existingSelection = existingSongs[songPosition].selection;
-            // Update the element content to include the song details if we have a selection
+        if (matchingExisting?.selection) {
+          // Update content to include song details if we have a selection
+          if (element.type === "song_hymn" && matchingExisting.selection) {
             const songDetails =
-              existingSelection.type === "hymn"
-                ? `${existingSelection.title} #${existingSelection.number} (${existingSelection.hymnal?.charAt(0).toUpperCase() + existingSelection.hymnal?.slice(1) || ""})`
-                : existingSelection.author
-                  ? `${existingSelection.title} - ${existingSelection.author}`
-                  : existingSelection.title;
-            element.content = `${element.content}: ${songDetails}`;
+              matchingExisting.selection.type === "hymn"
+                ? `${matchingExisting.selection.title} #${matchingExisting.selection.number} (${matchingExisting.selection.hymnal?.charAt(0).toUpperCase() + matchingExisting.selection.hymnal?.slice(1) || ""})`
+                : matchingExisting.selection.author
+                  ? `${matchingExisting.selection.title} - ${matchingExisting.selection.author}`
+                  : matchingExisting.selection.title;
+
+            if (!element.content.includes(":")) {
+              element.content = `${element.content}: ${songDetails}`;
+            } else if (!element.content.includes(songDetails)) {
+              element.content = `${element.content}: ${songDetails}`;
+            }
           }
+
+          return {
+            ...element,
+            selection: matchingExisting.selection,
+          };
         }
 
-        return {
-          ...element,
-          id: stableId,
-          selection: existingSelection,
-        };
-      }
+        return element;
+      });
 
-      // In the rare case of duplicate content, add an index suffix
-      const uniqueId = `${stableId}_${index}`;
-      usedIds.add(uniqueId);
+      // Batch state updates to prevent race conditions
+      setServiceElementLines(elementsWithSelections);
 
-      return {
-        ...element,
-        id: uniqueId,
-      };
-    });
-
-    setServiceElementLines(parsedElements);
-
-    // Create a fresh details object to avoid referencing issues
-    const updatedDetails = {};
-
-    // First copy over existing details for elements that are still present
-    parsedElements.forEach((element) => {
-      if (elementDetails[element.id]) {
-        updatedDetails[element.id] = { ...elementDetails[element.id] };
-      } else {
+      // Create element details object from parsed elements
+      const updatedDetails = {};
+      elementsWithSelections.forEach((element) => {
+        const existingDetail = elementDetails[element.id];
         updatedDetails[element.id] = {
-          reference: element.reference || "",
-          notes: "",
-          selection: element.selection || null,
+          reference: existingDetail?.reference || element.reference || "",
+          notes: existingDetail?.notes || element.notes || "",
+          selection: existingDetail?.selection || element.selection || null,
         };
+      });
+
+      setElementDetails(updatedDetails);
+
+      // Check if song count is being reduced
+      const existingSongCount = existingElements.filter(
+        (el) => el.type === "song_hymn" && el.selection?.title,
+      ).length;
+      const newSongCount = elementsWithSelections.filter(
+        (el) => el.type === "song_hymn",
+      ).length;
+
+      // Show warning if songs are being removed
+      if (existingSongCount > 0 && newSongCount < existingSongCount) {
+        const confirmRemove = await confirm({
+          title: "Reducing Song Count",
+          message: `Song count will decrease from ${existingSongCount} to ${newSongCount}.`,
+          details: [
+            "This may remove song selections already made by the worship team",
+          ],
+          variant: "warning",
+          confirmText: "Continue",
+          cancelText: "Cancel",
+        });
+
+        if (!confirmRemove) {
+          return; // Cancel if user doesn't confirm
+        }
       }
-    });
 
-    // Replace the entire element details object with the fresh copy
-    setElementDetails(updatedDetails);
+      // Prepare final elements with all details for saving
+      const finalElements = elementsWithSelections.map((element) => {
+        const details = updatedDetails[element.id] || {};
+        return {
+          id: element.id,
+          type: element.type,
+          content: element.content,
+          reference: details.reference || element.reference || "",
+          notes: details.notes || element.notes || "",
+          selection: details.selection || element.selection,
+          required: element.required,
+        };
+      });
 
-    // Return to main view
-    setCurrentStep("main");
+      // Save to database immediately
+      await onSave({
+        type: selectedType,
+        content: orderOfWorship,
+        elements: finalElements,
+      });
+
+      // Return to main view only after successful save
+      setCurrentStep("main");
+    } catch (error) {
+      console.error("Error saving order of worship:", error);
+      // Show error to user using confirm dialog
+      await confirm({
+        title: "Save Failed",
+        message: "Failed to save changes. Please try again.",
+        details: [error.message || "An unexpected error occurred"],
+        variant: "error",
+        confirmText: "OK",
+        cancelText: null,
+      });
+    }
   }; // Add a function to handle element type changes
   const handleElementTypeChange = (elementIndex, newType) => {
     const updatedElements = [...serviceElementLines];
@@ -821,18 +870,37 @@ Postlude`,
 
   // Update the handleSave function to use serviceElementLines when available
   const handleSave = async () => {
-    if (orderOfWorship) {
-      let elements = [];
-      const currentLines = orderOfWorship
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean);
+    try {
+      // Validation checks
+      if (!orderOfWorship || !orderOfWorship.trim()) {
+        await confirm({
+          title: "No Content",
+          message:
+            "Order of worship is empty. Please add content before saving.",
+          variant: "error",
+          confirmText: "OK",
+          cancelText: null,
+        });
+        return;
+      }
+
+      if (!serviceElementLines || serviceElementLines.length === 0) {
+        await confirm({
+          title: "No Elements",
+          message:
+            "No service elements found. Please edit the order of worship first.",
+          variant: "error",
+          confirmText: "OK",
+          cancelText: null,
+        });
+        return;
+      }
 
       // Get existing elements and their song selections
       const existingElements = serviceDetails?.[date]?.elements || [];
 
       // Use the serviceElementLines as they contain pastor-specified types
-      elements = serviceElementLines.map((element) => {
+      const elements = serviceElementLines.map((element) => {
         // Get any additional details that have been entered
         const details = elementDetails[element.id] || {};
 
@@ -846,11 +914,6 @@ Postlude`,
           required: element.required,
         };
       });
-
-      // Apply the same song and reading preservation logic as before
-      if (isCustomService) {
-        // ... song matching strategies
-      }
 
       // Count existing songs with selections
       const existingSongCount = existingElements.filter(
@@ -879,10 +942,22 @@ Postlude`,
           return; // Cancel save if user doesn't confirm
         }
       }
-      onSave({
+
+      // Call onSave with validated data
+      await onSave({
         type: selectedType,
         content: orderOfWorship,
         elements: elements,
+      });
+    } catch (error) {
+      console.error("Error in handleSave:", error);
+      await confirm({
+        title: "Save Failed",
+        message: "Failed to save service details. Please try again.",
+        details: [error.message || "An unexpected error occurred"],
+        variant: "error",
+        confirmText: "OK",
+        cancelText: null,
       });
     }
   };
