@@ -39,28 +39,28 @@
 
 ### Run Development Server
 
-**Menu**: Terminal → Run Task → 🚀 Start Development Server  
-**Keyboard**: `Ctrl+Shift+B` (build menu) → select dev server  
+**Menu**: Terminal → Run Task → 🚀 Start Development Server
+**Keyboard**: `Ctrl+Shift+B` (build menu) → select dev server
 **URL**: http://localhost:3000
 
 ### Run Tests
 
-**Menu**: Terminal → Run Task → 🧪 Run All Tests  
+**Menu**: Terminal → Run Task → 🧪 Run All Tests
 **Keyboard**: `Ctrl+Shift+T` → select test task
 
 ### Format & Lint Code
 
-**Menu**: Terminal → Run Task → 🔧 Lint & Fix  
+**Menu**: Terminal → Run Task → 🔧 Lint & Fix
 **Auto**: Saves automatically format (enabled in settings)
 
 ### Full Quality Check
 
-**Menu**: Terminal → Run Task → ✅ Full Quality Check  
+**Menu**: Terminal → Run Task → ✅ Full Quality Check
 **Does**: Lint → Format → Test (recommended before commits)
 
 ### Create Backup
 
-**Menu**: Terminal → Run Task → 💾 Create Backup  
+**Menu**: Terminal → Run Task → 💾 Create Backup
 **Does**: Runs backup-repo.ps1 script
 
 ---
@@ -173,7 +173,7 @@ return <div>{isMobile ? <MobileView /> : <DesktopView />}</div>;
 
 ### Issue: Dev server won't start
 
-**Solution**: "Please clean and reinstall dependencies"  
+**Solution**: "Please clean and reinstall dependencies"
 **Task**: Terminal → Run Task → 🔄 Clean & Reinstall Dependencies
 
 ### Issue: Changes not showing up
@@ -186,12 +186,12 @@ return <div>{isMobile ? <MobileView /> : <DesktopView />}</div>;
 
 ### Issue: Tests failing
 
-**Solution**: "Run tests and show me the error messages"  
+**Solution**: "Run tests and show me the error messages"
 **Then**: Let AI fix based on error output
 
 ### Issue: Code looks messy
 
-**Solution**: "Format the code"  
+**Solution**: "Format the code"
 **Task**: Terminal → Run Task → 💅 Format Code
 
 ---
@@ -200,12 +200,12 @@ return <div>{isMobile ? <MobileView /> : <DesktopView />}</div>;
 
 ### 1. Reference Existing Features
 
-Instead of: "Add a filter"  
+Instead of: "Add a filter"
 Say: "Add a filter like the one on the song library page"
 
 ### 2. Provide Context
 
-Instead of: "It's broken"  
+Instead of: "It's broken"
 Say: "The calendar shows wrong dates for December 2025. Error in console: [paste error]"
 
 ### 3. Test Before Committing
@@ -443,6 +443,6 @@ Together, you build reliably! 🎉
 
 ---
 
-**Last Updated**: January 17, 2026  
-**For**: ZionSync v2.3.0  
+**Last Updated**: January 17, 2026
+**For**: ZionSync v2.3.0
 **AI**: Claude Sonnet 4.5
