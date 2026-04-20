@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { NextResponse } from "next/server";
 
 /**
  * GET /api/service-dates?year={year}&upcomingOnly={true|false}
@@ -49,6 +49,9 @@ export async function GET(request) {
     }
 
     let services = calendar.services || [];
+
+    // Filter out explicitly deactivated services (isActive: false set via admin override)
+    services = services.filter((s) => !s.isOverridden || s.isActive !== false);
 
     // Optional: Filter for upcoming services only
     if (upcomingOnly && services.length > 0) {
