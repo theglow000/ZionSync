@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getLiturgicalInfo } from "@/lib/LiturgicalCalendarService";
 import { readJsonBody } from "@/lib/apiSchemas";
+import { classifyLine } from "@/lib/elementClassifier";
 
 export async function GET(request) {
   try {
@@ -111,57 +112,13 @@ export async function GET(request) {
   }
 }
 
-// Existing parseServiceContent function
-const parseServiceContent = (content) => {
-  return content.split("\n").map((line) => {
-    let type = "liturgy";
-    const lowerLine = line.toLowerCase().trim();
-
-    // Reading detection
-    if (
-      lowerLine.includes("reading:") ||
-      lowerLine.includes("lesson:") ||
-      lowerLine.includes("psalm:") ||
-      lowerLine.includes("gospel:")
-    ) {
-      type = "reading";
-    }
-    // Message/Sermon detection
-    else if (
-      lowerLine.includes("sermon:") ||
-      lowerLine.includes("message:") ||
-      lowerLine.includes("children")
-    ) {
-      type = "message";
-    }
-    // Song/Hymn detection
-    else if (
-      lowerLine.includes("hymn:") ||
-      lowerLine.includes("song:") ||
-      lowerLine.includes("anthem:")
-    ) {
-      type = "song_hymn";
-    }
-    // Liturgical song detection
-    else if (
-      lowerLine.includes("kyrie") ||
-      lowerLine.includes("alleluia") ||
-      lowerLine.includes("create in me") ||
-      lowerLine.includes("lamb of god") ||
-      lowerLine.includes("this is the feast") ||
-      lowerLine.includes("glory to god") ||
-      lowerLine.includes("change my heart")
-    ) {
-      type = "liturgical_song";
-    }
-
-    return {
-      type,
-      content: line,
-      selection: null,
-    };
-  });
-};
+// Elements for a document stored before elements existed
+const parseServiceContent = (content) =>
+  content.split("\n").map((line) => ({
+    type: classifyLine(line),
+    content: line,
+    selection: null,
+  }));
 
 export async function POST(request) {
   try {

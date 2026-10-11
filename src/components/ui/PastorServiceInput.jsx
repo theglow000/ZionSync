@@ -13,6 +13,7 @@ import AddCustomService from "./AddCustomService";
 import useResponsive from "../../hooks/useResponsive";
 import { useConfirm } from "../../hooks/useConfirm";
 import { fetchWithTimeout } from "../../lib/api-utils";
+import { classifyLine } from "@/lib/elementClassifier";
 
 // Helper functions
 const getSundayInfo = (dateStr) => {
@@ -120,57 +121,8 @@ export const parseServiceContent = (
         };
       }
 
-      // If no exact match, use our detection rules
-      let type = "liturgy";
-      const lowerLine = line.toLowerCase().trim();
-
-      // Special case for Children's Message - explicitly make it liturgy first
-      if (
-        lowerLine.includes("children's message") ||
-        (lowerLine.includes("children") && lowerLine.includes("message"))
-      ) {
-        type = "liturgy";
-      }
-      // Song/Hymn detection - expanded matching
-      else if (
-        lowerLine.includes("hymn:") ||
-        lowerLine.includes("hymn of the day") ||
-        lowerLine.includes("opening hymn") ||
-        lowerLine.includes("sending song") ||
-        lowerLine.includes("anthem:") ||
-        lowerLine.includes("song:")
-      ) {
-        type = "song_hymn";
-      }
-      // Reading detection
-      else if (
-        lowerLine.includes("reading:") ||
-        lowerLine.includes("lesson:") ||
-        lowerLine.includes("psalm:") ||
-        lowerLine.includes("gospel:")
-      ) {
-        type = "reading";
-      }
-      // Message/Sermon detection - make sure it's not a children's message
-      else if (
-        (lowerLine.includes("sermon:") || lowerLine.includes("message:")) &&
-        !lowerLine.includes("children's message") &&
-        !lowerLine.includes("children")
-      ) {
-        type = "message";
-      }
-      // Liturgical song detection
-      else if (
-        lowerLine.includes("kyrie") ||
-        lowerLine.includes("alleluia") ||
-        lowerLine.includes("create in me") ||
-        lowerLine.includes("lamb of god") ||
-        lowerLine.includes("this is the feast") ||
-        lowerLine.includes("glory to god") ||
-        lowerLine.includes("change my heart")
-      ) {
-        type = "liturgical_song";
-      }
+      // If no stored element matches, classify the line
+      const type = classifyLine(line);
 
       // Generate stable ID based on date, type, and content
       const cleanContent = line.replace(/[^a-zA-Z0-9]/g, "");
@@ -216,7 +168,7 @@ const mainServiceTypes = [
   { id: "communion_potluck", name: "Communion with Potluck" },
 ];
 
-const getStandardServiceElements = (date) => ({
+export const getStandardServiceElements = (date) => ({
   no_communion: [
     { content: "Prelude & Lighting of Candles", type: "liturgy" },
     { content: "Welcome & Announcements", type: "liturgy" },

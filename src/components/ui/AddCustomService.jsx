@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { ChevronRight, X } from "lucide-react";
-import stringSimilarity from "string-similarity";
+import { classifyLine, suggestTermForLine } from "@/lib/elementClassifier";
 import { fetchWithTimeout } from "../../lib/api-utils";
 
 // Add at the top of the file
@@ -23,78 +23,9 @@ const validateElementTypes = (elements) => {
   }));
 };
 
-// Add after the imports and before the component:
-const liturgicalTerms = {
-  songs: [
-    "Kyrie",
-    "Alleluia",
-    "Gospel Acclamation",
-    "Canticle",
-    "Create in Me",
-    "Change My Heart O God",
-    "Lamb of God",
-    "Glory to God",
-    "This is the Feast",
-    "Hymn of the Day", // Add this
-    "Opening Hymn", // Add this
-    "Sending Song", // Add this
-  ],
-  readings: [
-    "First Reading",
-    "Second Reading",
-    "Gospel Reading",
-    "Psalm Reading",
-  ],
-  liturgy: [
-    "Confession and Forgiveness",
-    "Apostle's Creed",
-    "Prayer of the Day",
-    "Blessing",
-    "Peace",
-    "Offering",
-    "Communion",
-    "Distribution",
-    "Prelude",
-    "Postlude",
-    "Dismissal",
-    "Greeting",
-    "Announcements",
-  ],
-};
-
-// Add this helper function before the component
-const findClosestMatch = (word, dictionary) => {
-  // First check if the input contains any exact dictionary term
-  const exactMatch = dictionary.find((term) =>
-    word.toLowerCase().includes(term.toLowerCase()),
-  );
-  if (exactMatch) {
-    return null; // No suggestion needed if it contains a valid term
-  }
-
-  // For multi-word input, only suggest if it's very similar to a dictionary term
-  const matches = stringSimilarity.findBestMatch(
-    word.toLowerCase(),
-    dictionary.map((term) => term.toLowerCase()),
-  );
-
-  // Higher threshold for multi-word phrases
-  const threshold = word.includes(" ") ? 0.8 : 0.6;
-
-  if (matches.bestMatch.rating > threshold) {
-    return {
-      original: word,
-      suggestion: dictionary[matches.bestMatchIndex],
-      rating: matches.bestMatch.rating,
-    };
-  }
-  return null;
-};
-
 const AddCustomService = ({
   existingService = null,
   onClose,
-  onSave,
   setSelectedType,
   setIsCustomService,
   setOrderOfWorship,
@@ -122,76 +53,11 @@ const AddCustomService = ({
     const lines = text.split("\n").filter((line) => line.trim());
 
     return lines.map((line) => {
-      const lowerLine = line.toLowerCase().trim();
-      let type = "liturgy"; // default type
-      let suggestion = null;
-
-      // 1. First check for explicit hymns/songs (highest priority)
-      if (
-        lowerLine.includes("hymn:") ||
-        lowerLine.includes("hymn of the day") ||
-        lowerLine.includes("opening hymn") ||
-        lowerLine.includes("sending song") ||
-        lowerLine.includes("anthem:") ||
-        lowerLine.includes("song:")
-      ) {
-        type = "song_hymn";
-      }
-      // 2. Check for liturgical songs
-      else if (
-        liturgicalTerms.songs.some((term) =>
-          lowerLine.includes(term.toLowerCase()),
-        )
-      ) {
-        type = "liturgical_song";
-      }
-      // 3. Check for readings
-      else if (
-        liturgicalTerms.readings.some((term) =>
-          lowerLine.includes(term.toLowerCase()),
-        )
-      ) {
-        type = "reading";
-      }
-      // 4. Check for messages/sermons
-      else if (
-        lowerLine.includes("sermon:") ||
-        lowerLine.includes("message:") ||
-        lowerLine.includes("children")
-      ) {
-        type = "message";
-      }
-      // 5. Check for liturgical elements (lowest priority)
-      else if (
-        liturgicalTerms.liturgy.some((term) =>
-          lowerLine.includes(term.toLowerCase()),
-        )
-      ) {
-        type = "liturgy";
-      }
-      // 6. Look for suggestions if no type was definitively determined
-      else {
-        let match = findClosestMatch(line, liturgicalTerms.songs);
-        if (match) {
-          type = "liturgical_song";
-          suggestion = match.suggestion;
-        } else {
-          match = findClosestMatch(line, liturgicalTerms.readings);
-          if (match) {
-            type = "reading";
-            suggestion = match.suggestion;
-          } else {
-            match = findClosestMatch(line, liturgicalTerms.liturgy);
-            if (match) {
-              type = "liturgy";
-              suggestion = match.suggestion;
-            }
-          }
-        }
-      }
-
+      // A near-miss gets a "Did you mean" hint and is typed as the term it
+      // most likely is (so "Openng Hymn" still becomes a hymn slot)
+      const suggestion = suggestTermForLine(line)?.suggestion || null;
       return {
-        type,
+        type: classifyLine(suggestion || line),
         content: line,
         reference: "",
         note: "",
@@ -425,7 +291,7 @@ const AddCustomService = ({
                     );
 
                     if (response.ok) {
-                      const savedService = await response.json();
+                      await response.json();
 
                       // First update custom services
                       const updatedServices = await fetchWithTimeout(
