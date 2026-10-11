@@ -21,12 +21,10 @@ import {
   Music2,
   BookOpen,
   Pencil,
-  Trash2,
   Cross,
   MessageSquare,
   Music,
 } from "lucide-react";
-import { format, addMonths, subMonths, isSameMonth } from "date-fns";
 import MobileServiceCard from "./MobileServiceCard";
 import UserSelectionModal from "./UserSelectionModal";
 import AddUserModal from "./AddUserModal";
@@ -41,21 +39,8 @@ import {
   createErrorHandler,
   createSuccessHandler,
 } from "../../utils/errorHandler";
-import {
-  POLLING_INTERVAL,
-  ALERT_DURATION,
-  COLOR_THEMES,
-  API_ENDPOINTS,
-} from "../../lib/constants";
-import {
-  fetchWithTimeout,
-  fetchWithRetry,
-  parseJSON,
-  apiPost,
-  apiGet,
-  apiDelete,
-  apiPut,
-} from "../../lib/api-utils";
+import { POLLING_INTERVAL, API_ENDPOINTS } from "../../lib/constants";
+import { fetchWithTimeout, apiPost, apiDelete } from "../../lib/api-utils";
 import "./table.css";
 import PastorServiceInput from "./PastorServiceInput"; // Add this import
 import {
@@ -64,7 +49,6 @@ import {
   formatServiceTitle,
   getHeaderClass,
 } from "../liturgical/LiturgicalStyling";
-import { downloadICSFile } from "../../lib/ics-generator"; // Change this import
 
 const SignupSheet = ({
   serviceDetails,
@@ -89,9 +73,7 @@ const SignupSheet = ({
 
   // Initialize all state at the top of component
   const [expanded, setExpanded] = useState({});
-  const [showRegistration, setShowRegistration] = useState(false);
   const [signups, setSignups] = useState({});
-  const [currentDate, setCurrentDate] = useState(null);
   const [completed, setCompleted] = useState({});
   const [selectedDates, setSelectedDates] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -99,8 +81,6 @@ const SignupSheet = ({
   const [availableUsers, setAvailableUsers] = useState([]);
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [usersToDelete, setUsersToDelete] = useState([]);
-  const [serviceDetailsError, setServiceDetailsError] = useState(null);
-  const [showTooltip, setShowTooltip] = useState(false);
   const [showPastorInput, setShowPastorInput] = useState(false);
   const [editingDate, setEditingDate] = useState(null);
   const [customServices, setCustomServices] = useState([]);
@@ -384,7 +364,7 @@ const SignupSheet = ({
                 });
 
                 // Process each new element, preserving song selections and formatting
-                const mergedElements = newElements.map((newElement, index) => {
+                const mergedElements = newElements.map((newElement) => {
                   // Try to find matching element in several ways
                   let existingElement = null;
 
@@ -599,108 +579,6 @@ const SignupSheet = ({
 
     return () => clearTimeout(timer);
   }, [dates, isLoading, datesLoading, isMobile]);
-
-  const handleSignup = useCallback(async () => {
-    const nameInput = document.querySelector('input[name="name"]');
-
-    if (!nameInput) return;
-
-    const name = nameInput.value;
-
-    if (!name) return;
-
-    try {
-      // Save to MongoDB
-      await apiPost(API_ENDPOINTS.SIGNUPS, {
-        date: currentDate,
-        name,
-      });
-
-      const newUser = {
-        name,
-        color: "bg-[#6B8E23] bg-opacity-40",
-      };
-
-      // Update both signups and signupDetails states
-      setSignups((prev) => ({
-        ...prev,
-        [currentDate]: name,
-      }));
-
-      setSignupDetails((prev) => ({
-        ...prev,
-        [currentDate]: {
-          name,
-        },
-      }));
-
-      setSelectedDates((prev) => [...prev, currentDate]);
-      setShowRegistration(false);
-      handleSuccess(
-        "Successfully signed up! Date added to calendar selection.",
-      );
-    } catch (error) {
-      handleError(error, "Error saving signup");
-    }
-  }, [currentDate]);
-
-  // Update handleServiceDetailChange function
-  const handleServiceDetailChange = useCallback(
-    async (date, field, value) => {
-      try {
-        // Update local state immediately
-        setServiceDetails((prev) => ({
-          ...prev,
-          [date]: {
-            ...prev[date],
-            [field]: value,
-          },
-        }));
-
-        // Clear any existing timeout
-        if (window.serviceDetailTimeout) {
-          clearTimeout(window.serviceDetailTimeout);
-        }
-
-        // Set new timeout for debouncing
-        window.serviceDetailTimeout = setTimeout(async () => {
-          try {
-            const currentDetails = serviceDetails[date] || {};
-
-            const response = await fetchWithTimeout(
-              API_ENDPOINTS.SERVICE_DETAILS,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  date,
-                  ...currentDetails,
-                  [field]: value,
-                }),
-              },
-            );
-
-            if (!response.ok) {
-              throw new Error("Failed to save service details");
-            }
-
-            const result = await response.json();
-          } catch (error) {
-            console.error("Save error:", error);
-            setServiceDetailsError(error.message);
-            handleError(error, "Failed to save service details");
-          }
-        }, 500);
-      } catch (error) {
-        console.error("Error:", error);
-        setServiceDetailsError(error.message);
-        handleError(error, "Error updating service details");
-      }
-    },
-    [serviceDetails],
-  );
 
   const handleRemoveReservation = useCallback(
     async (date) => {
@@ -1081,44 +959,6 @@ const SignupSheet = ({
         </Alert>
       )}
 
-      {showRegistration && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg w-96">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-[#6B8E23]">
-                Sign Up for Service
-              </h2>
-              <button
-                onClick={() => setShowRegistration(false)}
-                className="p-1 hover:bg-gray-100 rounded"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1 text-black">
-                  Name
-                </label>
-                <input
-                  required
-                  name="name"
-                  type="text"
-                  className="w-full p-2 border rounded text-black"
-                  placeholder="Enter your name"
-                />
-              </div>
-              <button
-                onClick={handleSignup}
-                className="w-full bg-[#6B8E23] text-white p-2 rounded hover:bg-[#556B2F] transition-colors"
-              >
-                Sign Up
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="flex flex-col h-full">
         {/* Fixed Header Section */}
         <div className="sticky top-0 z-10 bg-white">
@@ -1320,7 +1160,6 @@ const SignupSheet = ({
                               : [...prev, date],
                           );
                         }}
-                        onServiceDetailChange={handleServiceDetailChange}
                         onEditService={(date) => {
                           setEditingDate(date);
                           setShowPastorInput(true);

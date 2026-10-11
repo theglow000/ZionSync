@@ -6,13 +6,11 @@ import {
   ChevronDown,
   ChevronUp,
   Check,
-  Calendar,
   BookOpen,
   MessageSquare,
   Music,
   Music2,
   Cross,
-  Trash2,
   UserCircle,
   CheckCircle,
   Pencil,
@@ -34,15 +32,11 @@ const MobileServiceCard = ({
   availableUsers,
   checkForSelectedSongs,
   checkForOrderOfWorship,
-  setSelectedDates,
   onExpand,
   onAssignUser,
   onRemoveAssignment,
   onComplete,
   onSelectDate,
-  onServiceDetailChange,
-  showAlertWithTimeout,
-  setAlertPosition,
   customServices,
   onEditService,
   onDeleteService,
@@ -55,7 +49,7 @@ const MobileServiceCard = ({
   const { confirm, ConfirmDialog } = useConfirm();
 
   // Extract properties from item
-  const { date, title, day } = item;
+  const { date, day } = item;
   const isCompleted = completed[date];
 
   // Check if there's a user assigned to this date
