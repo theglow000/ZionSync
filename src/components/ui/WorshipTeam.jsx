@@ -12,12 +12,8 @@ import {
   UserCircle,
   X,
   Music2,
-  CheckCircle2,
   ChevronUp,
   ChevronDown,
-  AlertCircle,
-  Edit2,
-  Pencil,
   Database,
 } from "lucide-react";
 import ServiceSongSelector from "./ServiceSongSelector";
@@ -35,31 +31,18 @@ import {
   createErrorHandler,
   createSuccessHandler,
 } from "../../utils/errorHandler";
-import {
-  POLLING_INTERVAL,
-  COLOR_THEMES,
-  API_ENDPOINTS,
-} from "../../lib/constants";
-import {
-  fetchWithTimeout,
-  fetchWithRetry,
-  parseJSON,
-  apiPost,
-  apiGet,
-  apiDelete,
-  apiPut,
-} from "../../lib/api-utils";
+import { POLLING_INTERVAL, API_ENDPOINTS } from "../../lib/constants";
+import { fetchWithTimeout, apiPost, apiDelete } from "../../lib/api-utils";
 import Link from "next/link";
 import "../../styles/liturgical-themes.css";
 import {
-  getSeasonClass,
   getSpecialServiceType,
   getHeaderClass,
   SpecialServiceIndicator,
   formatServiceTitle,
 } from "../liturgical/LiturgicalStyling";
-import { LiturgicalDebugger } from "../liturgical/LiturgicalDebug";
 import { YearSelector } from "../shared";
+import { mergeServiceDetails } from "@/lib/serviceDetailsMerge";
 
 const WorshipTeam = ({
   serviceDetails,
@@ -69,13 +52,8 @@ const WorshipTeam = ({
   availableYears,
 }) => {
   // Use alert manager hook
-  const {
-    showAlert,
-    alertMessage,
-    alertPosition,
-    setAlertPosition,
-    showAlertWithTimeout,
-  } = useAlertManager();
+  const { showAlert, alertMessage, alertPosition, showAlertWithTimeout } =
+    useAlertManager();
 
   // Add this hook for responsive detection
   const { isMobile } = useResponsive();
@@ -93,14 +71,13 @@ const WorshipTeam = ({
   });
   const [showTeamSelector, setShowTeamSelector] = useState(false);
   const [editingDate, setEditingDate] = useState(null);
-  const [teams, setTeams] = useState([]);
   const [assignments, setAssignments] = useState({});
   const [users, setUsers] = useState([]);
   const [dates, setDates] = useState([]);
   const [datesLoading, setDatesLoading] = useState(false);
   const [customServices, setCustomServices] = useState([]);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
-  const [pendingActions, setPendingActions] = useState({}); // Track pending debounced actions
+  const [, setPendingActions] = useState({}); // Track pending debounced actions
 
   // Refs for auto-scrolling to current date (consolidated for both views)
   const dateRefs = useRef({});
@@ -283,12 +260,6 @@ const WorshipTeam = ({
         const assignmentsObj = {};
         assignmentsData.forEach((assignment) => {
           if (assignment.date) {
-            // Get the service details for this date
-            const service = serviceDetails[assignment.date];
-            const hasSongs = service?.elements?.some(
-              (e) => e.type === "song_hymn" && e.selection?.title,
-            );
-
             assignmentsObj[assignment.date] = {
               team: assignment.team,
               lastUpdated: assignment.lastUpdated,
@@ -325,51 +296,7 @@ const WorshipTeam = ({
         const data = await response.json();
 
         if (isSubscribed) {
-          setServiceDetails((prev) => {
-            const merged = { ...prev };
-            Object.keys(data).forEach((date) => {
-              // Keep existing elements if they exist
-              const existingElements = prev[date]?.elements || [];
-              const newElements = data[date]?.elements || [];
-
-              // Create a map for more efficient lookups
-              const existingElementMap = new Map(
-                existingElements.map((element) => [
-                  `${element.type}-${element.content?.split(":")[0]}`,
-                  element,
-                ]),
-              );
-
-              // Merge elements, preserving existing data
-              const mergedElements = newElements.map((newElement) => {
-                const key = `${newElement.type}-${newElement.content?.split(":")[0]}`;
-                const existingElement = existingElementMap.get(key);
-                // Keep existing element data if it exists, otherwise use new element
-                return existingElement
-                  ? { ...existingElement, ...newElement }
-                  : newElement;
-              });
-
-              // Keep any existing elements that weren't in the new data
-              const preservedElements = existingElements.filter((existing) => {
-                const key = `${existing.type}-${existing.content?.split(":")[0]}`;
-                return !newElements.some(
-                  (newElem) =>
-                    `${newElem.type}-${newElem.content?.split(":")[0]}` === key,
-                );
-              });
-
-              merged[date] = {
-                ...prev[date], // Keep existing service data
-                ...data[date], // Add new data
-                elements: [
-                  ...mergedElements, // Add merged elements
-                  ...preservedElements, // Add preserved elements that weren't in new data
-                ].filter(Boolean), // Remove any null/undefined elements
-              };
-            });
-            return merged;
-          });
+          setServiceDetails((prev) => mergeServiceDetails(prev, data));
         }
       } catch (error) {
         console.error("Error fetching service details:", error);
@@ -505,47 +432,6 @@ const WorshipTeam = ({
     }));
     handleSongSelection(date, songId, songData);
   }, 500);
-
-  // Add a function to determine special services - wrapped with useCallback
-  const isSpecialService = useCallback((title) => {
-    const specialTitles = [
-      "ash wednesday",
-      "palm sunday",
-      "maundy thursday",
-      "good friday",
-      "easter",
-      "pentecost",
-      "reformation",
-      "all saints",
-      "thanksgiving",
-      "christmas eve",
-      "christmas day",
-      "epiphany",
-      "transfiguration",
-      "confirmation",
-      "baptism",
-    ];
-
-    const lowerTitle = title.toLowerCase();
-    return specialTitles.some((special) => lowerTitle.includes(special));
-  }, []);
-
-  // Helper to get season info from a date - wrapped with useCallback
-  const getSeasonInfo = useCallback(
-    (date) => {
-      const service = serviceDetails[date];
-      if (!service?.liturgical)
-        return { name: "", color: "", hasSpecialDay: false };
-
-      return {
-        name: service.liturgical.seasonName || "",
-        color: service.liturgical.color || "",
-        hasSpecialDay: !!service.liturgical.specialDay,
-        specialDay: service.liturgical.specialDayName || "",
-      };
-    },
-    [serviceDetails],
-  );
 
   // User management handlers - wrapped with useCallback for performance
   const handleAddUser = useCallback(() => {
