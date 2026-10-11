@@ -44,6 +44,30 @@ describe("classifyLine", () => {
     expect(classifyLine("Opening Hymn")).toBe(ELEMENT_TYPES.SONG_HYMN);
   });
 
+  test("REGRESSION: the label decides, not a phrase in the pastor's free text", () => {
+    expect(classifyLine("Sermon: Behold the Lamb of God")).toBe(
+      ELEMENT_TYPES.MESSAGE,
+    );
+    expect(classifyLine("Message: This is the Feast")).toBe(
+      ELEMENT_TYPES.MESSAGE,
+    );
+    expect(classifyLine("Psalm: Psalm 51 (Create in Me)")).toBe(
+      ELEMENT_TYPES.READING,
+    );
+    expect(classifyLine("Gospel: Luke 2 - Glory to God in the Highest")).toBe(
+      ELEMENT_TYPES.READING,
+    );
+    expect(
+      classifyLine("First Reading: Mark 10:13-16 (Let the children come)"),
+    ).toBe(ELEMENT_TYPES.READING);
+    expect(classifyLine("Opening Hymn: Lamb of God #336")).toBe(
+      ELEMENT_TYPES.SONG_HYMN,
+    );
+    expect(classifyLine("Children's Message: Jesus loves you")).toBe(
+      ELEMENT_TYPES.LITURGY,
+    );
+  });
+
   test("falls back to liturgy for an unrecognized line", () => {
     expect(classifyLine("Prelude & Lighting of Candles")).toBe(
       ELEMENT_TYPES.LITURGY,

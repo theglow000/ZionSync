@@ -48,4 +48,27 @@ describe("parseServiceContent - pastor type overrides", () => {
     expect(ids).toHaveLength(2);
     expect(new Set(ids).size).toBe(2);
   });
+
+  test("an exact match is never taken by an earlier line's label match", () => {
+    const stored = [
+      { id: "id1", type: "song_hymn", content: "Hymn: Y", selection: "y" },
+      { id: "id2", type: "song_hymn", content: "Hymn: A", selection: "a" },
+    ];
+    const reloaded = parseServiceContent("Hymn: X\nHymn: Y", date, stored);
+    expect(reloaded.map((e) => e.id)).toEqual(["id2", "id1"]);
+    expect(reloaded[1].selection).toBe("y");
+  });
+
+  test("stored elements without an id can each still be matched", () => {
+    const stored = [
+      { type: "song_hymn", content: "Special Music:" },
+      { type: "song_hymn", content: "Postlude" },
+    ];
+    const reloaded = parseServiceContent(
+      "Special Music:\nPostlude",
+      date,
+      stored,
+    );
+    expect(reloaded.map((e) => e.type)).toEqual(["song_hymn", "song_hymn"]);
+  });
 });

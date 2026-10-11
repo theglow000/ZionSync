@@ -67,7 +67,28 @@ export const MESSAGE_TERMS = ["sermon:", "message:"];
 const includesAny = (haystack, terms) =>
   terms.some((term) => haystack.includes(term));
 
+const typeOfText = (text) => {
+  // A children's message is liturgy, not a sermon. Checked first because
+  // "message" would otherwise match MESSAGE_TERMS.
+  if (text.includes("children")) return ELEMENT_TYPES.LITURGY;
+
+  // Hymn slots outrank liturgical songs: "Opening Hymn" must never be
+  // demoted to a non-selectable liturgical song.
+  if (includesAny(text, HYMN_SLOT_TERMS)) return ELEMENT_TYPES.SONG_HYMN;
+
+  if (includesAny(text, LITURGICAL_SONG_TERMS))
+    return ELEMENT_TYPES.LITURGICAL_SONG;
+  if (includesAny(text, READING_TERMS)) return ELEMENT_TYPES.READING;
+  if (includesAny(text, MESSAGE_TERMS)) return ELEMENT_TYPES.MESSAGE;
+  return null;
+};
+
 /**
+ * The label (text up to the first colon) decides when it is recognized.
+ * Everything after it is the pastor's free text -- a sermon titled "Behold
+ * the Lamb of God" is still a sermon -- so it is consulted only when the
+ * label alone says nothing.
+ *
  * @param {string} line a single order-of-worship line
  * @returns {string} one of ELEMENT_TYPES
  */
@@ -75,20 +96,9 @@ export function classifyLine(line) {
   const lower = (line || "").toLowerCase().trim();
   if (!lower) return ELEMENT_TYPES.LITURGY;
 
-  // A children's message is liturgy, not a sermon. Checked first because
-  // "message" would otherwise match MESSAGE_TERMS.
-  if (lower.includes("children")) return ELEMENT_TYPES.LITURGY;
-
-  // Hymn slots outrank liturgical songs: "Opening Hymn" must never be
-  // demoted to a non-selectable liturgical song.
-  if (includesAny(lower, HYMN_SLOT_TERMS)) return ELEMENT_TYPES.SONG_HYMN;
-
-  if (includesAny(lower, LITURGICAL_SONG_TERMS))
-    return ELEMENT_TYPES.LITURGICAL_SONG;
-  if (includesAny(lower, READING_TERMS)) return ELEMENT_TYPES.READING;
-  if (includesAny(lower, MESSAGE_TERMS)) return ELEMENT_TYPES.MESSAGE;
-
-  return ELEMENT_TYPES.LITURGY;
+  const colon = lower.indexOf(":");
+  const fromLabel = colon === -1 ? null : typeOfText(lower.slice(0, colon + 1));
+  return fromLabel || typeOfText(lower) || ELEMENT_TYPES.LITURGY;
 }
 
 /**

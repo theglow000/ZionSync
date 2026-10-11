@@ -11,6 +11,12 @@ const USERS = "av_users";
 export const getRotationEpochs = (db) =>
   db.collection(EPOCHS).find({}).toArray();
 
+// Two upserts racing on the same date can both insert unless the database
+// itself forbids it. The loser gets a duplicate-key error (11000).
+const isDuplicateKey = (err) => err?.code === 11000;
+const ensureEpochIndex = (db) =>
+  db.collection(EPOCHS).createIndex({ effectiveDate: 1 }, { unique: true });
+
 /**
  * Create the first rotation (10/25/26) once. Core flags are set only when this
  * call actually inserted the epoch, so un-coring someone later is never undone
@@ -18,20 +24,27 @@ export const getRotationEpochs = (db) =>
  */
 export const ensureRotationSeeded = async (db) => {
   const epochs = db.collection(EPOCHS);
+  await ensureEpochIndex(db);
   if (await epochs.findOne({ effectiveDate: AV_ROTATION_SEED.effectiveDate })) {
     return;
   }
 
-  const result = await epochs.updateOne(
-    { effectiveDate: AV_ROTATION_SEED.effectiveDate },
-    {
-      $setOnInsert: {
-        members: AV_ROTATION_SEED.members,
-        createdAt: new Date(),
+  let result;
+  try {
+    result = await epochs.updateOne(
+      { effectiveDate: AV_ROTATION_SEED.effectiveDate },
+      {
+        $setOnInsert: {
+          members: AV_ROTATION_SEED.members,
+          createdAt: new Date(),
+        },
       },
-    },
-    { upsert: true },
-  );
+      { upsert: true },
+    );
+  } catch (err) {
+    if (isDuplicateKey(err)) return; // another first load seeded it
+    throw err;
+  }
   if (result.upsertedCount !== 1) return;
 
   for (const name of AV_ROTATION_SEED.members) {
@@ -51,6 +64,7 @@ export const ensureRotationSeeded = async (db) => {
  * effective date) and return all epochs for the client.
  */
 export const recordRotationChange = async (db, today = new Date()) => {
+  await ensureEpochIndex(db);
   const coreUsers = await db
     .collection(USERS)
     .find({ core: true, deleted: { $ne: true } })
@@ -63,14 +77,22 @@ export const recordRotationChange = async (db, today = new Date()) => {
     today,
   });
 
-  await db.collection(EPOCHS).updateOne(
-    { effectiveDate: next.effectiveDate },
-    {
-      $set: { members: next.members, updatedAt: new Date() },
-      $setOnInsert: { createdAt: new Date() },
-    },
-    { upsert: true },
-  );
+  const filter = { effectiveDate: next.effectiveDate };
+  const set = { $set: { members: next.members, updatedAt: new Date() } };
+  try {
+    await db
+      .collection(EPOCHS)
+      .updateOne(
+        filter,
+        { ...set, $setOnInsert: { createdAt: new Date() } },
+        { upsert: true },
+      );
+  } catch (err) {
+    if (!isDuplicateKey(err)) throw err;
+    // A concurrent change inserted this date first; overwrite it with the
+    // core list as it stands now.
+    await db.collection(EPOCHS).updateOne(filter, set);
+  }
 
   return getRotationEpochs(db);
 };

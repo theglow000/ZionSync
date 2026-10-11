@@ -99,52 +99,63 @@ export const parseServiceContent = (
   // Track used IDs to handle duplicates
   const usedIds = new Set();
 
-  // Parse each line of the content
-  const elements = content
+  const lines = content
     .split("\n")
     .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line, index) => {
-      const lineKey = line.toLowerCase().trim();
+    .filter(Boolean);
 
-      // First check if this exact line exists in our map to preserve its ID and type
-      const labelKey = line.split(":")[0].trim().toLowerCase();
-      const existingElement = [
-        ...(existingContentMap[lineKey] || []),
-        ...(existingLabelMap[labelKey] || []),
-      ].find((el) => !usedIds.has(el.id));
-      if (existingElement) {
-        usedIds.add(existingElement.id);
-        return {
-          ...existingElement,
-          content: line, // Use original case from current content
-        };
-      }
+  // Two passes, so an exact text match always wins: a label match on an
+  // earlier line must not take the element a later line matches exactly.
+  // Used elements are tracked by object, not id -- elements saved without
+  // an id would otherwise all collide on `undefined`.
+  const usedElements = new Set();
+  const matched = new Array(lines.length).fill(null);
+  const claim = (i, candidates) => {
+    const el = (candidates || []).find((c) => !usedElements.has(c));
+    if (!el) return;
+    usedElements.add(el);
+    matched[i] = el;
+  };
+  lines.forEach((line, i) => claim(i, existingContentMap[line.toLowerCase()]));
+  lines.forEach((line, i) => {
+    if (!matched[i])
+      claim(i, existingLabelMap[line.split(":")[0].trim().toLowerCase()]);
+  });
+  matched.forEach((el) => el?.id && usedIds.add(el.id));
 
-      // If no stored element matches, classify the line
-      const type = classifyLine(line);
-
-      // Generate stable ID based on date, type, and content
-      const cleanContent = line.replace(/[^a-zA-Z0-9]/g, "");
-      const baseId = formattedDate
-        ? `${formattedDate}_${type}_${cleanContent}`
-        : `temp_${type}_${cleanContent}`;
-
-      // Handle duplicate IDs by adding index suffix
-      let stableId = baseId;
-      if (usedIds.has(stableId)) {
-        stableId = `${baseId}_${index}`;
-      }
-      usedIds.add(stableId);
-
+  const elements = lines.map((line, index) => {
+    const existingElement = matched[index];
+    if (existingElement) {
       return {
-        id: stableId,
-        type,
-        content: line,
-        selection: null,
-        required: type !== "liturgy",
+        ...existingElement,
+        content: line, // Use original case from current content
       };
-    });
+    }
+
+    // If no stored element matches, classify the line
+    const type = classifyLine(line);
+
+    // Generate stable ID based on date, type, and content
+    const cleanContent = line.replace(/[^a-zA-Z0-9]/g, "");
+    const baseId = formattedDate
+      ? `${formattedDate}_${type}_${cleanContent}`
+      : `temp_${type}_${cleanContent}`;
+
+    // Handle duplicate IDs by adding index suffix
+    let stableId = baseId;
+    if (usedIds.has(stableId)) {
+      stableId = `${baseId}_${index}`;
+    }
+    usedIds.add(stableId);
+
+    return {
+      id: stableId,
+      type,
+      content: line,
+      selection: null,
+      required: type !== "liturgy",
+    };
+  });
 
   return elements;
 };

@@ -34,6 +34,9 @@ const fakeDb = (seed = {}) => {
         Object.assign(doc, update.$set || {});
         return { upsertedCount: 0, modifiedCount: 1 };
       },
+      createIndex: async (keys, opts) => {
+        data.indexes = [...(data.indexes || []), { name, keys, opts }];
+      },
     };
   };
   return { collection, data };
@@ -120,5 +123,69 @@ describe("recordRotationChange", () => {
     expect(epochs).toHaveLength(2);
     expect(epochs[1].members).not.toContain("Laila");
     expect(await getRotationEpochs(db)).toHaveLength(2);
+  });
+});
+
+describe("concurrent writers", () => {
+  const dupKey = () => Object.assign(new Error("E11000"), { code: 11000 });
+
+  it("enforces one epoch per effective date with a unique index", async () => {
+    const db = fakeDb();
+    await ensureRotationSeeded(db);
+    expect(db.data.indexes).toContainEqual({
+      name: "av_rotation_epochs",
+      keys: { effectiveDate: 1 },
+      opts: { unique: true },
+    });
+  });
+
+  it("a seed that loses the insert race is a quiet no-op", async () => {
+    const db = fakeDb({ av_users: [user("Ben")] });
+    const real = db.collection;
+    db.collection = (n) => {
+      const c = real(n);
+      if (n !== "av_rotation_epochs") return c;
+      return {
+        ...c,
+        findOne: async () => null,
+        updateOne: async () => {
+          throw dupKey();
+        },
+      };
+    };
+    await expect(ensureRotationSeeded(db)).resolves.toBeUndefined();
+    expect(db.data.av_users.find((u) => u.name === "Ben").core).toBeUndefined();
+  });
+
+  it("a change that loses the insert race updates the winner's epoch", async () => {
+    const db = fakeDb({
+      av_users: ["Ben", "Doug", "Jaimes", "Brett"].map((n) =>
+        user(n, { core: true }),
+      ),
+    });
+    await ensureRotationSeeded(db);
+    const real = db.collection;
+    let raced = false;
+    db.collection = (n) => {
+      const c = real(n);
+      if (n !== "av_rotation_epochs") return c;
+      return {
+        ...c,
+        updateOne: async (q, u, o = {}) => {
+          if (o.upsert && !raced) {
+            raced = true;
+            await c.updateOne(q, { $set: { members: ["someone else"] } }, o);
+            throw dupKey();
+          }
+          return c.updateOne(q, u, o);
+        },
+      };
+    };
+    const epochs = await recordRotationChange(db, parseServiceDate("11/4/26"));
+    const next = epochs.find((e) => e.effectiveDate === "11/15/26");
+    expect(next.members).not.toContain("someone else");
+    expect(epochs.filter((e) => e.effectiveDate === "11/15/26")).toHaveLength(
+      1,
+    );
   });
 });

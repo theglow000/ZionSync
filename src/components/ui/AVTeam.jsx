@@ -1,13 +1,7 @@
-import React, {
-  useRef,
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-} from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Mail, UserCircle, X, Trash2, Edit2 } from "lucide-react";
+import { Mail, X, Trash2, Edit2 } from "lucide-react";
 import MobileAVTeamCard from "./MobileAVTeamCard";
 import useResponsive from "../../hooks/useResponsive";
 import { useDebounce } from "../../hooks/useDebounce";
@@ -20,20 +14,8 @@ import {
   logError,
   getErrorMessage,
 } from "../../utils/errorHandler";
-import {
-  POLLING_INTERVAL,
-  COLOR_THEMES,
-  API_ENDPOINTS,
-} from "../../lib/constants";
-import {
-  fetchWithTimeout,
-  fetchWithRetry,
-  parseJSON,
-  apiPost,
-  apiGet,
-  apiDelete,
-  apiPut,
-} from "../../lib/api-utils";
+import { API_ENDPOINTS } from "../../lib/constants";
+import { fetchWithTimeout, apiPost, apiDelete } from "../../lib/api-utils";
 import UserSelectionModal from "./UserSelectionModal";
 import { getRotationCrew, parseServiceDate } from "../../lib/avRotation";
 import AddUserModal from "./AddUserModal";
@@ -51,11 +33,11 @@ const AVTeam = ({ selectedYear, setSelectedYear, availableYears }) => {
   const [availableUsers, setAvailableUsers] = useState([]);
   const [allUsersIncludingDeleted, setAllUsersIncludingDeleted] = useState([]); // For editing past dates
   const [showUserManagement, setShowUserManagement] = useState(false);
-  const [usersToDelete, setUsersToDelete] = useState([]);
+  const [, setUsersToDelete] = useState([]);
   // Track which position is being edited
   const [editingPosition, setEditingPosition] = useState(null); // { date, position, currentMember, serviceTime }
   const [showAddUserModal, setShowAddUserModal] = useState(false);
-  const [pendingActions, setPendingActions] = useState({}); // Track pending debounced actions
+  const [, setPendingActions] = useState({}); // Track pending debounced actions
   const [showServiceTimeModal, setShowServiceTimeModal] = useState(false);
   const [serviceTimeForDate, setServiceTimeForDate] = useState({}); // Stores service times for dates: { "12/24/25": ["3:00 PM", "7:00 PM"] }
   const [rotationEpochs, setRotationEpochs] = useState([]); // Core rotation history, see lib/avRotation.js
@@ -234,15 +216,8 @@ const AVTeam = ({ selectedYear, setSelectedYear, availableYears }) => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // Fetch users first
-        const usersResponse = await fetchWithTimeout(API_ENDPOINTS.AV_USERS);
-        if (!usersResponse.ok) throw new Error("Failed to fetch AV users");
-        const existingUsers = await usersResponse.json();
-        const currentUsers = Array.isArray(existingUsers) ? existingUsers : [];
-
-        setAvailableUsers(currentUsers);
-
-        // Fetch assignments
+        // Fetch assignments first: this request seeds the rotation and core
+        // flags on first run, so users fetched before it would be stale
         const assignmentsResponse = await fetchWithTimeout(
           API_ENDPOINTS.AV_TEAM,
         );
@@ -250,6 +225,13 @@ const AVTeam = ({ selectedYear, setSelectedYear, availableYears }) => {
           throw new Error("Failed to fetch assignments");
         const assignmentsData = await assignmentsResponse.json();
         setRotationEpochs(assignmentsData.rotationEpochs || []);
+
+        const usersResponse = await fetchWithTimeout(API_ENDPOINTS.AV_USERS);
+        if (!usersResponse.ok) throw new Error("Failed to fetch AV users");
+        const existingUsers = await usersResponse.json();
+        const currentUsers = Array.isArray(existingUsers) ? existingUsers : [];
+
+        setAvailableUsers(currentUsers);
 
         if (assignmentsData.assignments) {
           // Group assignments by date+serviceTime composite key
