@@ -68,7 +68,6 @@ const cases = [
   ["service-calendar/revert POST", calendarRevert.POST, "POST"],
   ["completed POST", completed.POST, "POST"],
   ["worship-assignments POST", worshipAssignments.POST, "POST"],
-  ["worship-assignments PUT", worshipAssignments.PUT, "PUT"],
   ["service-calendar/override PATCH", calendarOverride.PATCH, "PATCH"],
   ["reference-songs POST", referenceSongs.POST, "POST"],
 ];

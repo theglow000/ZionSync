@@ -152,37 +152,3 @@ export async function POST(request) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
-
-export async function PUT(request) {
-  try {
-    const parsedBody = await readJsonBody(request);
-    if (!parsedBody.success) return parsedBody.response;
-    const { date, songsApproved, partialApproval } = parsedBody.data;
-
-    const client = await clientPromise;
-    const db = client.db(process.env.MONGODB_DB);
-
-    await db.collection("assignments").updateOne(
-      { date },
-      {
-        $set: {
-          songsApproved,
-          partialApproval,
-          lastUpdated: new Date().toISOString(),
-        },
-      },
-      { upsert: true },
-    );
-
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (error) {
-    console.error("Error updating assignment:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-}

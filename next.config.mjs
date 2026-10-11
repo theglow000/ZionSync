@@ -1,14 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Remove the swcMinify option as it's no longer recognized in Next.js 15
-  // swcMinify: true,
-  
-  // Keep your other configuration options
   reactStrictMode: true,
-  env: {
-    MONGODB_URI: process.env.MONGODB_URI,
-    PROJECT_NAME: 'ZionSync'
-  }
+  // NOTE: MONGODB_URI must NOT be listed here. Next inlines `env` values into
+  // any bundle that references them, so one client-side reference would ship
+  // the Atlas credential to every visitor. Server code reads process.env
+  // directly (see src/lib/mongodb.js).
 };
 
 export default nextConfig;
