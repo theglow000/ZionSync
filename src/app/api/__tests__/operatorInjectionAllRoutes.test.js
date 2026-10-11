@@ -6,14 +6,12 @@
  */
 import * as songs from "../songs/route";
 import * as serviceDetails from "../service-details/route";
-import * as addSong from "../services/add-song/route";
 import * as serviceSongs from "../service-songs/route";
 import * as songUsage from "../song-usage/route";
 import * as referenceSongById from "../reference-songs/[id]/route";
 import * as calendarGenerate from "../service-calendar/generate/route";
 import * as songMerge from "../songs/merge/route";
 import * as referenceImport from "../reference-songs/import/route";
-import * as worshipIndexes from "../worship-indexes/route";
 import * as calendarRevert from "../service-calendar/revert/route";
 import * as completed from "../completed/route";
 import * as worshipAssignments from "../worship-assignments/route";
@@ -56,15 +54,12 @@ const params = { params: Promise.resolve({ id: "65f000000000000000000000" }) };
 const cases = [
   ["songs POST", songs.POST, "POST"],
   ["service-details POST", serviceDetails.POST, "POST"],
-  ["services/add-song POST", addSong.POST, "POST"],
   ["service-songs POST", serviceSongs.POST, "POST"],
   ["song-usage POST", songUsage.POST, "POST"],
   ["reference-songs/[id] PUT", referenceSongById.PUT, "PUT"],
   ["service-calendar/generate POST", calendarGenerate.POST, "POST"],
   ["songs/merge POST", songMerge.POST, "POST"],
   ["reference-songs/import POST", referenceImport.POST, "POST"],
-  ["worship-indexes POST", worshipIndexes.POST, "POST"],
-  ["worship-indexes PUT", worshipIndexes.PUT, "PUT"],
   ["service-calendar/revert POST", calendarRevert.POST, "POST"],
   ["completed POST", completed.POST, "POST"],
   ["worship-assignments POST", worshipAssignments.POST, "POST"],

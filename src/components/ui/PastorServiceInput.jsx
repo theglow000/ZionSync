@@ -1457,43 +1457,6 @@ Postlude`,
           setOrderOfWorship={setOrderOfWorship}
           setHasExistingContent={setHasExistingContent}
           setCustomServices={setCustomServices}
-          onSave={async (serviceData) => {
-            try {
-              const method = editingService ? "PUT" : "POST";
-              const response = await fetchWithTimeout("/api/custom-services", {
-                method,
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(serviceData),
-              });
-
-              if (response.ok) {
-                await response.json();
-                const updatedServices = await fetchWithTimeout(
-                  "/api/custom-services",
-                ).then((res) => res.json());
-                setCustomServices(updatedServices);
-
-                // Then batch the state updates to prevent race conditions
-                Promise.resolve().then(() => {
-                  // Set custom service flag first
-                  setIsCustomService(true);
-                  // Then update the type and content
-                  setSelectedType(serviceData.id);
-                  setOrderOfWorship(serviceData.order);
-                  setHasExistingContent(false);
-                  // Finally close the modal
-                  setShowAddCustom(false);
-                  setEditingService(null);
-                });
-
-                return true;
-              }
-              return false;
-            } catch (error) {
-              console.error("Error saving custom service:", error);
-              return false;
-            }
-          }}
         />
       )}
       <ConfirmDialog />
