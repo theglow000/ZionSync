@@ -5,8 +5,6 @@ import { Button } from "@/components/ui/button";
 import {
   Search,
   Music,
-  FileText,
-  Plus,
   X,
   Edit,
   Trash2,
@@ -31,7 +29,7 @@ import SongRediscoveryPanel from "./SongRediscoveryPanel";
 import SeasonalPlanningGuide from "./SeasonalPlanningGuide";
 import { useConfirm } from "../../hooks/useConfirm";
 import { LoadingSpinner, EmptyState } from "../shared";
-import { fetchWithTimeout, apiPost, apiDelete } from "../../lib/api-utils";
+import { fetchWithTimeout } from "../../lib/api-utils";
 
 // Hymnal options
 const hymnalVersions = [
@@ -89,27 +87,27 @@ const SongDatabase = () => {
   const [selectedService, setSelectedService] = useState(null);
   const [isAddingSong, setIsAddingSong] = useState(false);
 
+  // Load the song list; also used to refresh after a merge
+  const fetchSongs = async () => {
+    setIsLoading(true);
+    try {
+      const songsResponse = await fetchWithTimeout("/api/songs");
+      if (!songsResponse.ok) throw new Error("Failed to fetch songs");
+      const songsData = await songsResponse.json();
+
+      // Sort songs alphabetically by title
+      songsData.sort((a, b) => a.title.localeCompare(b.title));
+      setSongs(songsData);
+    } catch (err) {
+      setError(err.message);
+      showAlertMessage(err.message, "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Fetch songs when component mounts
   useEffect(() => {
-    const fetchSongs = async () => {
-      setIsLoading(true);
-      try {
-        // Fetch songs
-        const songsResponse = await fetchWithTimeout("/api/songs");
-        if (!songsResponse.ok) throw new Error("Failed to fetch songs");
-        const songsData = await songsResponse.json();
-
-        // Sort songs alphabetically by title
-        songsData.sort((a, b) => a.title.localeCompare(b.title));
-        setSongs(songsData);
-      } catch (err) {
-        setError(err.message);
-        showAlertMessage(err.message, "error");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchSongs();
   }, []);
 

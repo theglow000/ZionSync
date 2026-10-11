@@ -6,11 +6,7 @@
  */
 
 import { LITURGICAL_SEASONS, MAJOR_FEAST_DAYS } from "./LiturgicalSeasons.js";
-import {
-  validateDate,
-  validateYear,
-  validateSeason,
-} from "./liturgical-validation.js";
+import { validateDate, validateYear } from "./liturgical-validation.js";
 
 // Cache for expensive calculations
 const calculationCache = {
@@ -515,10 +511,6 @@ export function getCurrentSeason(inputDate) {
       case "TRANSFIGURATION":
         calculationCache.seasons[dateStr] = "EPIPHANY";
         return "EPIPHANY";
-      case "THANKSGIVING":
-        // Thanksgiving typically falls during Ordinary Time, could be specified differently
-        calculationCache.seasons[dateStr] = "ORDINARY_TIME";
-        return "ORDINARY_TIME";
     }
   }
 
@@ -740,16 +732,10 @@ export function getSeasonDateRange(seasonId, referenceDate = new Date()) {
 
   // Get Easter as our reference point for many calculations
   const easter = calculateEaster(year);
-  const nextEaster = calculateEaster(year + 1);
 
   // Calculate other key dates
   const ashWednesday = calculateAshWednesday(year);
   const adventStart = calculateAdventStart(year);
-  const adventStartNextYear = calculateAdventStart(year + 1);
-
-  // Handle season that wraps from previous year
-  const christmasLastYear = new Date(year - 1, 11, 25); // Dec 25 of previous year
-  const epiphanyThisYear = new Date(year, 0, 6); // Jan 6
 
   // Define season date ranges
   switch (seasonId) {
@@ -774,7 +760,7 @@ export function getSeasonDateRange(seasonId, referenceDate = new Date()) {
         endDate: new Date(ashWednesday.getTime() - 86400000), // Day before Ash Wednesday
       };
 
-    case "LENT":
+    case "LENT": {
       // Lent starts on Ash Wednesday and ends on the day before Palm Sunday
       const lentPalmSunday = new Date(easter);
       lentPalmSunday.setDate(easter.getDate() - 7);
@@ -782,8 +768,9 @@ export function getSeasonDateRange(seasonId, referenceDate = new Date()) {
         startDate: ashWednesday,
         endDate: new Date(lentPalmSunday.getTime() - 86400000), // Day before Palm Sunday
       };
+    }
 
-    case "HOLY_WEEK":
+    case "HOLY_WEEK": {
       // Holy Week runs from Palm Sunday through Holy Saturday
       const holyWeekPalmSunday = new Date(easter);
       holyWeekPalmSunday.setDate(easter.getDate() - 7);
@@ -793,8 +780,9 @@ export function getSeasonDateRange(seasonId, referenceDate = new Date()) {
         startDate: holyWeekPalmSunday,
         endDate: holySaturday,
       };
+    }
 
-    case "EASTER":
+    case "EASTER": {
       // Easter season runs from Easter Sunday through the Day before Pentecost
       const pentecostDay = new Date(easter);
       pentecostDay.setDate(easter.getDate() + 49); // 7 weeks after Easter
@@ -802,8 +790,9 @@ export function getSeasonDateRange(seasonId, referenceDate = new Date()) {
         startDate: easter,
         endDate: new Date(pentecostDay.getTime() - 86400000), // Day before Pentecost
       };
+    }
 
-    case "PENTECOST_DAY":
+    case "PENTECOST_DAY": {
       // Pentecost Day is a single day
       const pentecostDate = new Date(easter);
       pentecostDate.setDate(easter.getDate() + 49); // 7 weeks after Easter
@@ -811,8 +800,9 @@ export function getSeasonDateRange(seasonId, referenceDate = new Date()) {
         startDate: pentecostDate,
         endDate: pentecostDate,
       };
+    }
 
-    case "TRINITY":
+    case "TRINITY": {
       // Trinity Sunday is the Sunday after Pentecost
       const pentecostForTrinity = new Date(easter);
       pentecostForTrinity.setDate(easter.getDate() + 49);
@@ -822,8 +812,9 @@ export function getSeasonDateRange(seasonId, referenceDate = new Date()) {
         startDate: trinitySunday,
         endDate: trinitySunday,
       };
+    }
 
-    case "ORDINARY_TIME":
+    case "ORDINARY_TIME": {
       // Ordinary Time runs from the day after Trinity Sunday until day before Advent
       const trinitySundayForOrdinary = new Date(easter);
       trinitySundayForOrdinary.setDate(easter.getDate() + 56); // 8 weeks after Easter
@@ -834,6 +825,7 @@ export function getSeasonDateRange(seasonId, referenceDate = new Date()) {
         startDate: dayAfterTrinity,
         endDate: new Date(adventStart.getTime() - 86400000), // Day before Advent
       };
+    }
 
     default:
       return { startDate: null, endDate: null };
