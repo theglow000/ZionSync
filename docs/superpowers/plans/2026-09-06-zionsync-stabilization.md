@@ -52,7 +52,7 @@
 - `src/app/api/worship-assignments/route.js` — broken PUT.
 - `next.config.mjs` — drop the `env` block.
 
-**Deleted files:** 10 unreachable modules and 2 dead API routes (Task 13).
+**Deleted files:** 10 unreachable modules and 2 dead API routes (Task 10).
 
 ---
 
@@ -1772,7 +1772,66 @@ Claude-Session: https://claude.ai/code/session_017Fh6US2rNTU84nZjfsV27Z"
 
 ---
 
-### Task 11: Verify the build and push
+### Task 11: Fix the undefined names the repaired linter found
+
+Added 2026-10-11. Once Task 1 gave ESLint the right globals, three names
+surfaced that are used but never defined. Each was traced by hand.
+
+**Files:**
+
+- Modify: `src/components/ui/SongDatabase.jsx` (~93-114, ~276)
+- Modify: `src/components/ui/ServiceSongSelector.jsx` (~15, ~750, ~806)
+- Modify: `src/lib/LiturgicalCalendarService.js` (~518, duplicate `case`)
+- Test: `src/components/ui/SongDatabase.test.jsx`, `src/components/ui/ServiceSongSelector.test.jsx`
+
+**Interfaces:** Consumes `getLiturgicalInfo(date)` from `LiturgicalCalendarService.js`
+(returns `{ season: {name,...}, seasonId, specialDay, specialDayId, color }`). Produces nothing new.
+
+**The three defects:**
+
+1. **Song merge reports failure after succeeding (user-facing).** `handleMergeSongs`
+   calls `fetchSongs()`, but `fetchSongs` is a local inside the mount `useEffect`
+   and is out of scope. The merge POST has already succeeded, the success alert is
+   set, then the `ReferenceError` is caught and the alert is replaced with
+   `fetchSongs is not defined`. The merged target song's usage stats stay stale
+   until a reload. Reachable from Song Management → a song → Merge.
+   **Fix:** lift `fetchSongs` out of the effect (wrap in `useCallback`), call it
+   from both the effect and `handleMergeSongs`.
+   **Test:** render with a mocked fetch, perform a merge, assert the success
+   message stays and `/api/songs` is fetched a second time.
+
+2. **Song picker's season label falls back to "Ordinary Time".** `getSeasonInfo`
+   calls `getLiturgicalInfoForService`, which does not exist. It sits in a
+   `try`, so the `ReferenceError` is logged and the function returns the
+   "Ordinary Time"/green default. Reached when `serviceDetails.liturgical` is
+   missing and no season class can be read from `header` — always the case on
+   mobile, which passes no `header`.
+   **Fix:** call `getLiturgicalInfo(new Date(year, month-1, day))` parsed from the
+   `M/D/YY` string and map `season.name`, `color`, `specialDay`. Remove the
+   now-unused `getSeasonForDate` import if nothing else uses it.
+   **Test:** an Advent date with no `serviceDetails.liturgical` renders "Advent",
+   not "Ordinary Time".
+
+3. **Default header references an undefined `dates`.** The no-`header` branch
+   renders `dates?.find(...)`. Optional chaining does not help with an
+   undeclared identifier, so this branch would throw. **Currently unreachable:**
+   desktop always passes `header` and mobile skips the header block. **Fix:**
+   use `serviceDetails?.title`, falling back to `"Service Title"`, so the branch
+   is safe if a future caller omits `header`.
+   **Test:** render with `isMobile={false}` and no `header`; it renders without
+   throwing.
+
+Also: delete the second `case "THANKSGIVING":` in `getCurrentSeason`. The first
+already returns `ORDINARY_TIME`, so behavior is unchanged.
+
+- [ ] Step 1: Write the three tests; run; confirm each fails for the reason above.
+- [ ] Step 2: Apply the three fixes and the duplicate-case removal.
+- [ ] Step 3: Run the tests; all pass. Run `npx eslint` on the four files: no `no-undef`, no `no-duplicate-case`.
+- [ ] Step 4: Full suite green; commit.
+
+---
+
+### Task 12: Verify the build and push
 
 **Files:** none modified.
 
