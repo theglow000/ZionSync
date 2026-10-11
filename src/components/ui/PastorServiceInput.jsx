@@ -123,30 +123,32 @@ export const parseServiceContent = (
   });
   matched.forEach((el) => el?.id && usedIds.add(el.id));
 
+  // Stable ID from date, type and content, suffixed until unused
+  const newId = (type, line, index) => {
+    const cleanContent = line.replace(/[^a-zA-Z0-9]/g, "");
+    const baseId = formattedDate
+      ? `${formattedDate}_${type}_${cleanContent}`
+      : `temp_${type}_${cleanContent}`;
+    let id = baseId;
+    for (let n = index; usedIds.has(id); n++) id = `${baseId}_${n}`;
+    usedIds.add(id);
+    return id;
+  };
+
   const elements = lines.map((line, index) => {
     const existingElement = matched[index];
     if (existingElement) {
       return {
         ...existingElement,
+        // Legacy elements were saved without ids
+        id: existingElement.id ?? newId(existingElement.type, line, index),
         content: line, // Use original case from current content
       };
     }
 
     // If no stored element matches, classify the line
     const type = classifyLine(line);
-
-    // Generate stable ID based on date, type, and content
-    const cleanContent = line.replace(/[^a-zA-Z0-9]/g, "");
-    const baseId = formattedDate
-      ? `${formattedDate}_${type}_${cleanContent}`
-      : `temp_${type}_${cleanContent}`;
-
-    // Handle duplicate IDs by adding index suffix
-    let stableId = baseId;
-    if (usedIds.has(stableId)) {
-      stableId = `${baseId}_${index}`;
-    }
-    usedIds.add(stableId);
+    const stableId = newId(type, line, index);
 
     return {
       id: stableId,

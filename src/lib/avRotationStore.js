@@ -14,8 +14,28 @@ export const getRotationEpochs = (db) =>
 // Two upserts racing on the same date can both insert unless the database
 // itself forbids it. The loser gets a duplicate-key error (11000).
 const isDuplicateKey = (err) => err?.code === 11000;
-const ensureEpochIndex = (db) =>
-  db.collection(EPOCHS).createIndex({ effectiveDate: 1 }, { unique: true });
+
+// The index is built once per server instance (keyed by database name; each
+// request gets a fresh Db object) and is best-effort: if production already
+// holds duplicate dates, building it fails, and that must not take the A/V
+// tab down. A failed build is retried on the next request.
+const indexBuilds = new Map();
+const ensureEpochIndex = (db) => {
+  const key = db.databaseName || db;
+  if (!indexBuilds.has(key)) {
+    indexBuilds.set(
+      key,
+      db
+        .collection(EPOCHS)
+        .createIndex({ effectiveDate: 1 }, { unique: true })
+        .catch((err) => {
+          indexBuilds.delete(key);
+          console.error("av_rotation_epochs unique index not created:", err);
+        }),
+    );
+  }
+  return indexBuilds.get(key);
+};
 
 /**
  * Create the first rotation (10/25/26) once. Core flags are set only when this

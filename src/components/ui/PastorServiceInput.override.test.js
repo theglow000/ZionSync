@@ -71,4 +71,26 @@ describe("parseServiceContent - pastor type overrides", () => {
     );
     expect(reloaded.map((e) => e.type)).toEqual(["song_hymn", "song_hymn"]);
   });
+
+  test("legacy elements saved without ids get distinct ids", () => {
+    const stored = [
+      { type: "song_hymn", content: "Hymn:" },
+      { type: "song_hymn", content: "Hymn:" },
+    ];
+    const ids = parseServiceContent("Hymn:\nHymn:", date, stored).map(
+      (e) => e.id,
+    );
+    expect(ids.every(Boolean)).toBe(true);
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  test("a generated id never duplicates a stored element's id", () => {
+    const stored = [
+      { id: "1525_song_hymn_Hymn_2", type: "liturgy", content: "Greeting" },
+    ];
+    const ids = parseServiceContent("Greeting\nHymn:\nHymn:", date, stored).map(
+      (e) => e.id,
+    );
+    expect(new Set(ids).size).toBe(3);
+  });
 });

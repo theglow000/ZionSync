@@ -189,3 +189,40 @@ describe("concurrent writers", () => {
     );
   });
 });
+
+describe("unique index is best-effort", () => {
+  const failingIndex = (db) => {
+    const real = db.collection;
+    let calls = 0;
+    db.collection = (n) => ({
+      ...real(n),
+      createIndex: async () => {
+        calls += 1;
+        throw Object.assign(new Error("E11000 building index"), {
+          code: 11000,
+        });
+      },
+    });
+    return () => calls;
+  };
+
+  it("existing duplicates block the index but never the A/V tab or Core toggle", async () => {
+    const db = fakeDb({
+      av_users: ["Ben", "Doug", "Jaimes", "Brett"].map((n) => user(n)),
+    });
+    failingIndex(db);
+    const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+    await expect(ensureRotationSeeded(db)).resolves.toBeUndefined();
+    const epochs = await recordRotationChange(db, parseServiceDate("11/4/26"));
+    expect(epochs.map((e) => e.effectiveDate)).toContain("11/15/26");
+    spy.mockRestore();
+  });
+
+  it("builds the index once per database, not on every request", async () => {
+    const db = fakeDb({ av_users: [user("Ben")] });
+    await ensureRotationSeeded(db);
+    await ensureRotationSeeded(db);
+    await recordRotationChange(db, parseServiceDate("11/4/26"));
+    expect(db.data.indexes).toHaveLength(1);
+  });
+});
