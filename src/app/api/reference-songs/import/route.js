@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb.js";
 import { readJsonBody } from "@/lib/apiSchemas";
+import { escapeRegex } from "@/lib/escapeRegex";
 
 export async function POST(request) {
   try {
@@ -38,7 +39,9 @@ export async function POST(request) {
 
     // First try a case-insensitive exact match on title and type
     existingSong = await db.collection("songs").findOne({
-      title: { $regex: new RegExp(`^${referenceSong.title}$`, "i") },
+      title: {
+        $regex: new RegExp(`^${escapeRegex(referenceSong.title)}$`, "i"),
+      },
       type: referenceSong.type,
     });
 

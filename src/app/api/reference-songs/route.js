@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { readJsonBody } from "@/lib/apiSchemas";
+import { escapeRegex } from "@/lib/escapeRegex";
 
 export async function GET(request) {
   try {
@@ -27,9 +28,11 @@ export async function GET(request) {
 
     // Text search if query is provided
     if (query) {
+      // Search the typed text literally; raw input as a pattern breaks on "("
+      const pattern = escapeRegex(query);
       queryObj.$or = [
-        { title: { $regex: query, $options: "i" } },
-        { author: { $regex: query, $options: "i" } },
+        { title: { $regex: pattern, $options: "i" } },
+        { author: { $regex: pattern, $options: "i" } },
       ];
     }
 

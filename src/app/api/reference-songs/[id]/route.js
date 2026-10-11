@@ -6,7 +6,7 @@ import { readJsonBody } from "@/lib/apiSchemas";
 // Get a specific reference song by ID
 export async function GET(request, { params }) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     if (!id || !ObjectId.isValid(id)) {
       return NextResponse.json({ message: "Invalid song ID" }, { status: 400 });
@@ -25,7 +25,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(song);
   } catch (e) {
-    console.error(`Error getting reference song ${params?.id}:`, e);
+    console.error("Error getting reference song:", e);
     return NextResponse.json({ message: e.message }, { status: 500 });
   }
 }
@@ -33,7 +33,7 @@ export async function GET(request, { params }) {
 // Update a reference song
 export async function PUT(request, { params }) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const parsedBody = await readJsonBody(request);
     if (!parsedBody.success) return parsedBody.response;
     const updateData = parsedBody.data;
@@ -105,7 +105,7 @@ export async function PUT(request, { params }) {
       success: true,
     });
   } catch (e) {
-    console.error(`Error updating reference song ${params?.id}:`, e);
+    console.error("Error updating reference song:", e);
     return NextResponse.json({ message: e.message }, { status: 500 });
   }
 }
@@ -113,7 +113,7 @@ export async function PUT(request, { params }) {
 // Delete a reference song
 export async function DELETE(request, { params }) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     if (!id || !ObjectId.isValid(id)) {
       return NextResponse.json({ message: "Invalid song ID" }, { status: 400 });
@@ -135,7 +135,7 @@ export async function DELETE(request, { params }) {
       success: true,
     });
   } catch (e) {
-    console.error(`Error deleting reference song ${params?.id}:`, e);
+    console.error("Error deleting reference song:", e);
     return NextResponse.json({ message: e.message }, { status: 500 });
   }
 }

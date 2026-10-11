@@ -26,7 +26,13 @@ export async function GET(request) {
     if (includeRotation) {
       // Get the song data first to include rotation information
       const song = songId
-        ? await db.collection("songs").findOne({ _id: new ObjectId(songId) })
+        ? await db
+            .collection("songs")
+            .findOne(
+              ObjectId.isValid(songId)
+                ? { _id: new ObjectId(songId) }
+                : { _id: null },
+            )
         : await db.collection("songs").findOne({ title: songTitle });
 
       if (!song) {
