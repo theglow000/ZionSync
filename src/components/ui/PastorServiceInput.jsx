@@ -8,7 +8,6 @@ import {
   ArrowLeft,
   Save,
   FileText,
-  Edit3,
 } from "lucide-react";
 import AddCustomService from "./AddCustomService";
 import useResponsive from "../../hooks/useResponsive";
@@ -61,7 +60,11 @@ const getSundayInfo = (dateStr) => {
 };
 
 // Update the parseServiceContent function to be more specific with song detection
-const parseServiceContent = (content, dateStr, existingElements = []) => {
+export const parseServiceContent = (
+  content,
+  dateStr,
+  existingElements = [],
+) => {
   // If no content provided, return empty array
   if (!content) return [];
 
@@ -69,16 +72,26 @@ const parseServiceContent = (content, dateStr, existingElements = []) => {
   const formattedDate = dateStr ? dateStr.replace(/\//g, "") : "";
 
   // Create a map of existing elements for type lookup and ID preservation
-  const existingElementMap = {};
   const existingContentMap = {};
+
+  // Elements are matched to lines by text. The worship team rewrites a song
+  // line's content ("Opening Hymn:" -> "Opening Hymn: Amazing Grace #123"),
+  // so a full-text key stops matching and the line gets reclassified --
+  // silently discarding any type the pastor had corrected by hand. Index the
+  // label too, so a filled line still resolves back to its stored element.
+  // Both indexes keep every match in order, and each stored element is used
+  // at most once, so repeated lines ("Hymn:" twice) keep separate elements.
+  const existingLabelMap = {};
+  const push = (map, key, el) => (map[key] = [...(map[key] || []), el]);
 
   if (existingElements && existingElements.length) {
     existingElements.forEach((el) => {
-      if (el.content) {
-        const key = el.content.toLowerCase().trim();
-        existingElementMap[key] = el.type;
-        existingContentMap[key] = el;
-      }
+      if (!el.content) return;
+      const key = el.content.toLowerCase().trim();
+      push(existingContentMap, key, el);
+
+      const label = el.content.split(":")[0].trim().toLowerCase();
+      if (label) push(existingLabelMap, label, el);
     });
   }
 
@@ -94,7 +107,11 @@ const parseServiceContent = (content, dateStr, existingElements = []) => {
       const lineKey = line.toLowerCase().trim();
 
       // First check if this exact line exists in our map to preserve its ID and type
-      const existingElement = existingContentMap[lineKey];
+      const labelKey = line.split(":")[0].trim().toLowerCase();
+      const existingElement = [
+        ...(existingContentMap[lineKey] || []),
+        ...(existingLabelMap[labelKey] || []),
+      ].find((el) => !usedIds.has(el.id));
       if (existingElement) {
         usedIds.add(existingElement.id);
         return {
@@ -316,65 +333,6 @@ const getStandardServiceElements = (date) => ({
     { content: "Postlude", type: "liturgy" },
   ],
 });
-
-const determineElementType = (line) => {
-  const lowerLine = line.toLowerCase().trim();
-
-  // Special case for Children's Message - check this first
-  if (
-    lowerLine.includes("children's message") ||
-    (lowerLine.includes("children") && lowerLine.includes("message"))
-  ) {
-    return "liturgy";
-  }
-
-  // Song/Hymn detection
-  if (
-    lowerLine.includes("hymn:") ||
-    lowerLine.includes("hymn of the day") ||
-    lowerLine.includes("opening hymn") ||
-    lowerLine.includes("sending song") ||
-    lowerLine.includes("anthem:") ||
-    lowerLine.includes("song:")
-  ) {
-    return "song_hymn";
-  }
-
-  // Reading detection
-  if (
-    lowerLine.includes("reading:") ||
-    lowerLine.includes("lesson:") ||
-    lowerLine.includes("psalm:") ||
-    lowerLine.includes("gospel:")
-  ) {
-    return "reading";
-  }
-
-  // Message/Sermon detection - make sure it's not a children's message
-  if (
-    (lowerLine.includes("sermon:") || lowerLine.includes("message:")) &&
-    !lowerLine.includes("children's message") &&
-    !lowerLine.includes("children")
-  ) {
-    return "message";
-  }
-
-  // Liturgical song detection
-  if (
-    lowerLine.includes("kyrie") ||
-    lowerLine.includes("alleluia") ||
-    lowerLine.includes("create in me") ||
-    lowerLine.includes("lamb of god") ||
-    lowerLine.includes("this is the feast") ||
-    lowerLine.includes("glory to god") ||
-    lowerLine.includes("change my heart")
-  ) {
-    return "liturgical_song";
-  }
-
-  // Default to liturgy
-  return "liturgy";
-};
 
 const PastorServiceInput = ({ date, onClose, onSave, serviceDetails }) => {
   // Add the responsive hook
@@ -815,7 +773,6 @@ Postlude`,
   const handleElementTypeChange = (elementIndex, newType) => {
     const updatedElements = [...serviceElementLines];
     const element = updatedElements[elementIndex];
-    const oldType = element.type;
 
     // If the type is changing, we need to regenerate the ID
     if (element.type !== newType) {
@@ -966,7 +923,6 @@ Postlude`,
   const adjustLayoutSizes = () => {
     if (!cardRef.current) return;
 
-    const windowHeight = window.innerHeight;
     const cardHeight = cardRef.current.offsetHeight;
     const headerHeight = 70; // Approximate header height
     const footerHeight = 70; // Approximate footer height
@@ -1120,10 +1076,7 @@ Postlude`,
   );
 
   // Helper function for rendering service element detail fields
-  const renderElementDetailFields = (element, index) => {
-    const elementId = element.id;
-    const details = elementDetails[elementId] || {};
-
+  const renderElementDetailFields = (element) => {
     switch (element.type) {
       case "reading":
         // Now handling reading fields in the main element rendering
@@ -1562,7 +1515,7 @@ Postlude`,
               });
 
               if (response.ok) {
-                const savedService = await response.json();
+                await response.json();
                 const updatedServices = await fetchWithTimeout(
                   "/api/custom-services",
                 ).then((res) => res.json());
