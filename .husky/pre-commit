@@ -1,11 +1,9 @@
 echo "🔍 Running pre-commit quality checks..."
 
-# Run lint-staged for formatting
+# Format and lint the files being committed. Linting only staged files keeps
+# old findings elsewhere in the repo from blocking unrelated commits.
+echo "📝 Formatting and linting staged files..."
 npx lint-staged
-
-# Run ESLint
-echo "📝 Checking code quality with ESLint..."
-npx eslint . --max-warnings 50
 
 # Run tests to ensure nothing broke
 echo "🧪 Running tests..."

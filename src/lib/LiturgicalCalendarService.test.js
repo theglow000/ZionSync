@@ -7,12 +7,10 @@ import {
   calculateAshWednesday,
   getCurrentSeason,
   getSpecialDay,
-  getSeasonColor,
   getLiturgicalInfo,
   clearCache,
   isReformationSunday,
   isAllSaintsDay,
-  isChristTheKingSunday,
   validateEasterDate,
   validateLiturgicalDate,
   validateServiceDateRange,
@@ -370,9 +368,10 @@ describe("LiturgicalCalendarService", () => {
       expect(getCurrentSeason(new Date(2026, 0, 6))).toBe("EPIPHANY");
     });
 
-    test("handles extreme early Easter correctly", () => {
-      // March 22 is the earliest possible Easter
-      const earlyEaster = new Date(2285, 2, 22);
+    test("handles earliest Easter in the supported range correctly", () => {
+      // Easter can fall as early as March 22, but the earliest occurrence
+      // inside this service's supported range (1970-2100) is March 23, 2008.
+      const earlyEaster = new Date(2008, 2, 23);
       expect(getCurrentSeason(earlyEaster)).toBe("EASTER");
     });
 
@@ -397,11 +396,15 @@ describe("LiturgicalCalendarService", () => {
         expect(result2026.calculatedDate.getDate()).toBe(5);
       });
 
-      test("validates earliest possible Easter (March 22)", () => {
-        const result = validateEasterDate(2285);
+      test("validates earliest Easter in the supported range (March 23, 2008)", () => {
+        const result = validateEasterDate(2008);
         expect(result.isValid).toBe(true);
         expect(result.calculatedDate.getMonth()).toBe(2);
-        expect(result.calculatedDate.getDate()).toBe(22);
+        expect(result.calculatedDate.getDate()).toBe(23);
+      });
+
+      test("rejects a year beyond the supported range", () => {
+        expect(() => validateEasterDate(2285)).toThrow(/2100/);
       });
 
       test("validates latest possible Easter (April 25)", () => {
