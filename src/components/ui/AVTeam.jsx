@@ -22,7 +22,6 @@ import {
 } from "../../utils/errorHandler";
 import {
   POLLING_INTERVAL,
-  AV_ROTATION_MEMBERS,
   COLOR_THEMES,
   API_ENDPOINTS,
 } from "../../lib/constants";
@@ -36,6 +35,7 @@ import {
   apiPut,
 } from "../../lib/api-utils";
 import UserSelectionModal from "./UserSelectionModal";
+import { getRotationCrew, parseServiceDate } from "../../lib/avRotation";
 import AddUserModal from "./AddUserModal";
 import ServiceTimeModal from "./ServiceTimeModal";
 import {
@@ -58,6 +58,7 @@ const AVTeam = ({ selectedYear, setSelectedYear, availableYears }) => {
   const [pendingActions, setPendingActions] = useState({}); // Track pending debounced actions
   const [showServiceTimeModal, setShowServiceTimeModal] = useState(false);
   const [serviceTimeForDate, setServiceTimeForDate] = useState({}); // Stores service times for dates: { "12/24/25": ["3:00 PM", "7:00 PM"] }
+  const [rotationEpochs, setRotationEpochs] = useState([]); // Core rotation history, see lib/avRotation.js
 
   // Refs for auto-scrolling to current date (consolidated for both views)
   const dateRefs = React.useRef({});
@@ -101,9 +102,6 @@ const AVTeam = ({ selectedYear, setSelectedYear, availableYears }) => {
     [showAlertWithTimeout],
   );
 
-  // Use rotation members from constants
-  const rotationMembers = useMemo(() => AV_ROTATION_MEMBERS, []);
-
   // Helper to get assignment key (date or date|serviceTime)
   const getAssignmentKey = useCallback((date, serviceTime = null) => {
     return serviceTime ? `${date}|${serviceTime}` : date;
@@ -122,13 +120,29 @@ const AVTeam = ({ selectedYear, setSelectedYear, availableYears }) => {
   const [dates, setDates] = useState([]);
   const [datesLoading, setDatesLoading] = useState(false);
 
-  // Memoize rotation member calculation
-  const getRotationMember = useCallback(
-    (index) => {
-      return rotationMembers[index % rotationMembers.length];
-    },
-    [rotationMembers],
+  // Default crew for a service; hand-picked names override it when rendering
+  const getCrew = useCallback(
+    (item, index) =>
+      getRotationCrew({
+        date: item.date,
+        type: item.type,
+        legacyIndex: index,
+        epochs: rotationEpochs,
+      }),
+    [rotationEpochs],
   );
+
+  // The rotation that will be in force going forward (latest epoch)
+  const upcomingCoreCount = useMemo(() => {
+    if (rotationEpochs.length === 0) return null;
+    const latest = [...rotationEpochs]
+      .sort(
+        (a, b) =>
+          parseServiceDate(a.effectiveDate) - parseServiceDate(b.effectiveDate),
+      )
+      .pop();
+    return latest.members.length;
+  }, [rotationEpochs]);
 
   // Sprint 4.2: Fetch dates dynamically based on selected year
   useEffect(() => {
@@ -226,30 +240,7 @@ const AVTeam = ({ selectedYear, setSelectedYear, availableYears }) => {
         const existingUsers = await usersResponse.json();
         const currentUsers = Array.isArray(existingUsers) ? existingUsers : [];
 
-        // Initialize required team members if they don't exist
-        const initialMembers = ["Ben", "Doug", "Jaimes", "Laila", "Brett"];
-
-        for (const member of initialMembers) {
-          if (!currentUsers.some((user) => user.name === member)) {
-            const addResponse = await fetchWithTimeout(API_ENDPOINTS.AV_USERS, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ name: member }),
-            });
-            if (!addResponse.ok) {
-              console.error(`Failed to add user ${member}`);
-            }
-          }
-        }
-
-        // Fetch final user list
-        const finalUsersResponse = await fetchWithTimeout(
-          API_ENDPOINTS.AV_USERS,
-        );
-        if (!finalUsersResponse.ok)
-          throw new Error("Failed to fetch final user list");
-        const finalUsers = await finalUsersResponse.json();
-        setAvailableUsers(Array.isArray(finalUsers) ? finalUsers : []);
+        setAvailableUsers(currentUsers);
 
         // Fetch assignments
         const assignmentsResponse = await fetchWithTimeout(
@@ -258,6 +249,7 @@ const AVTeam = ({ selectedYear, setSelectedYear, availableYears }) => {
         if (!assignmentsResponse.ok)
           throw new Error("Failed to fetch assignments");
         const assignmentsData = await assignmentsResponse.json();
+        setRotationEpochs(assignmentsData.rotationEpochs || []);
 
         if (assignmentsData.assignments) {
           // Group assignments by date+serviceTime composite key
@@ -640,14 +632,46 @@ const AVTeam = ({ selectedYear, setSelectedYear, availableYears }) => {
 
   // Handle deletion from modal with useCallback optimization
   const handleDeleteFromModal = useCallback(() => {
-    if (!editingPosition || editingPosition.position !== 3) return;
+    if (!editingPosition) return;
 
-    const { date, serviceTime } = editingPosition;
-    handleRemoveAssignment(date, serviceTime);
+    const { date, position, serviceTime } = editingPosition;
+    if (position === 3) {
+      handleRemoveAssignment(date, serviceTime);
+    } else {
+      // Clearing slot 1/2 drops the hand-pick: rotation services fall back
+      // to the rotation crew, sign-up services reopen the slot
+      debouncedAssignment(date, position, null, serviceTime);
+    }
 
     // Close the modal
     setEditingPosition(null);
-  }, [editingPosition, handleRemoveAssignment]);
+  }, [editingPosition, handleRemoveAssignment, debouncedAssignment]);
+
+  const handleToggleCore = useCallback(
+    async (name, core) => {
+      try {
+        const response = await fetchWithTimeout(API_ENDPOINTS.AV_USERS, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, core }),
+        });
+        if (!response.ok) throw new Error("Failed to update core member");
+        const result = await response.json();
+
+        setAvailableUsers((prev) =>
+          prev.map((u) => (u.name === name ? { ...u, core } : u)),
+        );
+        setRotationEpochs(result.rotationEpochs || []);
+        handleSuccess(
+          `${name} ${core ? "added to" : "removed from"} the core rotation`,
+        );
+      } catch (error) {
+        console.error("Error updating core member:", error);
+        handleError(error, "Error updating core member");
+      }
+    },
+    [handleSuccess, handleError],
+  );
 
   // Fetch all users including deleted ones when editing past dates
   const fetchAllUsers = useCallback(async () => {
@@ -684,6 +708,7 @@ const AVTeam = ({ selectedYear, setSelectedYear, availableYears }) => {
       ? `${formattedTitle} - ${serviceTime}`
       : formattedTitle;
     const allTimesForDate = serviceTimeForDate[item.date] || [];
+    const crew = getCrew(item, index);
 
     return (
       <tr
@@ -729,61 +754,63 @@ const AVTeam = ({ selectedYear, setSelectedYear, availableYears }) => {
             )}
           </div>
         </td>
-        <td style={{ width: "16%" }} className="p-2 border-r border-gray-300">
-          <div
-            className={`p-2 rounded bg-red-700 ${isPastDate(item.date) ? "opacity-50" : "bg-opacity-40"} flex justify-between items-center`}
-          >
-            <span className="flex-1 text-center pr-2">
-              {assignment?.team_member_1 || "Ben"}
-            </span>
-            <button
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                setAlertPosition({
-                  x: rect.left + rect.width / 2,
-                  y: rect.top,
-                });
-                setEditingPosition({
-                  date: item.date,
-                  position: 1,
-                  currentMember: assignment?.team_member_1 || "Ben",
-                  serviceTime,
-                });
-              }}
-              className="text-red-500 hover:text-red-700 flex-shrink-0"
+        {[1, 2].map((position) => {
+          const name =
+            assignment?.[`team_member_${position}`] || crew[`slot${position}`];
+          return (
+            <td
+              key={position}
+              style={{ width: "16%" }}
+              className="p-2 border-r border-gray-300"
             >
-              <Edit2 className="w-4 h-4" />
-            </button>
-          </div>
-        </td>
-        <td style={{ width: "16%" }} className="p-2 border-r border-gray-300">
-          <div
-            className={`p-2 rounded bg-red-700 ${isPastDate(item.date) ? "opacity-50" : "bg-opacity-40"} flex justify-between items-center`}
-          >
-            <span className="flex-1 text-center pr-2">
-              {assignment?.team_member_2 || getRotationMember(index)}
-            </span>
-            <button
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                setAlertPosition({
-                  x: rect.left + rect.width / 2,
-                  y: rect.top,
-                });
-                setEditingPosition({
-                  date: item.date,
-                  position: 2,
-                  currentMember:
-                    assignment?.team_member_2 || getRotationMember(index),
-                  serviceTime,
-                });
-              }}
-              className="text-red-500 hover:text-red-700 flex-shrink-0"
-            >
-              <Edit2 className="w-4 h-4" />
-            </button>
-          </div>
-        </td>
+              {name ? (
+                <div
+                  className={`p-2 rounded bg-red-700 ${isPastDate(item.date) ? "opacity-50" : "bg-opacity-40"} flex justify-between items-center`}
+                >
+                  <span className="flex-1 text-center pr-2">{name}</span>
+                  <button
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setAlertPosition({
+                        x: rect.left + rect.width / 2,
+                        y: rect.top,
+                      });
+                      setEditingPosition({
+                        date: item.date,
+                        position,
+                        currentMember: name,
+                        serviceTime,
+                      });
+                    }}
+                    className="text-red-500 hover:text-red-700 flex-shrink-0"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setAlertPosition({
+                      x: rect.left + rect.width / 2,
+                      y: rect.top,
+                    });
+                    setEditingPosition({
+                      date: item.date,
+                      position,
+                      serviceTime,
+                    });
+                  }}
+                  className={`w-full p-2 border rounded text-red-700 border-red-700 hover:bg-red-50 ${
+                    isPastDate(item.date) ? "opacity-50" : ""
+                  }`}
+                >
+                  Sign Up
+                </button>
+              )}
+            </td>
+          );
+        })}
         <td style={{ width: "16%" }} className="p-2">
           {assignment?.team_member_3 ? (
             <div
@@ -928,6 +955,12 @@ const AVTeam = ({ selectedYear, setSelectedYear, availableYears }) => {
               Manage Users
             </button>
           </div>
+          {upcomingCoreCount !== null && upcomingCoreCount < 2 && (
+            <div className="px-4 py-2 bg-yellow-50 border-b border-yellow-300 text-sm text-yellow-900">
+              The rotation needs at least 2 core members. Upcoming Sundays are
+              open for sign-up until more are marked Core in Manage Users.
+            </div>
+          )}
         </div>
 
         {/* Scrollable Content Section */}
@@ -1052,16 +1085,15 @@ const AVTeam = ({ selectedYear, setSelectedYear, availableYears }) => {
                           >
                             <MobileAVTeamCard
                               item={item}
-                              index={index}
                               assignments={assignments}
-                              rotationMembers={rotationMembers}
+                              crew={getCrew(item, index)}
                               isPastDate={isPastDate}
                               serviceTime={serviceTime}
                               getAssignment={getAssignment}
-                              onSignup={(date, serviceTime) => {
+                              onSignup={(date, serviceTime, position = 3) => {
                                 setEditingPosition({
                                   date,
-                                  position: 3,
+                                  position,
                                   serviceTime,
                                 });
                               }}
@@ -1095,16 +1127,15 @@ const AVTeam = ({ selectedYear, setSelectedYear, availableYears }) => {
                         >
                           <MobileAVTeamCard
                             item={item}
-                            index={index}
                             assignments={assignments}
-                            rotationMembers={rotationMembers}
+                            crew={getCrew(item, index)}
                             isPastDate={isPastDate}
                             serviceTime={null}
                             getAssignment={getAssignment}
-                            onSignup={(date) => {
+                            onSignup={(date, _serviceTime, position = 3) => {
                               setEditingPosition({
                                 date,
-                                position: 3,
+                                position,
                                 serviceTime: null,
                               });
                             }}
@@ -1154,49 +1185,84 @@ const AVTeam = ({ selectedYear, setSelectedYear, availableYears }) => {
               >
                 + Add New User
               </button>
+              <p className="text-xs text-gray-600">
+                Core members are scheduled automatically, two per Sunday.
+                Everyone else is a sub. Changes start on the first Sunday at
+                least a week away.
+              </p>
+              {availableUsers.filter((u) => u.core).length < 2 && (
+                <p className="text-xs text-yellow-800 bg-yellow-50 p-2 rounded">
+                  Mark at least 2 people as Core for the rotation to work.
+                </p>
+              )}
               <div className="space-y-2">
-                {availableUsers.map((user) => (
-                  <div
-                    key={user.name}
-                    className="flex items-center justify-between p-2 hover:bg-gray-50 rounded"
-                  >
-                    <span className="text-gray-900">{user.name}</span>
-                    <button
-                      onClick={async () => {
-                        const confirmed = await confirm({
-                          title: "Remove User",
-                          message: `Remove ${user.name} from the A/V team?`,
-                          details: [
-                            "This will permanently delete them from the users list",
-                          ],
-                          variant: "danger",
-                          confirmText: "Remove",
-                          cancelText: "Cancel",
-                        });
-
-                        if (confirmed) {
-                          try {
-                            await apiDelete(API_ENDPOINTS.AV_USERS, {
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ name: user.name }),
-                            });
-
-                            setAvailableUsers((prev) =>
-                              prev.filter((u) => u.name !== user.name),
-                            );
-                            handleSuccess("User removed successfully");
-                          } catch (error) {
-                            console.error("Error removing user:", error);
-                            handleError(error, "Error removing user");
-                          }
-                        }
-                      }}
-                      className="text-red-500 hover:text-red-700"
+                {[...availableUsers]
+                  .sort(
+                    (a, b) =>
+                      Number(!!b.core) - Number(!!a.core) ||
+                      a.name.localeCompare(b.name),
+                  )
+                  .map((user) => (
+                    <div
+                      key={user.name}
+                      className="flex items-center justify-between p-2 hover:bg-gray-50 rounded"
                     >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+                      <span className="text-gray-900 flex-1">{user.name}</span>
+                      <label className="flex items-center gap-1 mr-3 text-sm text-gray-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={!!user.core}
+                          onChange={(e) =>
+                            handleToggleCore(user.name, e.target.checked)
+                          }
+                          className="accent-red-700"
+                        />
+                        Core
+                      </label>
+                      <button
+                        onClick={async () => {
+                          const confirmed = await confirm({
+                            title: "Remove User",
+                            message: `Remove ${user.name} from the A/V team?`,
+                            details: [
+                              "This will permanently delete them from the users list",
+                            ],
+                            variant: "danger",
+                            confirmText: "Remove",
+                            cancelText: "Cancel",
+                          });
+
+                          if (confirmed) {
+                            try {
+                              const result = await apiDelete(
+                                API_ENDPOINTS.AV_USERS,
+                                {
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({ name: user.name }),
+                                },
+                              );
+                              if (result?.rotationEpochs) {
+                                setRotationEpochs(result.rotationEpochs);
+                              }
+
+                              setAvailableUsers((prev) =>
+                                prev.filter((u) => u.name !== user.name),
+                              );
+                              handleSuccess("User removed successfully");
+                            } catch (error) {
+                              console.error("Error removing user:", error);
+                              handleError(error, "Error removing user");
+                            }
+                          }
+                        }}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
               </div>
             </div>
           </div>

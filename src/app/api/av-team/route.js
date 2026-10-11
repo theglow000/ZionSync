@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { ensureRotationSeeded, getRotationEpochs } from "@/lib/avRotationStore";
 
 export async function GET() {
   try {
@@ -21,10 +22,15 @@ export async function GET() {
     // Get completed status
     const completed = await db.collection("av_completed").find({}).toArray();
 
+    // Core rotation history (first call creates the initial rotation)
+    await ensureRotationSeeded(db);
+    const rotationEpochs = await getRotationEpochs(db);
+
     return NextResponse.json({
       teamMembers,
       assignments,
       completed,
+      rotationEpochs,
     });
   } catch (e) {
     console.error("Error in GET /api/av-team:", e);

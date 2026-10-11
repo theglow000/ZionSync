@@ -138,7 +138,16 @@ export const DATES_2025 = [
 // A/V TEAM SPECIFIC
 // ===========================
 
-export const AV_ROTATION_MEMBERS = ["Doug", "Jaimes", "Brett"];
+// Slot-2 cycle used before the core rotation took over (Ben held slot 1).
+// Only services dated before AV_ROTATION_SEED.effectiveDate use it.
+export const AV_LEGACY_ROTATION_MEMBERS = ["Doug", "Jaimes", "Brett"];
+export const AV_LEGACY_SLOT_1 = "Ben";
+
+// First core rotation, created automatically on first load.
+export const AV_ROTATION_SEED = {
+  effectiveDate: "10/25/26",
+  members: ["Ben", "Doug", "Jaimes", "Brett", "Abbey"],
+};
 
 // ===========================
 // API ENDPOINTS
@@ -232,7 +241,9 @@ export default {
   DEBOUNCE_DELAYS,
   COLOR_THEMES,
   DATES_2025,
-  AV_ROTATION_MEMBERS,
+  AV_LEGACY_ROTATION_MEMBERS,
+  AV_LEGACY_SLOT_1,
+  AV_ROTATION_SEED,
   API_ENDPOINTS,
   VALIDATION,
   MODAL_Z_INDEX,

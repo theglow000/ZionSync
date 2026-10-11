@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { recordRotationChange } from "@/lib/avRotationStore";
 
 export async function GET(request) {
   try {
@@ -60,11 +61,55 @@ export async function POST(request) {
   }
 }
 
+// Toggle core membership: { name, core }. Records the rotation change and
+// returns the updated user plus all rotation epochs.
+export async function PATCH(request) {
+  try {
+    const body = await request.json();
+    if (!body.name || typeof body.core !== "boolean") {
+      return NextResponse.json(
+        { error: "name and boolean core are required" },
+        { status: 400 },
+      );
+    }
+
+    const client = await clientPromise;
+    const db = client.db("church");
+
+    const result = await db
+      .collection("av_users")
+      .updateOne(
+        { name: body.name, deleted: { $ne: true } },
+        { $set: { core: body.core } },
+      );
+    if (result.matchedCount === 0) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const rotationEpochs = await recordRotationChange(db);
+
+    return NextResponse.json({
+      name: body.name,
+      core: body.core,
+      rotationEpochs,
+    });
+  } catch (e) {
+    console.error("Error in PATCH /api/av-users:", e);
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
+
 export async function DELETE(request) {
   try {
     const body = await request.json();
     const client = await clientPromise;
     const db = client.db("church");
+
+    const wasCore = !!(
+      await db
+        .collection("av_users")
+        .findOne({ name: body.name, deleted: { $ne: true } })
+    )?.core;
 
     // Soft delete: Mark user as deleted instead of removing them
     const deleteUserResult = await db.collection("av_users").updateOne(
@@ -73,6 +118,7 @@ export async function DELETE(request) {
         $set: {
           deleted: true,
           deletedAt: new Date(),
+          core: false,
         },
       },
     );
@@ -125,10 +171,14 @@ export async function DELETE(request) {
       // else: Skip past dates to preserve historical record
     }
 
+    // A core member leaving re-balances the rotation
+    const rotationEpochs = wasCore ? await recordRotationChange(db) : undefined;
+
     return NextResponse.json({
       success: true,
-      deleted: deleteUserResult.deletedCount > 0,
+      deleted: deleteUserResult.modifiedCount > 0,
       assignmentsUpdated: assignmentsUpdated,
+      rotationEpochs,
     });
   } catch (e) {
     console.error("Error in DELETE /api/av-users:", e);
