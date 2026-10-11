@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { recordRotationChange } from "@/lib/avRotationStore";
+import { coreToggleSchema, nameOnlySchema, parseBody } from "@/lib/apiSchemas";
 
 export async function GET(request) {
   try {
@@ -23,7 +24,10 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const parsed = parseBody(nameOnlySchema, await request.json());
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
+
     const client = await clientPromise;
     const db = client.db("church");
 
@@ -65,13 +69,9 @@ export async function POST(request) {
 // returns the updated user plus all rotation epochs.
 export async function PATCH(request) {
   try {
-    const body = await request.json();
-    if (!body.name || typeof body.core !== "boolean") {
-      return NextResponse.json(
-        { error: "name and boolean core are required" },
-        { status: 400 },
-      );
-    }
+    const parsed = parseBody(coreToggleSchema, await request.json());
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
 
     const client = await clientPromise;
     const db = client.db("church");
@@ -101,7 +101,10 @@ export async function PATCH(request) {
 
 export async function DELETE(request) {
   try {
-    const body = await request.json();
+    const parsed = parseBody(nameOnlySchema, await request.json());
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
+
     const client = await clientPromise;
     const db = client.db("church");
 

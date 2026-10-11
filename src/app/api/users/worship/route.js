@@ -1,6 +1,7 @@
 // /api/worship-users/route.js
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { nameOnlySchema, parseBody } from "@/lib/apiSchemas";
 
 export async function GET() {
   try {
@@ -23,12 +24,15 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
+    const parsed = parseBody(nameOnlySchema, body);
+    if (!parsed.success) return parsed.response;
+    const { name } = parsed.data;
     const client = await clientPromise;
     const db = client.db("church");
 
     // Check if user already exists
     const existingUser = await db.collection("worship_users").findOne({
-      name: body.name,
+      name,
     });
 
     if (existingUser) {
@@ -37,8 +41,8 @@ export async function POST(request) {
 
     // Add new individual user
     const result = await db.collection("worship_users").insertOne({
-      name: body.name,
-      role: body.role || "team_member",
+      name,
+      role: typeof body.role === "string" ? body.role : "team_member",
       created: new Date(),
       lastUpdated: new Date(),
     });
@@ -46,8 +50,8 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       user: {
-        name: body.name,
-        role: body.role || "team_member",
+        name,
+        role: typeof body.role === "string" ? body.role : "team_member",
         _id: result.insertedId,
       },
     });
@@ -60,11 +64,14 @@ export async function POST(request) {
 export async function DELETE(request) {
   try {
     const body = await request.json();
+    const parsed = parseBody(nameOnlySchema, body);
+    if (!parsed.success) return parsed.response;
+    const { name } = parsed.data;
     const client = await clientPromise;
     const db = client.db("church");
 
     const result = await db.collection("worship_users").deleteOne({
-      name: body.name,
+      name,
     });
 
     return NextResponse.json({

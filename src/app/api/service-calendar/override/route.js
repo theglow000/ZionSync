@@ -6,6 +6,7 @@
 
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { readJsonBody } from "@/lib/apiSchemas";
 
 /**
  * PATCH /api/service-calendar/override
@@ -15,7 +16,9 @@ import clientPromise from "@/lib/mongodb";
  */
 export async function PATCH(request) {
   try {
-    const body = await request.json();
+    const parsedBody = await readJsonBody(request);
+    if (!parsedBody.success) return parsedBody.response;
+    const body = parsedBody.data;
     const { year, dateString, overrides, reason, userId } = body;
 
     // Validate required fields

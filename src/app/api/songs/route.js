@@ -7,6 +7,7 @@ import {
   songQuerySchema,
   createValidationResponse,
 } from "@/lib/validation";
+import { readJsonBody } from "@/lib/apiSchemas";
 
 export async function GET(request) {
   try {
@@ -62,7 +63,9 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const parsedBody = await readJsonBody(request);
+    if (!parsedBody.success) return parsedBody.response;
+    const body = parsedBody.data;
 
     // Validate input data
     const validation = validateSongData(body);
@@ -143,9 +146,9 @@ export async function DELETE(request) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
-    if (!id) {
+    if (!id || !ObjectId.isValid(id)) {
       return NextResponse.json(
-        { error: "Song ID is required" },
+        { error: "A valid song ID is required" },
         { status: 400 },
       );
     }

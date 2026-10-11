@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
+import { readJsonBody } from "@/lib/apiSchemas";
 
 export async function POST(request) {
   try {
-    const { sourceId, targetId } = await request.json();
+    const parsedBody = await readJsonBody(request);
+    if (!parsedBody.success) return parsedBody.response;
+    const { sourceId, targetId } = parsedBody.data;
 
     if (!sourceId || !targetId) {
       return NextResponse.json(

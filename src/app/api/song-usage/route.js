@@ -1,8 +1,10 @@
 // /src/app/api/song-usage/route.js
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { ObjectId } from "mongodb";
 import { createValidationResponse } from "@/lib/validation";
 import { z } from "zod";
+import { readJsonBody } from "@/lib/apiSchemas";
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -109,7 +111,9 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const parsedBody = await readJsonBody(request);
+    if (!parsedBody.success) return parsedBody.response;
+    const body = parsedBody.data;
 
     // Validate input data
     const validation = z
@@ -221,7 +225,7 @@ export async function POST(request) {
 }
 
 // Add a new endpoint for updating rotation status for all songs
-export async function PUT(request) {
+export async function PUT() {
   try {
     const client = await clientPromise;
     const db = client.db("church");

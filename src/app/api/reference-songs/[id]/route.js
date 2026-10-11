@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
+import { readJsonBody } from "@/lib/apiSchemas";
 
 // Get a specific reference song by ID
 export async function GET(request, { params }) {
@@ -33,7 +34,9 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
   try {
     const { id } = params;
-    const updateData = await request.json();
+    const parsedBody = await readJsonBody(request);
+    if (!parsedBody.success) return parsedBody.response;
+    const updateData = parsedBody.data;
 
     if (!id || !ObjectId.isValid(id)) {
       return NextResponse.json({ message: "Invalid song ID" }, { status: 400 });

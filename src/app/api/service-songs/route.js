@@ -6,6 +6,7 @@ import {
   serviceLiturgicalSchema,
   createValidationResponse,
 } from "@/lib/liturgical-validation";
+import { readJsonBody } from "@/lib/apiSchemas";
 
 export async function GET(request) {
   try {
@@ -122,7 +123,9 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const parsedBody = await readJsonBody(request);
+    if (!parsedBody.success) return parsedBody.response;
+    const body = parsedBody.data;
     const client = await clientPromise;
     const db = client.db("church");
 
@@ -194,10 +197,7 @@ export async function POST(request) {
           element.type === "song_contemporary"
         ) {
           // Get the selection for this song slot (could be empty)
-          const [slotKey, songData] = allSelections[currentSongSlot] || [
-            null,
-            null,
-          ];
+          const [, songData] = allSelections[currentSongSlot] || [null, null];
 
           if (songData && songData.title && songData.title.trim()) {
             // This slot has a valid song - update it

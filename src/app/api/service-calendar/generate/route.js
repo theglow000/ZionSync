@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { generateServicesForYear } from "@/lib/ServiceGenerator";
+import { readJsonBody } from "@/lib/apiSchemas";
 
 /**
  * POST /api/service-calendar/generate
@@ -16,7 +17,9 @@ import { generateServicesForYear } from "@/lib/ServiceGenerator";
  */
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const parsedBody = await readJsonBody(request);
+    if (!parsedBody.success) return parsedBody.response;
+    const body = parsedBody.data;
     const { year, overwrite = false } = body;
 
     // Validate year

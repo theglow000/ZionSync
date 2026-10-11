@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { signupSchema, parseBody } from "@/lib/apiSchemas";
 
 export async function GET() {
   try {
@@ -16,12 +17,15 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
+    const parsed = parseBody(signupSchema, body);
+    if (!parsed.success) return parsed.response;
+    const { date, name } = parsed.data;
     const client = await clientPromise;
     const db = client.db("church");
 
     const result = await db.collection("signups").insertOne({
-      date: body.date,
-      name: body.name,
+      date,
+      name,
       timestamp: new Date(),
     });
 
@@ -34,12 +38,15 @@ export async function POST(request) {
 export async function DELETE(request) {
   try {
     const body = await request.json();
+    const parsed = parseBody(signupSchema, body);
+    if (!parsed.success) return parsed.response;
+    const { date, name } = parsed.data;
     const client = await clientPromise;
     const db = client.db("church");
 
     const result = await db.collection("signups").deleteOne({
-      date: body.date,
-      name: body.name,
+      date,
+      name,
     });
 
     return NextResponse.json(result);

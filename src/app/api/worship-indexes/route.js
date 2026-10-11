@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { readJsonBody } from "@/lib/apiSchemas";
 
 export async function GET(request) {
   try {
@@ -32,7 +33,9 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const parsedBody = await readJsonBody(request);
+    if (!parsedBody.success) return parsedBody.response;
+    const body = parsedBody.data;
     const client = await clientPromise;
     const db = client.db("church");
 
@@ -99,7 +102,9 @@ export async function POST(request) {
 // Get song usage history and check for recent uses
 export async function PUT(request) {
   try {
-    const body = await request.json();
+    const parsedBody = await readJsonBody(request);
+    if (!parsedBody.success) return parsedBody.response;
+    const body = parsedBody.data;
     const client = await clientPromise;
     const db = client.db("church");
 

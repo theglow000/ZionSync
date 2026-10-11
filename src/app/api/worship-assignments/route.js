@@ -2,6 +2,7 @@
 
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { readJsonBody } from "@/lib/apiSchemas";
 
 // Single formatDate function for consistency
 function formatDate(dateStr) {
@@ -116,7 +117,9 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const parsedBody = await readJsonBody(request);
+    if (!parsedBody.success) return parsedBody.response;
+    const body = parsedBody.data;
     const formattedDate = formatDate(body.date);
 
     // Missing database connection
@@ -132,7 +135,7 @@ export async function POST(request) {
       }),
     };
 
-    const result = await db
+    await db
       .collection("worship_assignments")
       .updateOne(
         { date: formattedDate },
@@ -152,12 +155,14 @@ export async function POST(request) {
 
 export async function PUT(request) {
   try {
-    const { date, songsApproved, partialApproval } = await request.json();
+    const parsedBody = await readJsonBody(request);
+    if (!parsedBody.success) return parsedBody.response;
+    const { date, songsApproved, partialApproval } = parsedBody.data;
 
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB);
 
-    const result = await db.collection("assignments").updateOne(
+    await db.collection("assignments").updateOne(
       { date },
       {
         $set: {

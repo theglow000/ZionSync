@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getLiturgicalInfo } from "@/lib/LiturgicalCalendarService";
+import { readJsonBody } from "@/lib/apiSchemas";
 
 export async function GET(request) {
   try {
@@ -164,7 +165,9 @@ const parseServiceContent = (content) => {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const parsedBody = await readJsonBody(request);
+    if (!parsedBody.success) return parsedBody.response;
+    const body = parsedBody.data;
 
     if (!body.date) {
       throw new Error("Date is required");
@@ -206,7 +209,7 @@ export async function POST(request) {
       lastUpdated: new Date().toISOString(),
     };
 
-    const result = await db
+    await db
       .collection("serviceDetails")
       .updateOne({ date: body.date }, { $set: updateDoc }, { upsert: true });
 

@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { idOnlySchema, parseBody, readJsonBody } from "@/lib/apiSchemas";
 
 // Add PUT method for updating existing services
 export async function PUT(request) {
   try {
     const body = await request.json();
+    const parsed = parseBody(idOnlySchema, body);
+    if (!parsed.success) return parsed.response;
+    const { id } = parsed.data;
+
     const client = await clientPromise;
     const db = client.db("church");
-
-    // Ensure we have an ID
-    if (!body.id) {
-      throw new Error("Service ID is required");
-    }
 
     const updateDoc = {
       name: body.name,
@@ -23,16 +23,14 @@ export async function PUT(request) {
 
     const result = await db
       .collection("custom_services")
-      .updateOne({ id: body.id }, { $set: updateDoc });
+      .updateOne({ id }, { $set: updateDoc });
 
     if (result.matchedCount === 0) {
       return NextResponse.json({ error: "Service not found" }, { status: 404 });
     }
 
     // Return the updated document
-    const updated = await db
-      .collection("custom_services")
-      .findOne({ id: body.id });
+    const updated = await db.collection("custom_services").findOne({ id });
     return NextResponse.json(updated);
   } catch (e) {
     console.error("Error in PUT /api/custom-services:", e);
@@ -56,7 +54,9 @@ export async function GET() {
 // Update POST method to include better error handling
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const parsedBody = await readJsonBody(request);
+    if (!parsedBody.success) return parsedBody.response;
+    const body = parsedBody.data;
 
     const serviceDoc = {
       id: body.id,
@@ -85,12 +85,14 @@ export async function POST(request) {
 // DELETE custom service
 export async function DELETE(request) {
   try {
-    const body = await request.json();
+    const parsed = parseBody(idOnlySchema, await request.json());
+    if (!parsed.success) return parsed.response;
+
     const client = await clientPromise;
     const db = client.db("church");
 
     const result = await db.collection("custom_services").deleteOne({
-      id: body.id, // Use the string ID we created in POST
+      id: parsed.data.id, // Use the string ID we created in POST
     });
 
     if (result.deletedCount === 0) {

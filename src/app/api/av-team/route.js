@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { ensureRotationSeeded, getRotationEpochs } from "@/lib/avRotationStore";
+import {
+  avTeamPostSchema,
+  avServiceKeySchema,
+  parseBody,
+} from "@/lib/apiSchemas";
 
 export async function GET() {
   try {
@@ -40,7 +45,10 @@ export async function GET() {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const parsed = parseBody(avTeamPostSchema, await request.json());
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
+
     const client = await clientPromise;
     const db = client.db("church");
 
@@ -106,7 +114,10 @@ export async function POST(request) {
 
 export async function DELETE(request) {
   try {
-    const body = await request.json();
+    const parsed = parseBody(avServiceKeySchema, await request.json());
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
+
     const client = await clientPromise;
     const db = client.db("church");
 

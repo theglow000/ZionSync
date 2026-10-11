@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { readJsonBody } from "@/lib/apiSchemas";
 
 export async function GET() {
   try {
@@ -15,7 +16,9 @@ export async function GET() {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const parsedBody = await readJsonBody(request);
+    if (!parsedBody.success) return parsedBody.response;
+    const body = parsedBody.data;
     const client = await clientPromise;
     const db = client.db("church");
 

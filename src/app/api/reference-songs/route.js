@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { ObjectId } from "mongodb";
+import { readJsonBody } from "@/lib/apiSchemas";
 
 export async function GET(request) {
   try {
@@ -50,7 +50,9 @@ export async function GET(request) {
 // Create a new reference song
 export async function POST(request) {
   try {
-    const songData = await request.json();
+    const parsedBody = await readJsonBody(request);
+    if (!parsedBody.success) return parsedBody.response;
+    const songData = parsedBody.data;
 
     // Validate required fields
     if (!songData.title) {

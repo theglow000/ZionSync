@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getLiturgicalInfo } from "@/lib/LiturgicalCalendarService";
+import { readJsonBody } from "@/lib/apiSchemas";
 
 /**
  * POST /api/service-calendar/revert
@@ -16,7 +17,9 @@ import { getLiturgicalInfo } from "@/lib/LiturgicalCalendarService";
  */
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const parsedBody = await readJsonBody(request);
+    if (!parsedBody.success) return parsedBody.response;
+    const body = parsedBody.data;
     const { year, dateString } = body;
 
     // Validate required fields
