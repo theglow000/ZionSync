@@ -108,6 +108,7 @@ describe("operator injection", () => {
       deleteMany: ok,
       findOne: jest.fn().mockResolvedValue(null),
       find: () => ({ toArray: jest.fn().mockResolvedValue([]) }),
+      createIndex: ok,
     });
   };
 
@@ -186,7 +187,7 @@ describe("operator injection", () => {
     async (_label, handler, method, body) => {
       okDb();
       const res = await handler(req(method, body));
-      expect(res.status).not.toBe(400);
+      expect(res.status).toBeLessThan(400);
     },
   );
 });
