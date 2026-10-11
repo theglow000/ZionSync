@@ -2,9 +2,6 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   ChevronDown,
   ChevronUp,
-  Music,
-  Youtube,
-  Link,
   BookOpen,
   AlertCircle,
   Edit2,
@@ -12,14 +9,15 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import SongSection from "./SongSection";
 import Logger from "@/utils/logger";
-import { getSeasonForDate } from "../../lib/LiturgicalCalendarService";
+import { getLiturgicalInfo } from "../../lib/LiturgicalCalendarService";
 import {
   LITURGICAL_SEASONS,
   MAJOR_FEAST_DAYS,
 } from "../../lib/LiturgicalSeasons.js";
 import { useConfirm } from "../../hooks/useConfirm";
 import { LoadingSpinner } from "../shared";
-import { fetchWithTimeout, apiPost } from "../../lib/api-utils";
+import { fetchWithTimeout } from "../../lib/api-utils";
+import { applySelectionsToElements } from "@/lib/serviceElements";
 
 // Constants
 const hymnalVersions = [
@@ -143,35 +141,6 @@ const recordSongUsage = async (songs, date, serviceType, currentUser) => {
   }
 };
 
-// First, create a custom hook for debounced song search
-const useDebouncedSongSearch = (type, availableSongs, onSongFound) => {
-  const [searchTerm, setSearchTerm] = useState("");
-
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (searchTerm && searchTerm.length >= 2) {
-        // Only search after  characters
-        const songs =
-          type === "hymn" ? availableSongs?.hymn : availableSongs?.contemporary;
-        // Improve matching to include partial matches
-        const matches = songs
-          ?.filter(
-            (song) =>
-              song.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              (song.number && song.number.toString().startsWith(searchTerm)),
-          )
-          .slice(0, 5); // Limit to 5 suggestions for performance
-
-        if (matches?.length > 0) onSongFound(matches);
-      }
-    }, 300); // 300ms debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm, type, availableSongs, onSongFound]);
-
-  return setSearchTerm;
-};
-
 // Add this function near the top
 const cleanSongSelections = (selections) => {
   if (!selections) return {};
@@ -257,7 +226,6 @@ const ServiceSongSelector = ({
   availableSongs,
   header,
   isMobile = false, // Add this prop
-  ...props
 }) => {
   // Set context for all logs in this component
   Logger.setContext("ServiceSongSelector");
@@ -303,11 +271,6 @@ const ServiceSongSelector = ({
     fetchSelections();
   }, [expanded, date]);
 
-  useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-    }
-  }, [date, serviceDetails?.elements, serviceSongStates]);
-
   // Add near top of component
   useEffect(() => {}, [date, serviceDetails]);
   const handleSongStateUpdate = useCallback((slot, newState) => {
@@ -333,63 +296,6 @@ const ServiceSongSelector = ({
       };
     });
   }, []);
-
-  const getWeekInfo = (dateStr) => {
-    const [month, day, year] = dateStr.split("/").map(Number);
-    const date = new Date(2000 + year, month - 1, day);
-
-    // Get start of week (Sunday)
-    const startOfWeek = new Date(date);
-    startOfWeek.setDate(date.getDate() - date.getDay());
-
-    // Get end of week (Saturday)
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-
-    // Format as MM/DD/YY for consistency
-    const weekKey = `${startOfWeek.getMonth() + 1}/${startOfWeek.getDate()}/${year}`;
-
-    return {
-      weekKey,
-      weekNum: getWeekNumber(dateStr),
-      isFirstOfWeek: date.getDay() === 0, // Sunday
-      isWeekend: date.getDay() === 0 || date.getDay() === 6,
-    };
-  };
-
-  // Helper function to get week number for a date
-  const getWeekNumber = (dateStr) => {
-    const [month, day, year] = dateStr.split("/").map(Number);
-    const date = new Date(2000 + year, month - 1, day);
-    const startOfYear = new Date(2000 + year, 0, 1);
-    const days = Math.floor((date - startOfYear) / (24 * 60 * 60 * 1000));
-    return Math.ceil((days + startOfYear.getDay() + 1) / 7);
-  };
-
-  const getWeekStyles = (date) => {
-    const { weekNum, isFirstOfWeek } = getWeekInfo(date);
-    return `flex justify-between items-center p-3 cursor-pointer transition-colors duration-200 
-    ${weekNum % 2 === 0 ? "bg-purple-100/20" : "bg-purple-50/20"}
-    ${isFirstOfWeek ? "border-t-2 border-t-purple-200/20" : ""}`;
-  };
-
-  const getWeekClasses = (dateStr) => {
-    const { weekNum, isFirstOfWeek } = getWeekInfo(dateStr);
-
-    // Base classes that will always be applied
-    const baseClasses =
-      "flex justify-between items-center p-3 cursor-pointer transition-colors duration-200";
-
-    // Week alternating background classes
-    const bgClass = weekNum % 2 === 0 ? "bg-purple-50/30" : "bg-purple-100/20";
-
-    // Border classes for week separation
-    const borderClass = isFirstOfWeek
-      ? "border-t-2 border-purple-200/20"
-      : "border-t border-purple-100/10";
-
-    return `${baseClasses} ${bgClass} ${borderClass}`;
-  };
 
   // Add this helper function near your other helper functions
   const getReadingSections = (serviceDetails) => {
@@ -467,7 +373,6 @@ const ServiceSongSelector = ({
         x: rect.left + rect.width / 2,
         y: rect.top,
       });
-    } else {
     }
 
     // Increase timeout and add cleanup
@@ -477,30 +382,6 @@ const ServiceSongSelector = ({
 
     return () => clearTimeout(timeoutId);
   }, []); // Empty dependency array since it only uses setState functions
-
-  const formatHymnalName = (hymnal) => {
-    if (!hymnal) return "";
-    return hymnal.charAt(0).toUpperCase() + hymnal.slice(1);
-  };
-
-  // Update the formatSongDisplay function
-  const formatSongDisplay = (song) => {
-    if (!song?.title) return null;
-
-    // Preserve the original label from the element content
-    const prefix = song.content?.split(":")[0] || "Song";
-
-    // Format based on song type
-    let songDetails;
-    if (song.type === "hymn") {
-      songDetails = `${song.title} #${song.number} (${formatHymnalName(song.hymnal)})`;
-    } else {
-      // Contemporary song
-      songDetails = song.author ? `${song.title} - ${song.author}` : song.title;
-    }
-
-    return `${prefix}: ${songDetails}`;
-  };
 
   // Handle form submission
   // Update the handleSubmit function to include duplicate song checking
@@ -609,9 +490,6 @@ const ServiceSongSelector = ({
         throw new Error("Failed to save to service_songs");
       }
 
-      // Get all song selections as an array
-      let currentSongIndex = 0;
-
       // FIXED: Update how we access service details
       // First check if serviceDetails is an object with date keys or if it's already the data for this date
       const serviceDetailsForDate = serviceDetails[date] || serviceDetails;
@@ -622,41 +500,11 @@ const ServiceSongSelector = ({
         throw new Error(`No service elements found for date: ${date}`);
       }
 
-      // Then map the songs to the elements array
-      const updatedElements = serviceDetailsForDate.elements.map((element) => {
-        if (element.type === "song_hymn") {
-          const matchingSong = songSelections[currentSongIndex];
-          currentSongIndex++;
-
-          // Get the original prefix/label WITHOUT any existing song info
-          const prefix = element.content.split(":")[0].split(" - ")[0].trim();
-
-          if (matchingSong?.title) {
-            // Format song details based on type
-            const songDetails =
-              matchingSong.type === "hymn"
-                ? `${matchingSong.title} #${matchingSong.number} (${formatHymnalName(matchingSong.hymnal)})`
-                : matchingSong.author
-                  ? `${matchingSong.title} - ${matchingSong.author}`
-                  : matchingSong.title;
-            return {
-              ...element,
-              selection: {
-                ...matchingSong,
-                content: prefix, // Store original prefix with selection
-              },
-              content: `${prefix}: ${songDetails}`,
-            };
-          }
-
-          return {
-            ...element,
-            selection: null,
-            content: `${prefix}: <Awaiting Song Selection>`,
-          };
-        }
-        return element;
-      });
+      // Map selections onto song lines by slot key (shared with the API route)
+      const updatedElements = applySelectionsToElements(
+        serviceDetailsForDate.elements,
+        serviceSongStates,
+      );
 
       // Debug the final elements array
       const serviceDetailsResponse = await fetchWithTimeout(
@@ -748,12 +596,13 @@ const ServiceSongSelector = ({
 
     // If we couldn't get season info from other sources, get it from the date
     try {
-      const info = getLiturgicalInfoForService(dateString);
-      if (info) {
+      const [month, day, year] = dateString.split("/").map(Number);
+      const info = getLiturgicalInfo(new Date(2000 + year, month - 1, day));
+      if (info?.season) {
         return {
-          seasonName: info.seasonName,
-          seasonColor: info.seasonColor,
-          specialDay: info.specialDay,
+          seasonName: info.season.name,
+          seasonColor: info.color,
+          specialDay: info.specialDayId,
         };
       }
     } catch (error) {
@@ -803,8 +652,7 @@ const ServiceSongSelector = ({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <h3 className="font-medium text-black truncate">
-                  {dates?.find((d) => d.date === date)?.title ||
-                    "Service Title"}
+                  {serviceDetails?.title || "Service Title"}
                 </h3>
                 {serviceDetails?.type ? (
                   <span className="text-xs px-2 py-0.5 rounded flex-shrink-0 text-gray-600 bg-gray-100">

@@ -17,6 +17,10 @@ export const Filter = mockIcon;
 export const CheckCircle = mockIcon;
 export const ExternalLink = mockIcon;
 export const AlertCircle = mockIcon;
+export const BookOpen = mockIcon;
+export const Edit2 = mockIcon;
+export const Youtube = mockIcon;
+export const Link = mockIcon;
 
 // Default export for any other icons
 export default mockIcon;

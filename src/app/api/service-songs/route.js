@@ -7,6 +7,10 @@ import {
   createValidationResponse,
 } from "@/lib/liturgical-validation";
 import { readJsonBody } from "@/lib/apiSchemas";
+import {
+  applySelectionsToElements,
+  SELECTABLE_SONG_TYPE,
+} from "@/lib/serviceElements";
 
 export async function GET(request) {
   try {
@@ -171,78 +175,20 @@ export async function POST(request) {
       .collection("serviceDetails")
       .findOne({ date: body.date });
     if (serviceDetails?.elements) {
-      const songUpdates = [];
-
-      // NEW APPROACH: Process all selections and map them to their correct positions
-      // This allows for empty/cleared songs to be handled properly
-      const allSelections = Object.entries(body.selections).sort(
-        ([keyA], [keyB]) => {
-          // Extract numeric part from keys like "song_0", "song_1", etc.
-          const numA = parseInt(keyA.split("_")[1] || "0");
-          const numB = parseInt(keyB.split("_")[1] || "0");
-          return numA - numB;
-        },
+      // Map selections onto song lines by slot key (shared with the picker),
+      // then write back only the song lines that changed shape
+      const mapped = applySelectionsToElements(
+        serviceDetails.elements,
+        body.selections,
       );
-
-      console.log(
-        `🔧 SERVICE-SONGS: Processing ${allSelections.length} song slots (including empty ones)`,
-      );
-
-      let currentSongSlot = 0;
-
-      // Build array of specific song element updates
-      serviceDetails.elements.forEach((element, elementIndex) => {
-        if (
-          element.type === "song_hymn" ||
-          element.type === "song_contemporary"
-        ) {
-          // Get the selection for this song slot (could be empty)
-          const [, songData] = allSelections[currentSongSlot] || [null, null];
-
-          if (songData && songData.title && songData.title.trim()) {
-            // This slot has a valid song - update it
-            const prefix = element.content.split(":")[0].split(" - ")[0].trim();
-
-            let songDetails;
-            if (songData.type === "hymn") {
-              songDetails = `${songData.title} #${songData.number} (${formatHymnalName(songData.hymnal)})`;
-            } else {
-              songDetails = songData.author
-                ? `${songData.title} - ${songData.author}`
-                : songData.title;
-            }
-
-            const formattedContent = `${prefix}: ${songDetails}`;
-
-            console.log(
-              `🎵 SERVICE-SONGS: Slot ${currentSongSlot} -> "${songData.title}" to element ${elementIndex} (${prefix})`,
-            );
-
-            songUpdates.push({
-              index: elementIndex,
-              content: formattedContent,
-              selection: {
-                ...songData,
-                originalPrefix: prefix,
-              },
-            });
-          } else {
-            // This slot is empty/cleared - remove selection but keep the element structure
-            const prefix = element.content.split(":")[0].split(" - ")[0].trim();
-            console.log(
-              `📝 SERVICE-SONGS: Slot ${currentSongSlot} -> CLEARED (${prefix}) at element ${elementIndex}`,
-            );
-
-            songUpdates.push({
-              index: elementIndex,
-              content: `${prefix}:`, // Just the prefix, no song details
-              selection: null, // Remove the selection
-            });
-          }
-
-          currentSongSlot++;
-        }
-      });
+      const songUpdates = mapped
+        .map((element, index) => ({ element, index }))
+        .filter(({ element }) => element?.type === SELECTABLE_SONG_TYPE)
+        .map(({ element, index }) => ({
+          index,
+          content: element.content,
+          selection: element.selection,
+        }));
 
       // SURGICAL UPDATE: Only update specific song elements, preserve all other elements
       if (songUpdates.length > 0) {
@@ -307,9 +253,3 @@ export async function POST(request) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
-
-// Helper function to format hymnal names
-const formatHymnalName = (hymnal) => {
-  if (!hymnal) return "";
-  return hymnal.charAt(0).toUpperCase() + hymnal.slice(1);
-};
