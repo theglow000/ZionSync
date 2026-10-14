@@ -5,6 +5,7 @@ import { ObjectId } from "mongodb";
 import { createValidationResponse } from "@/lib/validation";
 import { z } from "zod";
 import { readJsonBody } from "@/lib/apiSchemas";
+import { normalizeTitle } from "@/lib/songHistory";
 import {
   updateSongRotationStatus,
   updateAllSongsRotationStatus,
@@ -85,16 +86,16 @@ export async function GET(request) {
         usage: formattedUsage,
       });
     } else {
-      // Original functionality
-      const songUsage = await db.collection("song_usage").findOne({
-        title: songTitle,
-        "uses.dateUsed": {
-          $gte: cutoffDate,
-          $lte: currentDate,
-        },
-      });
+      // Original functionality. History can sit under a different spelling
+      // of the same title ("Standing on the Promises " with a trailing
+      // space), so gather every record that normalizes to it.
+      const key = normalizeTitle(songTitle);
+      const records = (
+        await db.collection("song_usage").find({}).toArray()
+      ).filter((d) => key && normalizeTitle(d.title) === key);
+      const songUsage = { uses: records.flatMap((d) => d.uses || []) };
 
-      if (!songUsage || !songUsage.uses) {
+      if (!songUsage.uses.length) {
         return NextResponse.json([]);
       }
 

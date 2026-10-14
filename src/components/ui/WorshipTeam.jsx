@@ -22,7 +22,6 @@ import MobileWorshipSelect from "./MobileWorshipSelect";
 import TeamSelectionModal from "./TeamSelectionModal";
 import AddUserModal from "./AddUserModal";
 import useResponsive from "../../hooks/useResponsive";
-import { useDebounce } from "../../hooks/useDebounce";
 import { useAlertManager } from "../../hooks/useAlertManager";
 import { LoadingSpinner } from "../shared";
 import {
@@ -77,7 +76,6 @@ const WorshipTeam = ({
   const [datesLoading, setDatesLoading] = useState(false);
   const [customServices, setCustomServices] = useState([]);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
-  const [, setPendingActions] = useState({}); // Track pending debounced actions
 
   // Refs for auto-scrolling to current date (consolidated for both views)
   const dateRefs = useRef({});
@@ -344,94 +342,6 @@ const WorshipTeam = ({
     setEditingDate(date);
     setShowTeamSelector(true);
   }, []);
-
-  // Add this function in WorshipTeam.jsx - wrapped with useCallback for performance
-  const handleSongSelection = useCallback(
-    async (date, songId, songData) => {
-      // Store previous state for rollback
-      const previousServiceDetails = serviceDetails[date];
-
-      // Prepare updated elements
-      const updatedElements = serviceDetails[date]?.elements.map((element) => {
-        if (element.type === "song_hymn" && element.id === songId) {
-          return {
-            ...element,
-            selection: songData,
-          };
-        }
-        return element;
-      });
-
-      // OPTIMISTIC UPDATE: Update UI immediately
-      setServiceDetails((prev) => ({
-        ...prev,
-        [date]: {
-          ...prev[date],
-          elements: updatedElements,
-        },
-      }));
-
-      try {
-        // First update service-songs collection
-        await fetchWithTimeout(API_ENDPOINTS.SERVICE_SONGS, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            date,
-            selections: {
-              [`song_${songId}`]: songData,
-            },
-            updatedBy: currentUser?.name || "Unknown",
-          }),
-        });
-
-        // Then update service-details collection
-        await fetchWithTimeout(API_ENDPOINTS.SERVICE_DETAILS, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            date,
-            elements: updatedElements,
-            content: serviceDetails[date]?.content,
-            type: serviceDetails[date]?.type,
-          }),
-        });
-      } catch (error) {
-        // ROLLBACK: Restore previous state on error
-        setServiceDetails((prev) => ({
-          ...prev,
-          [date]: previousServiceDetails,
-        }));
-
-        handleError(
-          error,
-          { operation: "selectSong", date, songId },
-          ERROR_MESSAGES.SONG_SELECT_ERROR,
-        );
-      } finally {
-        // Clear pending state
-        setPendingActions((prev) => {
-          const newState = { ...prev };
-          delete newState[`song-${date}-${songId}`];
-          return newState;
-        });
-      }
-    },
-    [currentUser, serviceDetails, handleError],
-  );
-
-  // Debounced version of handleSongSelection
-  const [debouncedSongSelection] = useDebounce((date, songId, songData) => {
-    setPendingActions((prev) => ({
-      ...prev,
-      [`song-${date}-${songId}`]: true,
-    }));
-    handleSongSelection(date, songId, songData);
-  }, 500);
 
   // User management handlers - wrapped with useCallback for performance
   const handleAddUser = useCallback(() => {
@@ -741,7 +651,6 @@ const WorshipTeam = ({
                             availableSongs={availableSongs}
                             team={assignments[item.date]?.team}
                             expanded={expanded[item.date]}
-                            onSongSelect={debouncedSongSelection}
                             onToggleExpand={(date) => {
                               setExpanded((prev) => ({
                                 ...prev,

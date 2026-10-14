@@ -1,34 +1,44 @@
+/**
+ * @jest-environment node
+ */
 import { syncSongUsageForDate, usageDateKey } from "./songUsageSync";
 
-// In-memory stand-in for the handful of Mongo calls the sync makes
+// In-memory stand-in for the Mongo calls the sync makes. Reads return
+// copies, like a real database, so interleaved saves can be exercised.
 const fakeDb = (seed = {}) => {
+  let nextId = 1;
   const data = { song_usage: [], songs: [], services: [], ...seed };
+  for (const docs of Object.values(data))
+    for (const d of docs) d._id = d._id ?? nextId++;
   const collection = (name) => {
     data[name] = data[name] || [];
     const docs = data[name];
     const byFilter = (q) =>
       docs.filter((d) => Object.entries(q).every(([k, v]) => d[k] === v));
+    const copies = (q) => structuredClone(byFilter(q));
     return {
       find: (q = {}) => ({
-        toArray: async () => byFilter(q),
-        sort: () => ({ toArray: async () => byFilter(q) }),
+        toArray: async () => copies(q),
+        sort: () => ({ toArray: async () => copies(q) }),
       }),
-      findOne: async (q) => byFilter(q)[0] || null,
+      findOne: async (q) => copies(q)[0] || null,
       insertOne: async (doc) => {
-        docs.push({ ...doc });
-        return { insertedId: docs.length };
+        docs.push({ _id: nextId++, ...structuredClone(doc) });
+        return { insertedId: nextId };
       },
       updateOne: async (q, u) => {
         const doc = byFilter(q)[0];
         if (!doc) return { matchedCount: 0 };
-        if (u.$push?.uses) doc.uses = [...(doc.uses || []), u.$push.uses];
         if (u.$pull?.uses) {
-          const drop = u.$pull.uses.dateUsed.$in.map((d) => d.getTime());
+          const { $gte, $lt } = u.$pull.uses.dateUsed;
           doc.uses = doc.uses.filter(
-            (x) => !drop.includes(new Date(x.dateUsed).getTime()),
+            (x) =>
+              !(new Date(x.dateUsed) >= $gte && new Date(x.dateUsed) < $lt),
           );
         }
+        if (u.$push?.uses) doc.uses = [...(doc.uses || []), u.$push.uses];
         Object.assign(doc, u.$set || {});
+        for (const k of Object.keys(u.$unset || {})) delete doc[k];
         return { matchedCount: 1 };
       },
     };
@@ -125,5 +135,68 @@ describe("syncSongUsageForDate", () => {
     });
     await syncSongUsageForDate(db, "3/15/26", { song_0: { title: "A" } });
     expect(db.data.song_usage[0].uses).toHaveLength(1);
+  });
+
+  test("REGRESSION: history lands on the record spelled like the pick", async () => {
+    const db = fakeDb({
+      song_usage: [
+        { title: "Shine, Jesus Shine", uses: [use("2026-03-15T12:00:00Z")] },
+        { title: "Shine, Jesus, Shine", uses: [] },
+      ],
+    });
+    await syncSongUsageForDate(db, "3/15/26", {
+      song_0: { title: "Shine, Jesus, Shine" },
+    });
+    expect(titlesOn(db, "3/15/26")).toEqual(["Shine, Jesus, Shine"]);
+  });
+
+  test("an active record is preferred over a deleted or orphaned one", async () => {
+    const db = fakeDb({
+      song_usage: [
+        { title: "A", status: "deleted", uses: [] },
+        { title: "A ", uses: [] },
+      ],
+    });
+    await syncSongUsageForDate(db, "3/15/26", { song_0: { title: "A" } });
+    const withUse = db.data.song_usage.filter((d) => d.uses.length);
+    expect(withUse.map((d) => d.title)).toEqual(["A "]);
+  });
+
+  test("REGRESSION: two teams saving different dates at once both keep their change", async () => {
+    const db = fakeDb({
+      song_usage: [{ title: "A", uses: [use("2026-03-22T12:00:00Z")] }],
+    });
+    await Promise.all([
+      syncSongUsageForDate(db, "3/15/26", { song_0: { title: "A" } }),
+      syncSongUsageForDate(db, "3/22/26", {}),
+    ]);
+    expect(titlesOn(db, "3/15/26")).toEqual(["A"]);
+    expect(titlesOn(db, "3/22/26")).toEqual([]);
+  });
+
+  test("a song whose history empties loses its stale rotation badge", async () => {
+    const db = fakeDb({
+      songs: [
+        { title: "A", usageCount: 1, rotationStatus: { isInRotation: true } },
+      ],
+      song_usage: [{ title: "A", uses: [use("2026-03-15T12:00:00Z")] }],
+    });
+    await syncSongUsageForDate(db, "3/15/26", {});
+    expect(db.data.songs[0].usageCount).toBe(0);
+    expect(db.data.songs[0]).not.toHaveProperty("rotationStatus");
+  });
+
+  test("history goes on the spelling the Song Database uses", async () => {
+    const db = fakeDb({
+      songs: [{ title: "Standing on the Promises " }],
+      song_usage: [
+        { title: "Standing on the Promises", uses: [] },
+        { title: "Standing on the Promises ", uses: [] },
+      ],
+    });
+    await syncSongUsageForDate(db, "3/15/26", {
+      song_0: { title: "Standing on the Promises" },
+    });
+    expect(titlesOn(db, "3/15/26")).toEqual(["Standing on the Promises "]);
   });
 });

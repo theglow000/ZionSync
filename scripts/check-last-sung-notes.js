@@ -26,7 +26,12 @@ const main = async () => {
       const computed = d
         ? `${d.date}${d.dayName ? `, ${d.dayName}` : ""}`
         : "No earlier record";
-      const ok = d && typed[1].startsWith(d.date);
+      // Same date, and same church-day name when she wrote one
+      const typedDay = typed[1].replace(/^[^,]+, \d{4},? ?(the )?/, "");
+      const ok =
+        d &&
+        typed[1].startsWith(d.date) &&
+        (!typedDay || typedDay === d.dayName);
       ok ? same++ : differ++;
       console.log(
         `${ok ? "SAME  " : "DIFFER"} ${doc.date} ${sel.title}\n   typed:    ${typed[1]}\n   computed: ${computed}`,

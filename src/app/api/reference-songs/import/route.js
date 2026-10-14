@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb.js";
 import { readJsonBody } from "@/lib/apiSchemas";
 import { escapeRegex } from "@/lib/escapeRegex";
+import { syncSongUsageForDate } from "@/lib/songUsageSync";
 
 export async function POST(request) {
   try {
@@ -204,32 +205,19 @@ export async function POST(request) {
       );
     }
 
-    // 7. Record song usage for analytics
-    await db.collection("song_usage").updateOne(
-      { title: existingSong.title, type: existingSong.type },
-      {
-        $push: {
-          uses: {
-            dateUsed: new Date(serviceDate),
-            service: serviceDetails.type || "regular",
-            addedBy: "Reference Panel",
-          },
-        },
-        $setOnInsert: {
-          songData: {
-            number: existingSong.number || "",
-            hymnal: existingSong.hymnal || "",
-            author: existingSong.author || "",
-            sheetMusic: existingSong.hymnaryLink || "",
-            youtube: existingSong.youtubeLink || "",
-            notes: existingSong.notes || "",
-          },
-          title: existingSong.title,
-          type: existingSong.type,
-        },
-      },
-      { upsert: true },
-    );
+    // 7. Song history follows the service's full, current picks (this
+    // also drops a song this import replaced). Advisory: never fail the add.
+    try {
+      const saved = await db
+        .collection("service_songs")
+        .findOne({ date: serviceDate });
+      await syncSongUsageForDate(db, serviceDate, saved?.selections || {}, {
+        service: serviceDetails.type || "",
+        addedBy: "Reference Panel",
+      });
+    } catch (syncError) {
+      console.error("Song history sync failed:", syncError);
+    }
 
     return NextResponse.json({
       message: `Successfully added "${existingSong.title}" to the service on ${serviceDate}`,

@@ -25,7 +25,7 @@ time. Investigation of production data found three defects underneath:
 
 - R1 **Last-use line on each filled song card** in the worship song picker:
   `Last sung February 8, 2026 · 5th Sunday of Epiphany` when the previous use
-  is before today; `Scheduled November 15, 2026 · 24th Sunday after Pentecost`
+  is before today; `Scheduled November 15, 2026 · 25th Sunday after Pentecost`
   when it is between today and this service. No previous use → `No earlier
 record`. Display only; never written into notes.
 - R2 **Source of truth is the current selections** (`service_songs`), so the

@@ -12,10 +12,14 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { MongoClient } from "mongodb";
+import { MongoClient, BSON } from "mongodb";
 import { syncSongUsageForDate, usageDateKey } from "../src/lib/songUsageSync";
 
 const APPLY = process.argv.includes("--apply");
+// Canonical EJSON keeps ObjectIds and Dates restorable (mongoimport/EJSON.parse)
+const ejson = (x) => BSON.EJSON.stringify(x, { relaxed: false }, 1);
+const clone = (x) => BSON.EJSON.parse(ejson(x), { relaxed: false });
+const same = (a, b) => (a?._bsontype === "ObjectId" ? a.equals(b) : a === b);
 const STALE_LINE = /^(last (sung|used)\b|not sung\b)/i;
 
 const cleanNotes = (notes) =>
@@ -25,32 +29,35 @@ const cleanNotes = (notes) =>
     .join("\n")
     .trim();
 
-// Minimal in-memory db for the dry run: the calls syncSongUsageForDate makes
+// Minimal in-memory db for the dry run: the calls the sync makes
 const memoryDb = (data) => {
-  const match = (d, q) => Object.entries(q).every(([k, v]) => d[k] === v);
+  const match = (d, q) => Object.entries(q).every(([k, v]) => same(d[k], v));
   return {
     collection: (name) => {
       const docs = (data[name] = data[name] || []);
       return {
         find: (q = {}) => ({
-          toArray: async () => docs.filter((d) => match(d, q)),
+          toArray: async () => clone(docs.filter((d) => match(d, q))),
           sort: () => ({
-            toArray: async () => docs.filter((d) => match(d, q)),
+            toArray: async () => clone(docs.filter((d) => match(d, q))),
           }),
         }),
-        findOne: async (q) => docs.find((d) => match(d, q)) || null,
-        insertOne: async (doc) => docs.push(structuredClone(doc)),
+        findOne: async (q) => clone(docs.find((d) => match(d, q)) || null),
+        insertOne: async (doc) =>
+          docs.push({ _id: new BSON.ObjectId(), ...clone(doc) }),
         updateOne: async (q, u) => {
           const doc = docs.find((d) => match(d, q));
           if (!doc) return;
-          if (u.$push?.uses) doc.uses = [...(doc.uses || []), u.$push.uses];
           if (u.$pull?.uses) {
-            const drop = u.$pull.uses.dateUsed.$in.map((d) => +new Date(d));
+            const { $gte, $lt } = u.$pull.uses.dateUsed;
             doc.uses = doc.uses.filter(
-              (x) => !drop.includes(+new Date(x.dateUsed)),
+              (x) =>
+                !(new Date(x.dateUsed) >= $gte && new Date(x.dateUsed) < $lt),
             );
           }
+          if (u.$push?.uses) doc.uses = [...(doc.uses || []), u.$push.uses];
           Object.assign(doc, u.$set || {});
+          for (const k of Object.keys(u.$unset || {})) delete doc[k];
         },
       };
     },
@@ -85,8 +92,8 @@ const main = async () => {
   let db = live;
   if (!APPLY) {
     db = memoryDb({
-      song_usage: structuredClone(usage),
-      songs: structuredClone(songs),
+      song_usage: clone(usage),
+      songs: clone(songs),
     });
   } else {
     const dir = path.join(
@@ -127,12 +134,42 @@ const main = async () => {
       .updateOne({ _id: s._id }, { $set: { notes: cleanNotes(s.notes) } });
   }
 
-  const after = countUses(await db.collection("song_usage").find({}).toArray());
+  const finalUsage = await db.collection("song_usage").find({}).toArray();
+  const after = countUses(finalUsage);
+  // Each pick's history should sit on the record spelled like the Song
+  // Database's copy of that song (or like the pick, if the song isn't there)
+  const dbTitle = new Map(
+    songs.map((x) => [
+      x.title.toLowerCase().replace(/[^a-z0-9]/g, ""),
+      x.title,
+    ]),
+  );
+  let misfiled = 0;
+  for (const svc of serviceSongs)
+    for (const sel of Object.values(svc.selections || {})) {
+      const picked = sel?.title?.trim();
+      if (!picked) continue;
+      const t =
+        dbTitle.get(picked.toLowerCase().replace(/[^a-z0-9]/g, "")) ?? picked;
+      const ok = finalUsage.some(
+        (d) =>
+          d.title === t &&
+          (d.uses || []).some((u) => usageDateKey(u.dateUsed) === svc.date),
+      );
+      if (!ok) {
+        misfiled++;
+        if (process.env.SHOW_MISFILED)
+          console.log(
+            `  misfiled: ${svc.date} ${JSON.stringify(t)} -> ${JSON.stringify(finalUsage.filter((d) => (d.uses || []).some((u) => usageDateKey(u.dateUsed) === svc.date) && d.title.toLowerCase().replace(/[^a-z0-9]/g, "") === t.toLowerCase().replace(/[^a-z0-9]/g, "")).map((d) => [d.title, d.status || "active"]))}`,
+          );
+      }
+    }
   console.log(
     `\n${APPLY ? "APPLIED" : "DRY RUN (nothing written)"}\n` +
       `history entries: ${before} before -> ${after} after\n` +
       `entries on dates with no service record (left alone): ${orphanDates}\n` +
-      `song notes cleaned: ${staleSongs.length}`,
+      `song notes cleaned: ${staleSongs.length}\n` +
+      `picks whose history isn't under the Song Database's spelling: ${misfiled}`,
   );
   await client.close();
 };

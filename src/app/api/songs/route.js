@@ -124,9 +124,11 @@ export async function POST(request) {
               ...Object.fromEntries(
                 Object.entries(songData).filter(
                   ([key]) =>
-                    key === "title" ||
-                    key === "type" ||
-                    Object.prototype.hasOwnProperty.call(body, key),
+                    // usageCount is server-owned (kept in step with history)
+                    key !== "usageCount" &&
+                    (key === "title" ||
+                      key === "type" ||
+                      Object.prototype.hasOwnProperty.call(body, key)),
                 ),
               ),
               lastUpdated: new Date(),

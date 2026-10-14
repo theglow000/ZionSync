@@ -321,7 +321,10 @@ const SongSection = ({
           serviceDate={serviceDate}
           today={today}
           notesEmpty={!songState.notes?.trim()}
-          onCopyNotes={(text) => handleInputChange("notes", text)}
+          onCopyNotes={(text) => {
+            handleInputChange("notes", text);
+            setShowDetails(true); // on phones the notes box is folded away
+          }}
         />
 
         {/* Links - toggleable on mobile, always visible on desktop */}

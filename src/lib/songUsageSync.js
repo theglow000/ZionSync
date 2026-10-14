@@ -27,6 +27,33 @@ const storedDate = (dateStr) => {
   return new Date(Date.UTC(2000 + y, m - 1, d, 12));
 };
 
+// The stored-date window that usageDateKey maps to this service date
+const dayWindow = (dateStr) => {
+  const [m, d, y] = dateStr.split("/").map(Number);
+  const start = new Date(Date.UTC(2000 + y, m - 1, d, 6));
+  return { $gte: start, $lt: new Date(start.getTime() + 24 * HOUR) };
+};
+
+/**
+ * The record a pick's history belongs on, when several spellings exist:
+ * active over deleted/orphaned (those are frozen records), then the spelling
+ * the Song Database uses (analytics look songs up by that title), then the
+ * pick's own spelling.
+ */
+const pickTarget = (docs, sel, songDbTitles) => {
+  const key = normalizeTitle(sel.title);
+  const exact = sel.title.trim();
+  const rank = (d) =>
+    (d.status ? 4 : 0) +
+    (songDbTitles.has(d.title) ? 0 : 2) +
+    (d.title === exact ? 0 : 1);
+  return (
+    docs
+      .filter((d) => normalizeTitle(d.title) === key)
+      .sort((a, b) => rank(a) - rank(b))[0] || null
+  );
+};
+
 export async function syncSongUsageForDate(
   db,
   dateStr,
@@ -42,31 +69,32 @@ export async function syncSongUsageForDate(
   }
 
   const docs = await usage.find({}).toArray();
+  const songDbTitles = new Set(
+    (await db.collection("songs").find({}).toArray()).map((x) => x.title),
+  );
+  const targets = new Map(
+    [...wanted].map(([key, sel]) => [key, pickTarget(docs, sel, songDbTitles)]),
+  );
+  const window = dayWindow(dateStr);
   const touched = new Set();
   const satisfied = new Set();
 
+  // Only this date's entries are ever removed, with an atomic $pull, so a
+  // concurrent save of another date on the same song is never overwritten.
   for (const doc of docs) {
-    const key = normalizeTitle(doc.title);
-    const uses = doc.uses || [];
-    const onDate = uses.filter((u) => usageDateKey(u.dateUsed) === dateStr);
+    const onDate = (doc.uses || []).filter(
+      (u) => usageDateKey(u.dateUsed) === dateStr,
+    );
     if (!onDate.length) continue;
-
-    // Keep exactly one use for a picked song; none for a swapped-out one.
-    // Rewritten as a whole list: duplicates can share an identical
-    // timestamp, so removing "by value" would drop the keeper too.
-    const keep = wanted.has(key) && !satisfied.has(key) ? onDate[0] : null;
-    if (keep) satisfied.add(key);
-    if (keep && onDate.length === 1) continue;
-
+    const key = normalizeTitle(doc.title);
+    const isTarget = targets.get(key)?._id === doc._id && wanted.has(key);
+    if (isTarget && onDate.length === 1) {
+      satisfied.add(key);
+      continue;
+    }
     await usage.updateOne(
-      { _id: doc._id, title: doc.title },
-      {
-        $set: {
-          uses: uses.filter(
-            (u) => u === keep || usageDateKey(u.dateUsed) !== dateStr,
-          ),
-        },
-      },
+      { _id: doc._id },
+      { $pull: { uses: { dateUsed: window } } },
     );
     touched.add(doc.title);
   }
@@ -74,13 +102,10 @@ export async function syncSongUsageForDate(
   for (const [key, sel] of wanted) {
     if (satisfied.has(key)) continue;
     const entry = { dateUsed: storedDate(dateStr), service, addedBy };
-    const existing = docs.find((d) => normalizeTitle(d.title) === key);
-    if (existing) {
-      await usage.updateOne(
-        { title: existing.title },
-        { $push: { uses: entry } },
-      );
-      touched.add(existing.title);
+    const target = targets.get(key);
+    if (target) {
+      await usage.updateOne({ _id: target._id }, { $push: { uses: entry } });
+      touched.add(target.title);
     } else {
       // Song facts only -- per-service notes stay with the service
       await usage.insertOne({
@@ -117,9 +142,13 @@ async function refreshSongStats(db, titles) {
     const count = usageDocs
       .filter((d) => normalizeTitle(d.title) === key)
       .reduce((n, d) => n + (d.uses?.length || 0), 0);
-    await db
-      .collection("songs")
-      .updateOne({ title: song.title }, { $set: { usageCount: count } });
+    await db.collection("songs").updateOne(
+      { title: song.title },
+      count
+        ? { $set: { usageCount: count } }
+        : // No history left: the rotation badge would otherwise stay frozen
+          { $set: { usageCount: 0 }, $unset: { rotationStatus: "" } },
+    );
   }
   for (const title of titles) {
     try {

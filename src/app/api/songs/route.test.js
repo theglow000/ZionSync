@@ -69,4 +69,12 @@ describe("POST /api/songs on an existing song", () => {
     });
     expect(mockUpdateOne.mock.calls[0][1].$set.notes).toBe("New arrangement");
   });
+
+  test("REGRESSION: a Song Database edit never resets the usage count", async () => {
+    // SongDatabase and the seasonal tagger send the whole song back
+    await post({ ...existing, notes: "Fixed a typo", usageCount: 7 });
+    expect(mockUpdateOne.mock.calls[0][1].$set).not.toHaveProperty(
+      "usageCount",
+    );
+  });
 });
