@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Link, Youtube, ChevronDown, ChevronUp, X } from "lucide-react";
 import { titleCase, spellCheckAndCorrect } from "@/lib/utils"; // Import our new utility functions
+import LastUseNote from "./LastUseNote";
 
 const isValidUrl = (url) => {
   if (!url) return false;
@@ -19,9 +20,11 @@ const SongSection = ({
   onSongStateUpdate,
   onSongClear, // Add this new prop for clearing songs
   availableSongs,
-  currentUser,
   hymnalVersions,
   isMobile = false, // Add this prop
+  serviceSongs = null,
+  serviceDate,
+  today,
 }) => {
   // State
   const [suggestions, setSuggestions] = useState([]);
@@ -44,7 +47,6 @@ const SongSection = ({
 
   // Derived values
   const isHymn = songState.type === "hymn";
-  const isLeader = currentUser?.role === "leader";
 
   // Handlers
   const handleSongTypeChange = useCallback(
@@ -312,6 +314,15 @@ const SongSection = ({
             />
           )}
         </div>
+
+        <LastUseNote
+          title={songState.title}
+          serviceSongs={serviceSongs}
+          serviceDate={serviceDate}
+          today={today}
+          notesEmpty={!songState.notes?.trim()}
+          onCopyNotes={(text) => handleInputChange("notes", text)}
+        />
 
         {/* Links - toggleable on mobile, always visible on desktop */}
         {isMobile ? (

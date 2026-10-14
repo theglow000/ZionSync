@@ -18,6 +18,7 @@ import { useConfirm } from "../../hooks/useConfirm";
 import { LoadingSpinner } from "../shared";
 import { fetchWithTimeout } from "../../lib/api-utils";
 import { applySelectionsToElements } from "@/lib/serviceElements";
+import { formatServiceDate } from "@/lib/avRotation";
 
 // Constants
 const hymnalVersions = [
@@ -93,52 +94,6 @@ const formatDuplicateWarning = (duplicates) => {
     message: "These songs were used in the last 4 weeks:",
     details,
   };
-};
-
-const recordSongUsage = async (songs, date, serviceType, currentUser) => {
-  try {
-    const validSongs = songs.filter((song) => song?.title?.trim());
-
-    // Process each song one by one to better handle errors
-    for (const song of validSongs) {
-      try {
-        // First check if this song+date combination already exists
-        const checkResponse = await fetchWithTimeout(
-          `/api/song-usage/check?title=${encodeURIComponent(song.title)}&date=${encodeURIComponent(date)}`,
-        );
-        const checkResult = await checkResponse.json();
-
-        // If this song is already recorded for this date, skip it
-        if (checkResult.exists) {
-          continue;
-        }
-
-        // Add new usage record
-        await fetchWithTimeout("/api/song-usage", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: song.title,
-            type: song.type,
-            date: date,
-            service: serviceType,
-            addedBy: currentUser?.name || "Unknown",
-            number: song.number,
-            hymnal: song.hymnal,
-            author: song.author,
-            hymnaryLink: song.sheetMusic,
-            songSelectLink: song.sheetMusic,
-            youtubeLink: song.youtube,
-            notes: song.notes,
-          }),
-        });
-      } catch (songError) {
-        console.error(`Error recording song "${song.title}":`, songError);
-      }
-    }
-  } catch (error) {
-    console.error("Error recording song usage:", error);
-  }
 };
 
 // Add this function near the top
@@ -234,11 +189,25 @@ const ServiceSongSelector = ({
   const [serviceSongStates, setServiceSongStates] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  // Every service's current picks, for each card's "Last sung" line.
+  // null until loaded, so cards don't flash "No earlier record".
+  const [allServiceSongs, setAllServiceSongs] = useState(null);
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState("success");
   const [alertPosition, setAlertPosition] = useState({ x: 0, y: 0 });
   const formRef = useRef(null); // Add this ref
+
+  const loadAllServiceSongs = useCallback(async () => {
+    try {
+      const response = await fetchWithTimeout("/api/service-songs");
+      if (!response.ok) throw new Error("Failed to fetch song history");
+      const docs = await response.json();
+      setAllServiceSongs(Array.isArray(docs) ? docs : []);
+    } catch (error) {
+      Logger.error("Failed to fetch song history:", error);
+    }
+  }, []);
 
   // First, update useEffect for proper state initialization
   // Update the useEffect that handles fetching selections
@@ -269,7 +238,8 @@ const ServiceSongSelector = ({
     };
 
     fetchSelections();
-  }, [expanded, date]);
+    loadAllServiceSongs();
+  }, [expanded, date, loadAllServiceSongs]);
 
   // Add near top of component
   useEffect(() => {}, [date, serviceDetails]);
@@ -462,7 +432,7 @@ const ServiceSongSelector = ({
                 songSelectLink:
                   song.type === "contemporary" ? song.sheetMusic : "",
                 youtubeLink: song.youtube || "",
-                notes: song.notes || "",
+                // No notes: they belong to this service, not the song
                 lastUpdated: new Date().toISOString(),
               }),
             });
@@ -526,14 +496,6 @@ const ServiceSongSelector = ({
         throw new Error("Failed to update service details");
       }
 
-      // After successful save, record the song usage
-      await recordSongUsage(
-        songSelections,
-        date,
-        serviceDetailsForDate?.type,
-        currentUser,
-      );
-
       // Update local state - adapt based on the structure of serviceDetails
       if (serviceDetails[date]) {
         // If serviceDetails has dates as keys
@@ -552,6 +514,7 @@ const ServiceSongSelector = ({
         }));
       }
       showAlertMessage("Songs saved successfully");
+      loadAllServiceSongs();
     } catch (error) {
       console.error("Error saving songs:", error);
       showAlertMessage("Failed to save songs", "error");
@@ -906,6 +869,9 @@ const ServiceSongSelector = ({
                       currentUser={currentUser}
                       hymnalVersions={hymnalVersions}
                       isMobile={isMobile}
+                      serviceSongs={allServiceSongs}
+                      serviceDate={date}
+                      today={formatServiceDate(new Date())}
                     />
                   ))}
                   <div className="flex justify-end">

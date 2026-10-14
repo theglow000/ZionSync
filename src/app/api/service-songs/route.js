@@ -11,6 +11,7 @@ import {
   applySelectionsToElements,
   SELECTABLE_SONG_TYPE,
 } from "@/lib/serviceElements";
+import { syncSongUsageForDate } from "@/lib/songUsageSync";
 
 export async function GET(request) {
   try {
@@ -174,6 +175,17 @@ export async function POST(request) {
     const serviceDetails = await db
       .collection("serviceDetails")
       .findOne({ date: body.date });
+
+    // Song history follows the selections exactly (adds and swaps alike).
+    // Advisory data: a failure here must not fail the save itself.
+    try {
+      await syncSongUsageForDate(db, body.date, body.selections, {
+        service: serviceDetails?.type || "",
+        addedBy: body.updatedBy || "",
+      });
+    } catch (syncError) {
+      console.error("Song history sync failed:", syncError);
+    }
     if (serviceDetails?.elements) {
       // Map selections onto song lines by slot key (shared with the picker),
       // then write back only the song lines that changed shape

@@ -6,6 +6,11 @@ import { POST } from "./route";
 const mockUpdateOne = jest.fn().mockResolvedValue({});
 const mockFindOne = jest.fn();
 
+const mockSync = jest.fn().mockResolvedValue(undefined);
+jest.mock("@/lib/songUsageSync", () => ({
+  syncSongUsageForDate: (...args) => mockSync(...args),
+}));
+
 jest.mock("@/lib/mongodb", () => ({
   __esModule: true,
   default: Promise.resolve({
@@ -90,5 +95,25 @@ describe("POST /api/service-songs", () => {
       "elements.2.selection": "",
       "elements.4.selection": "",
     });
+  });
+
+  test("every save brings that date's song history in line with the picks", async () => {
+    mockSync.mockClear();
+    const selections = { song_0: hymn("Amazing Grace", "123") };
+    await post(selections);
+    expect(mockSync).toHaveBeenCalledWith(
+      expect.anything(),
+      "10/18/26",
+      selections,
+      expect.objectContaining({ addedBy: "Ben" }),
+    );
+  });
+
+  test("a history sync failure never fails the save", async () => {
+    mockSync.mockRejectedValueOnce(new Error("boom"));
+    const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const res = await post({ song_0: hymn("Amazing Grace", "123") });
+    expect(res.status).toBe(200);
+    spy.mockRestore();
   });
 });

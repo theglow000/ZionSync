@@ -117,10 +117,19 @@ export async function POST(request) {
             : { title: validatedData.title },
           {
             $set: {
-              ...songData,
+              // Only fields the caller actually sent. The worship song picker
+              // re-saves every song on each service save; schema defaults for
+              // fields it never sends (notes, tags, song order) must not wipe
+              // what the song database holds.
+              ...Object.fromEntries(
+                Object.entries(songData).filter(
+                  ([key]) =>
+                    key === "title" ||
+                    key === "type" ||
+                    Object.prototype.hasOwnProperty.call(body, key),
+                ),
+              ),
               lastUpdated: new Date(),
-              // Preserve existing usage count when updating
-              usageCount: existingSong.usageCount || 0,
             },
           },
         );
