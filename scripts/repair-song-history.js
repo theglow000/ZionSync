@@ -15,12 +15,12 @@ import path from "path";
 import { MongoClient, BSON } from "mongodb";
 import { syncSongUsageForDate, usageDateKey } from "../src/lib/songUsageSync";
 import { normalizeTitle } from "../src/lib/songHistory";
+import { matchesQuery } from "../src/lib/mongoMatch";
 
 const APPLY = process.argv.includes("--apply");
 // Canonical EJSON keeps ObjectIds and Dates restorable (mongoimport/EJSON.parse)
 const ejson = (x) => BSON.EJSON.stringify(x, { relaxed: false }, 1);
 const clone = (x) => BSON.EJSON.parse(ejson(x), { relaxed: false });
-const same = (a, b) => (a?._bsontype === "ObjectId" ? a.equals(b) : a === b);
 const STALE_LINE = /^(last (sung|used)\b|not sung\b)/i;
 
 const cleanNotes = (notes) =>
@@ -32,7 +32,7 @@ const cleanNotes = (notes) =>
 
 // Minimal in-memory db for the dry run: the calls the sync makes
 const memoryDb = (data) => {
-  const match = (d, q) => Object.entries(q).every(([k, v]) => same(d[k], v));
+  const match = matchesQuery;
   return {
     collection: (name) => {
       const docs = (data[name] = data[name] || []);

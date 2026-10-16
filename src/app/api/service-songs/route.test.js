@@ -116,4 +116,16 @@ describe("POST /api/service-songs", () => {
     expect(res.status).toBe(200);
     spy.mockRestore();
   });
+
+  test("REGRESSION: the order of worship is written before the slow history sync", async () => {
+    const order = [];
+    mockUpdateOne.mockImplementation(async (q, u) => {
+      if (Object.keys(u.$set || {}).some((k) => k.startsWith("elements.")))
+        order.push("elements");
+      return {};
+    });
+    mockSync.mockImplementationOnce(async () => order.push("history"));
+    await post({ song_0: hymn("Amazing Grace", "123") });
+    expect(order).toEqual(["elements", "history"]);
+  });
 });

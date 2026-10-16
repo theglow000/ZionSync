@@ -13,6 +13,9 @@ import {
 } from "@/lib/serviceElements";
 import { syncSongUsageForDate } from "@/lib/songUsageSync";
 
+// Song history sync and Atlas reads can run past Vercel's 10s default
+export const maxDuration = 60;
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -176,16 +179,6 @@ export async function POST(request) {
       .collection("serviceDetails")
       .findOne({ date: body.date });
 
-    // Song history follows the selections exactly (adds and swaps alike).
-    // Advisory data: a failure here must not fail the save itself.
-    try {
-      await syncSongUsageForDate(db, body.date, body.selections, {
-        service: serviceDetails?.type || "",
-        addedBy: body.updatedBy || "",
-      });
-    } catch (syncError) {
-      console.error("Song history sync failed:", syncError);
-    }
     if (serviceDetails?.elements) {
       // Map selections onto song lines by slot key (shared with the picker),
       // then write back only the song lines that changed shape
@@ -257,6 +250,19 @@ export async function POST(request) {
           );
         console.log("No song updates needed, only synced liturgical info");
       }
+    }
+
+    // Song history runs last, after the order of worship is written: it is
+    // the slowest step, and a timeout must never cost the song lines.
+    // Song history follows the selections exactly (adds and swaps alike).
+    // Advisory data: a failure here must not fail the save itself.
+    try {
+      await syncSongUsageForDate(db, body.date, body.selections, {
+        service: serviceDetails?.type || "",
+        addedBy: body.updatedBy || "",
+      });
+    } catch (syncError) {
+      console.error("Song history sync failed:", syncError);
     }
 
     return NextResponse.json({ success: true });

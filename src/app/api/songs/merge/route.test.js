@@ -8,6 +8,7 @@ const mockRefresh = jest.fn().mockResolvedValue(undefined);
 jest.mock("@/lib/songUsageSync", () => ({
   syncSongUsageForDate: (...args) => mockSync(...args),
   refreshSongStats: (...args) => mockRefresh(...args),
+  titlePattern: jest.requireActual("@/lib/songUsageSync").titlePattern,
 }));
 
 const SOURCE = "aaaaaaaaaaaaaaaaaaaaaaaa";

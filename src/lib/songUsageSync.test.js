@@ -2,6 +2,7 @@
  * @jest-environment node
  */
 import { syncSongUsageForDate, usageDateKey } from "./songUsageSync";
+import { matchesQuery } from "./mongoMatch";
 
 // In-memory stand-in for the Mongo calls the sync makes. Reads return
 // copies, like a real database, so interleaved saves can be exercised.
@@ -13,8 +14,7 @@ const fakeDb = (seed = {}) => {
   const collection = (name) => {
     data[name] = data[name] || [];
     const docs = data[name];
-    const byFilter = (q) =>
-      docs.filter((d) => Object.entries(q).every(([k, v]) => d[k] === v));
+    const byFilter = (q) => docs.filter((d) => matchesQuery(d, q));
     const copies = (q) => structuredClone(byFilter(q));
     return {
       find: (q = {}) => ({

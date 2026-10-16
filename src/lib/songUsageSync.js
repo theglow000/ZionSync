@@ -27,6 +27,14 @@ const storedDate = (dateStr) => {
   return new Date(Date.UTC(2000 + y, m - 1, d, 12));
 };
 
+/**
+ * Matches every spelling that normalizes to `key` ("Shine, Jesus Shine" and
+ * "shine jesus, shine "), so the database returns only the records a save
+ * touches. Reading whole collections took several seconds per save.
+ */
+export const titlePattern = (key) =>
+  new RegExp(`^[^a-z0-9]*${key.split("").join("[^a-z0-9]*")}[^a-z0-9]*$`, "i");
+
 // The stored-date window that usageDateKey maps to this service date
 const dayWindow = (dateStr) => {
   const [m, d, y] = dateStr.split("/").map(Number);
@@ -68,14 +76,27 @@ export async function syncSongUsageForDate(
     if (key && !wanted.has(key)) wanted.set(key, sel);
   }
 
-  const docs = await usage.find({}).toArray();
+  const window = dayWindow(dateStr);
+  const byTitle = [...wanted.keys()].map((key) => ({
+    title: titlePattern(key),
+  }));
+  // This date's entries (to remove) plus every record of the picked songs
+  const docs = await usage
+    .find({ $or: [{ "uses.dateUsed": window }, ...byTitle] })
+    .toArray();
   const songDbTitles = new Set(
-    (await db.collection("songs").find({}).toArray()).map((x) => x.title),
+    byTitle.length
+      ? (
+          await db
+            .collection("songs")
+            .find({ $or: byTitle }, { projection: { title: 1 } })
+            .toArray()
+        ).map((x) => x.title)
+      : [],
   );
   const targets = new Map(
     [...wanted].map(([key, sel]) => [key, pickTarget(docs, sel, songDbTitles)]),
   );
-  const window = dayWindow(dateStr);
   const touched = new Set();
   const satisfied = new Set();
 
@@ -129,12 +150,14 @@ export async function syncSongUsageForDate(
 
 /** Usage count and rotation status follow the corrected history. */
 export async function refreshSongStats(db, titles) {
-  const keys = new Set([...titles].map(normalizeTitle));
+  const keys = new Set([...titles].map(normalizeTitle).filter(Boolean));
+  if (!keys.size) return;
+  const byTitle = { $or: [...keys].map((k) => ({ title: titlePattern(k) })) };
   const usageDocs = (
-    await db.collection("song_usage").find({}).toArray()
+    await db.collection("song_usage").find(byTitle).toArray()
   ).filter((d) => keys.has(normalizeTitle(d.title)));
-  const songs = (await db.collection("songs").find({}).toArray()).filter((s) =>
-    keys.has(normalizeTitle(s.title)),
+  const songs = (await db.collection("songs").find(byTitle).toArray()).filter(
+    (s) => keys.has(normalizeTitle(s.title)),
   );
 
   for (const song of songs) {

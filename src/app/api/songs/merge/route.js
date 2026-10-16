@@ -3,7 +3,14 @@ import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { readJsonBody } from "@/lib/apiSchemas";
 import { normalizeTitle } from "@/lib/songHistory";
-import { refreshSongStats, syncSongUsageForDate } from "@/lib/songUsageSync";
+import {
+  refreshSongStats,
+  syncSongUsageForDate,
+  titlePattern,
+} from "@/lib/songUsageSync";
+
+// A merge re-syncs every service that used the song
+export const maxDuration = 60;
 
 export async function POST(request) {
   try {
@@ -117,12 +124,25 @@ async function renamePicks(db, sourceSong, targetSong) {
   };
   for (const link of ["sheetMusic", "youtube"])
     if (targetSong[link]) facts[link] = targetSong[link];
-  const details = await db.collection("serviceDetails").find({}).toArray();
+  // Only the order-of-worship records that name the song (the whole
+  // collection is ~600 KB and takes seconds to read)
+  const details = await db
+    .collection("serviceDetails")
+    .find({ "elements.selection.title": titlePattern(from) })
+    .toArray();
   const typeByDate = Object.fromEntries(
-    details.map((d) => [d.date, d.type || ""]),
+    (
+      await db
+        .collection("serviceDetails")
+        .find({}, { projection: { date: 1, type: 1 } })
+        .toArray()
+    ).map((d) => [d.date, d.type || ""]),
   );
 
-  const services = await db.collection("service_songs").find({}).toArray();
+  const services = await db
+    .collection("service_songs")
+    .find({}, { projection: { date: 1, selections: 1 } })
+    .toArray();
   for (const service of services) {
     const $set = {};
     for (const [slot, sel] of Object.entries(service.selections || {})) {
