@@ -135,13 +135,22 @@ export const parseServiceContent = (
     return id;
   };
 
+  // Some saved services have two lines sharing one id. Song picks and notes
+  // are keyed by id, so both lines would show the same song: only the first
+  // line keeps a shared id.
+  const keptIds = new Set();
   const elements = lines.map((line, index) => {
     const existingElement = matched[index];
     if (existingElement) {
+      // Legacy elements were saved without ids
+      const keepId = existingElement.id && !keptIds.has(existingElement.id);
+      const id = keepId
+        ? existingElement.id
+        : newId(existingElement.type, line, index);
+      keptIds.add(id);
       return {
         ...existingElement,
-        // Legacy elements were saved without ids
-        id: existingElement.id ?? newId(existingElement.type, line, index),
+        id,
         content: line, // Use original case from current content
       };
     }
@@ -747,7 +756,11 @@ Postlude`,
       // Create a new stable ID based on the date and content
       const formattedDate = date.replace(/\//g, "");
       const cleanContent = element.content.replace(/[^a-zA-Z0-9]/g, "");
-      const newId = `${formattedDate}_${newType}_${cleanContent}`;
+      const baseId = `${formattedDate}_${newType}_${cleanContent}`;
+      const taken = new Set(updatedElements.map((el) => el.id));
+      let newId = baseId;
+      for (let n = elementIndex; taken.has(newId); n++)
+        newId = `${baseId}_${n}`;
 
       // We need to preserve any details that might exist for this element
       const oldDetails = elementDetails[element.id] || {};

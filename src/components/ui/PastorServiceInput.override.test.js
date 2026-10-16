@@ -93,4 +93,38 @@ describe("parseServiceContent - pastor type overrides", () => {
     );
     expect(new Set(ids).size).toBe(3);
   });
+
+  test("REGRESSION 10/18/26: two stored lines sharing an id get separate ids", () => {
+    // Saved data had "Hymn of the Day" carrying the Opening Hymn's id, so the
+    // editor (which keys song picks by id) gave both lines the same song.
+    const shared = "101826_song_hymn_OpeningHymn";
+    const stored = [
+      {
+        id: shared,
+        type: "song_hymn",
+        content: "Opening Hymn:",
+        selection: { title: "A" },
+      },
+      { id: "101826_liturgy_Prayer", type: "liturgy", content: "Prayer" },
+      {
+        id: shared,
+        type: "song_hymn",
+        content: "Hymn of the Day:",
+        selection: { title: "B" },
+      },
+    ];
+    const reloaded = parseServiceContent(
+      "Opening Hymn:\nPrayer\nHymn of the Day:",
+      "10/18/26",
+      stored,
+    );
+    const ids = reloaded.map((e) => e.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids[0]).toBe(shared); // the first line keeps its id
+    expect(reloaded.map((e) => e.selection?.title)).toEqual([
+      "A",
+      undefined,
+      "B",
+    ]);
+  });
 });
