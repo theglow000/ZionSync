@@ -115,6 +115,8 @@ export async function POST(request) {
 
 async function renamePicks(db, sourceSong, targetSong) {
   const from = normalizeTitle(sourceSong.title);
+  // A title with no letters or digits would match every empty slot
+  if (!from) return;
   const facts = {
     title: targetSong.title,
     type: targetSong.type,

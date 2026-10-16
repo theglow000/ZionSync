@@ -16,15 +16,21 @@ const valuesAt = (doc, path) =>
 const sameValue = (a, b) =>
   a?._bsontype === "ObjectId" ? a.equals(b) : a === b;
 
+const isRange = (want) =>
+  want !== null &&
+  typeof want === "object" &&
+  ("$gte" in want || "$lt" in want);
+
+const inRange = (v, { $gte, $lt }) => {
+  const t = new Date(v).getTime();
+  const aboveMin = $gte === undefined || t >= new Date($gte).getTime();
+  const belowMax = $lt === undefined || t < new Date($lt).getTime();
+  return aboveMin && belowMax;
+};
+
 const valueMatches = (v, want) => {
   if (want instanceof RegExp) return typeof v === "string" && want.test(v);
-  if (want && typeof want === "object" && ("$gte" in want || "$lt" in want)) {
-    const t = new Date(v).getTime();
-    return (
-      (!("$gte" in want) || t >= new Date(want.$gte).getTime()) &&
-      (!("$lt" in want) || t < new Date(want.$lt).getTime())
-    );
-  }
+  if (isRange(want)) return inRange(v, want);
   if (want instanceof Date) return new Date(v).getTime() === want.getTime();
   return sameValue(v, want);
 };

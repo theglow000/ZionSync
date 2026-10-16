@@ -1,7 +1,11 @@
 /**
  * @jest-environment node
  */
-import { syncSongUsageForDate, usageDateKey } from "./songUsageSync";
+import {
+  syncSongUsageForDate,
+  titlePattern,
+  usageDateKey,
+} from "./songUsageSync";
 import { matchesQuery } from "./mongoMatch";
 
 // In-memory stand-in for the Mongo calls the sync makes. Reads return
@@ -198,5 +202,25 @@ describe("syncSongUsageForDate", () => {
       song_0: { title: "Standing on the Promises" },
     });
     expect(titlesOn(db, "3/15/26")).toEqual(["Standing on the Promises "]);
+  });
+});
+
+describe("titlePattern", () => {
+  test("matches every spelling of a title and nothing else", () => {
+    const p = titlePattern("shinejesusshine");
+    expect(p.test("Shine, Jesus Shine")).toBe(true);
+    expect(p.test(" shine jesus, SHINE ")).toBe(true);
+    expect(p.test("Shine, Jesus Shine On")).toBe(false);
+  });
+
+  test("refuses anything but a normalized title", () => {
+    expect(() => titlePattern("a.*")).toThrow();
+    expect(() => titlePattern("")).toThrow();
+  });
+
+  test("a long non-matching title fails fast (no catastrophic backtracking)", () => {
+    const start = Date.now();
+    titlePattern("a".repeat(60)).test(`${"a, ".repeat(60)}!`);
+    expect(Date.now() - start).toBeLessThan(100);
   });
 });

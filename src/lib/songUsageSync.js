@@ -7,6 +7,7 @@
  * date's history match its selections exactly.
  */
 import { normalizeTitle } from "./songHistory";
+import { escapeRegex } from "./escapeRegex";
 import { updateSongRotationStatus } from "./songRotation";
 
 const HOUR = 3600000;
@@ -32,8 +33,16 @@ const storedDate = (dateStr) => {
  * "shine jesus, shine "), so the database returns only the records a save
  * touches. Reading whole collections took several seconds per save.
  */
-export const titlePattern = (key) =>
-  new RegExp(`^[^a-z0-9]*${key.split("").join("[^a-z0-9]*")}[^a-z0-9]*$`, "i");
+const SEPARATOR = "[^a-z0-9]*";
+export const titlePattern = (key) => {
+  // Only normalized titles (a-z, 0-9) are accepted, and the separator class
+  // never matches those characters, so the pattern cannot backtrack.
+  if (!/^[a-z0-9]+$/.test(key))
+    throw new Error("titlePattern expects a normalized title");
+  const body = key.split("").map(escapeRegex).join(SEPARATOR);
+  // nosemgrep: detect-non-literal-regexp -- input validated above
+  return new RegExp(`^${SEPARATOR}${body}${SEPARATOR}$`, "i");
+};
 
 // The stored-date window that usageDateKey maps to this service date
 const dayWindow = (dateStr) => {
