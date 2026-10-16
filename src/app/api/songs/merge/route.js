@@ -3,7 +3,7 @@ import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { readJsonBody } from "@/lib/apiSchemas";
 import { normalizeTitle } from "@/lib/songHistory";
-import { syncSongUsageForDate } from "@/lib/songUsageSync";
+import { refreshSongStats, syncSongUsageForDate } from "@/lib/songUsageSync";
 
 export async function POST(request) {
   try {
@@ -45,8 +45,10 @@ export async function POST(request) {
       title: sourceSong.title,
     });
 
-    // If source song has usage history, merge it with target song's usage history
-    if (sourceUsage) {
+    // If source song has usage history, merge it with target song's usage history.
+    // Two records with the exact same title share one history document:
+    // merging it into itself and deleting it would erase it.
+    if (sourceUsage && sourceSong.title !== targetSong.title) {
       const targetUsage = await db.collection("song_usage").findOne({
         title: targetSong.title,
       });
@@ -91,6 +93,8 @@ export async function POST(request) {
     await db.collection("songs").deleteOne({
       _id: new ObjectId(sourceId),
     });
+    // The merged history may never have needed a re-sync above
+    await refreshSongStats(db, new Set([targetSong.title]));
 
     return NextResponse.json({
       success: true,
@@ -111,6 +115,12 @@ async function renamePicks(db, sourceSong, targetSong) {
     hymnal: targetSong.hymnal || "",
     author: targetSong.author || "",
   };
+  for (const link of ["sheetMusic", "youtube"])
+    if (targetSong[link]) facts[link] = targetSong[link];
+  const details = await db.collection("serviceDetails").find({}).toArray();
+  const typeByDate = Object.fromEntries(
+    details.map((d) => [d.date, d.type || ""]),
+  );
 
   const services = await db.collection("service_songs").find({}).toArray();
   for (const service of services) {
@@ -127,13 +137,14 @@ async function renamePicks(db, sourceSong, targetSong) {
       const selections = { ...service.selections };
       for (const key of Object.keys($set))
         selections[key.replace("selections.", "")] = $set[key];
-      await syncSongUsageForDate(db, service.date, selections);
+      await syncSongUsageForDate(db, service.date, selections, {
+        service: typeByDate[service.date] || "",
+      });
     } catch (syncError) {
       console.error("Song history sync failed:", syncError);
     }
   }
 
-  const details = await db.collection("serviceDetails").find({}).toArray();
   for (const doc of details) {
     const $set = {};
     (doc.elements || []).forEach((el, i) => {

@@ -128,7 +128,7 @@ export async function syncSongUsageForDate(
 }
 
 /** Usage count and rotation status follow the corrected history. */
-async function refreshSongStats(db, titles) {
+export async function refreshSongStats(db, titles) {
   const keys = new Set([...titles].map(normalizeTitle));
   const usageDocs = (
     await db.collection("song_usage").find({}).toArray()

@@ -14,6 +14,7 @@ import os from "os";
 import path from "path";
 import { MongoClient, BSON } from "mongodb";
 import { syncSongUsageForDate, usageDateKey } from "../src/lib/songUsageSync";
+import { normalizeTitle } from "../src/lib/songHistory";
 
 const APPLY = process.argv.includes("--apply");
 // Canonical EJSON keeps ObjectIds and Dates restorable (mongoimport/EJSON.parse)
@@ -49,11 +50,11 @@ const memoryDb = (data) => {
           const doc = docs.find((d) => match(d, q));
           if (!doc) return;
           if (u.$pull?.uses) {
-            const { $gte, $lt } = u.$pull.uses.dateUsed;
-            doc.uses = doc.uses.filter(
-              (x) =>
-                !(new Date(x.dateUsed) >= $gte && new Date(x.dateUsed) < $lt),
-            );
+            const want = u.$pull.uses.dateUsed;
+            const hit = want?.$gte
+              ? (t) => t >= want.$gte && t < want.$lt
+              : (t) => t.getTime() === new Date(want).getTime();
+            doc.uses = doc.uses.filter((x) => !hit(new Date(x.dateUsed)));
           }
           if (u.$push?.uses) doc.uses = [...(doc.uses || []), u.$push.uses];
           Object.assign(doc, u.$set || {});
@@ -89,6 +90,28 @@ const main = async () => {
     (d.uses || []).filter((u) => !serviceDates.has(usageDateKey(u.dateUsed))),
   ).length;
 
+  // The old reference-song import stored new Date("3/15/26"), which files as
+  // the Saturday before. Those are duplicates of the Sunday pick, not real uses.
+  const picksByDate = new Map(
+    serviceSongs.map((s) => [
+      s.date,
+      new Set(
+        Object.values(s.selections || {}).map((x) => normalizeTitle(x?.title)),
+      ),
+    ]),
+  );
+  const nextDayKey = (dateUsed) =>
+    usageDateKey(new Date(new Date(dateUsed).getTime() + 24 * 3600000));
+  const shiftedImports = usage.flatMap((d) =>
+    (d.uses || [])
+      .filter(
+        (u) =>
+          !serviceDates.has(usageDateKey(u.dateUsed)) &&
+          picksByDate.get(nextDayKey(u.dateUsed))?.has(normalizeTitle(d.title)),
+      )
+      .map((u) => ({ doc: d, use: u })),
+  );
+
   let db = live;
   if (!APPLY) {
     db = memoryDb({
@@ -102,17 +125,37 @@ const main = async () => {
       new Date().toISOString().replace(/[:.]/g, "-"),
     );
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(
-      path.join(dir, "song_usage.json"),
-      JSON.stringify(usage, null, 1),
-    );
-    fs.writeFileSync(
-      path.join(dir, "songs.json"),
-      JSON.stringify(songs, null, 1),
-    );
+    for (const [name, docs] of [
+      ["song_usage", usage],
+      ["songs", songs],
+    ]) {
+      const file = path.join(dir, `${name}.json`);
+      fs.writeFileSync(file, ejson(docs));
+      // Refuse to write anything unless the backup restores to the same data
+      if (
+        ejson(
+          BSON.EJSON.parse(fs.readFileSync(file, "utf8"), { relaxed: false }),
+        ) !== ejson(docs)
+      )
+        throw new Error(
+          `Backup of ${name} does not round-trip; nothing written`,
+        );
+    }
     console.log(
       `Backed up song_usage (${usage.length}) and songs (${songs.length}) to ${dir}`,
     );
+  }
+
+  for (const { doc, use } of shiftedImports) {
+    console.log(
+      `  shifted import: "${doc.title}" ${usageDateKey(use.dateUsed)} (service ${nextDayKey(use.dateUsed)})`,
+    );
+    await db
+      .collection("song_usage")
+      .updateOne(
+        { _id: doc._id },
+        { $pull: { uses: { dateUsed: use.dateUsed } } },
+      );
   }
 
   for (const s of serviceSongs) {
@@ -167,7 +210,7 @@ const main = async () => {
   console.log(
     `\n${APPLY ? "APPLIED" : "DRY RUN (nothing written)"}\n` +
       `history entries: ${before} before -> ${after} after\n` +
-      `entries on dates with no service record (left alone): ${orphanDates}\n` +
+      `entries on dates with no service record: ${orphanDates} (${shiftedImports.length} were Saturday-shifted imports, removed; the rest left alone)\n` +
       `song notes cleaned: ${staleSongs.length}\n` +
       `picks whose history isn't under the Song Database's spelling: ${misfiled}`,
   );
